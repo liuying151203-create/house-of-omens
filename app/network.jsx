@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { HEROES } from '@/lib/game-data.mjs';
+import { gameModeLabel } from '../lib/game-view.mjs';
 const SESSION = 'hillhouse-network-session';
 export function useNetwork(setGame) {
   const [session, setSession] = useState(null),
@@ -172,6 +173,13 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
         <div>
           <span className="eyebrow">GATHER AROUND THE TABLE</span>
           <h1>一起进入宅邸</h1>
+          <p>
+            {gameModeLabel({
+              scenario: r?.scenario || scenario,
+              automaticHaunt: (r?.scenario || scenario) === 'mystery',
+              phase: 'explore',
+            })}
+          </p>
           <p>局域网试玩 · 每人控制自己的角色，空位由房主代管。</p>
         </div>
         <button

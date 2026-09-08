@@ -40,7 +40,6 @@ import {
   Library,
   Users,
   Maximize,
-  MousePointer2,
 } from 'lucide-react';
 import {
   Dialog,
@@ -74,6 +73,17 @@ import {
   validSave,
 } from '@/lib/game-engine.mjs';
 import Workshop from './workshop';
+import WerewolfPanel from './werewolf-panel';
+import FactionRoster from './faction-roster';
+import AttributeFeedback, { useAttributeChanges } from './attribute-feedback';
+import {
+  hauntCardRule,
+  gameModeLabel,
+  publicEnemies,
+  enemyMark,
+  canInspectHero,
+} from '../lib/game-view.mjs';
+import { moonlit, windowsOf, statusOf } from '../lib/werewolf.mjs';
 import DiceRequest from './dice-request';
 import DamagePlanner from './damage-planner';
 import { useNetwork, NetworkLobby } from './network';
@@ -96,15 +106,25 @@ function readSave() {
   }
 }
 const serverSave = () => null;
-const iconMap = { bells: Bell, mirror: Eye, flood: Waves },
+const iconMap = {
+    mystery: Compass,
+    werewolf: Flame,
+    bells: Bell,
+    mirror: Eye,
+    flood: Waves,
+  },
   cardIcons = { event: Sparkles, item: Package, omen: Eye };
 const targetLabels = {
+    moonSeal: '月印',
+    moonRitual: '解咒入口',
     seal: '祭坛',
     mirror: '古镜',
     fuse: '保险丝',
     generator: '发电机',
   },
   targetActions = {
+    moonSeal: '净化月印',
+    moonRitual: '完成解咒',
     seal: '进行封印',
     mirror: '调查古镜',
     fuse: '拾取保险丝',
@@ -119,6 +139,13 @@ function TileFace({ tile, rotation = tile.rotation || 0 }) {
   const CardIcon = cardIcons[tile.icon];
   return (
     <>
+      {windowsOf({ ...tile, rotation }).map((d) => (
+        <span
+          key={'window' + d}
+          className={'tile-window window-' + d}
+          title="窗户"
+        />
+      ))}
       <span
         className="tile-art"
         style={{ ...atlas(tile.art), transform: `rotate(${rotation * 90}deg)` }}
@@ -161,11 +188,18 @@ function Dice({ dice, label, presented = false }) {
     </div>
   );
 }
-function Traits({ hero, compact = false }) {
+function Traits({ hero, compact = false, changes = [] }) {
   return (
     <div className={'traits-grid ' + (compact ? 'compact-traits' : '')}>
       {TRAIT_KEYS.map((k) => (
-        <div className={'trait-row trait-' + k} key={k}>
+        <div
+          className={
+            'trait-row trait-' +
+            k +
+            (changes.some((c) => c.trait === k) ? ' trait-changed' : '')
+          }
+          key={k}
+        >
           <div className="trait-caption">
             <span>{TRAITS[k]}</span>
             <strong>{traitValue(hero, k)}</strong>
@@ -356,6 +390,12 @@ function Prompt({
                 )
               ) : (
                 <p>{c.effect}</p>
+              )}
+              {hauntCardRule(c, game) && (
+                <div className="haunt-card-rule">
+                  <strong>☾ 作祟能力已解锁</strong>
+                  <p>{hauntCardRule(c, game)}</p>
+                </div>
               )}
               <span className="card-owner">
                 由 {h.name} 结算 · 抽卡后本回合停止移动
@@ -565,6 +605,23 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
                       aria-label={h.name}
                     >
                       {h.mark}
+                      {statusOf(h, 'infection') && (
+                        <sup className="infection-badge">
+                          {statusOf(h, 'infection').turns}
+                        </sup>
+                      )}
+                    </span>
+                  ))}
+                {publicEnemies(game)
+                  .filter((e) => roomAt(game, e.pos)?.floor === f.id)
+                  .map((e) => (
+                    <span
+                      className="floor-hero floor-enemy"
+                      key={e.id}
+                      title={e.name + ' · ' + f.name}
+                      aria-label={e.name + '位于' + f.name}
+                    >
+                      {enemyMark(e)}
                     </span>
                   ))}
               </span>
@@ -629,7 +686,7 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
             const occupants = game.heroes.filter(
                 (h) => h.pos === r.id && !h.dead && !h.traitor,
               ),
-              enemies = game.enemies.filter((e) => e.pos === r.id),
+              enemies = publicEnemies(game).filter((e) => e.pos === r.id),
               here = hero.pos === r.id;
             return (
               <button
@@ -641,17 +698,18 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
                   'modular-room ' +
                   (here ? 'current ' : '') +
                   (legal.move.includes(r.id) ? 'reachable ' : '') +
-                  (r.target ? 'quest-room' : '')
+                  (r.target ? 'quest-room ' : '') +
+                  (moonlit(game, r) ? 'moonlit-room' : '')
                 }
                 style={{ gridColumn: r.x - minX + 1, gridRow: r.y - minY + 1 }}
                 aria-label={`${r.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
               >
                 <TileFace tile={r} />
-                {here && !hero.ended && (
-                  <span className="moving-label">
-                    <MousePointer2 size={12} />
-                    {hero.name}行动中
-                  </span>
+                {moonlit(game, r) && (
+                  <span className="moon-marker">☾ 月光 · 狼力 +1</span>
+                )}
+                {r.states?.boarded && (
+                  <span className="moon-marker boarded">▥ 已封窗</span>
                 )}
                 {r.target && (
                   <span className={'quest-marker ' + (r.done ? 'done' : '')}>
@@ -671,6 +729,14 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
                       }
                       style={{ backgroundColor: h.color }}
                       key={h.id}
+                      title={
+                        h.name +
+                        (h.id === game.active && !h.ended ? ' · 当前行动' : '')
+                      }
+                      aria-label={
+                        h.name +
+                        (h.id === game.active && !h.ended ? ' · 当前行动' : '')
+                      }
                     >
                       {h.mark}
                     </span>
@@ -681,7 +747,11 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
                       key={e.id}
                       title={e.name + ' ' + e.hp + '/' + e.maxHp}
                     >
-                      <Ghost size={13} />
+                      {['alpha', 'wolf'].includes(e.kind) ? (
+                        '🐺'
+                      ) : (
+                        <Ghost size={13} />
+                      )}
                     </span>
                   ))}
                 </span>
@@ -738,9 +808,6 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
                 {isPlacement ? (
                   <>
                     <TileFace tile={tile} rotation={placement.rotation} />
-                    <span className="snap-label">
-                      {snapped ? '已吸附 · 待确认' : '落位预览'}
-                    </span>
                   </>
                 ) : (
                   <>
@@ -842,7 +909,7 @@ function Board({ game, send, zoom, setZoom, locked = false }) {
 }
 export default function Home() {
   const [game, setGame] = useState(null),
-    [choice, setChoice] = useState('bells'),
+    [choice, setChoice] = useState('mystery'),
     [count, setCount] = useState(3),
     [help, setHelp] = useState(false),
     [confirm, setConfirm] = useState(null),
@@ -854,6 +921,7 @@ export default function Home() {
     [partyOpen, setPartyOpen] = useState(false),
     [storyOpen, setStoryOpen] = useState(false);
   const net = useNetwork(setGame);
+  const attributeFeedback = useAttributeChanges(game);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -955,7 +1023,10 @@ export default function Home() {
   }
   function send(a) {
     if (net.session && a.type !== 'viewFloor') {
-      if ((waiting && !['rollDice', 'rollAll'].includes(a.type)) || net.busy)
+      if (
+        (waiting && !['rollDice', 'rollAll', 'wolfOrder'].includes(a.type)) ||
+        net.busy
+      )
         return;
       void net.update({ type: 'action', action: a });
       return;
@@ -1062,7 +1133,11 @@ export default function Home() {
           </div>
         </header>
         {view === 'workshop' ? (
-          <Workshop onClose={() => setView('game')} TileFace={TileFace} />
+          <Workshop
+            onClose={() => setView('game')}
+            TileFace={TileFace}
+            game={game}
+          />
         ) : !game && (view === 'network' || net.session) ? (
           <NetworkLobby
             net={net}
@@ -1113,56 +1188,75 @@ export default function Home() {
             <section className="scenario-section">
               <div className="section-line">
                 <div>
-                  <span className="eyebrow">CHOOSE YOUR STORY</span>
-                  <h2>今晚，哪段故事会发生？</h2>
+                  <span className="eyebrow">THE HOUSE CHOOSES</span>
+                  <h2>先探索，再揭晓今晚的故事</h2>
                 </div>
                 <span className="muted">抽取房间 · 旋转拼接 · 翻开命运</span>
               </div>
-              <div className="scenario-grid">
-                {SCENARIOS.map((s, i) => {
-                  const I = iconMap[s.id];
-                  return (
-                    <button
-                      key={s.id}
-                      className={
-                        'scenario-card ' + (choice === s.id ? 'selected' : '')
-                      }
-                      onClick={() => setChoice(s.id)}
-                      aria-pressed={choice === s.id}
-                      style={{ '--scenario-color': s.color }}
-                    >
-                      <div
-                        className="scenario-art"
-                        style={atlas([3, 8, 7][i])}
-                      />
-                      <div className="scenario-shade" />
-                      <span className="chapter-no">{s.number}</span>
-                      <I className="chapter-icon" size={27} />
-                      <div className="scenario-copy">
-                        <span className="scenario-type">{s.type}</span>
-                        <h3>{s.title}</h3>
-                        <p>{s.intro}</p>
-                        <div className="chapter-footer">
-                          <span>{s.difficulty}难度</span>
-                          <span>
-                            {choice === s.id ? (
-                              <>
-                                <Check size={14} />
-                                已选择
-                              </>
-                            ) : (
-                              <>
-                                选择故事
-                                <ArrowRight size={15} />
-                              </>
-                            )}
-                          </span>
+              <button
+                className="gold-button"
+                onClick={() => setChoice('mystery')}
+              >
+                未知的夜晚 ·{' '}
+                {choice === 'mystery' ? '已选择组合触发' : '恢复组合触发'}
+              </button>
+              <p className="muted">
+                预兆与发现它的房间共同决定剧本。已有四个故事等待揭晓。
+              </p>
+              <details className="scenario-testing">
+                <summary>
+                  定向试玩（测试入口） ·{' '}
+                  {choice === 'mystery' ? '未指定剧本' : sc.title}
+                </summary>
+                <div className="scenario-grid">
+                  {SCENARIOS.filter((s) => s.id !== 'mystery').map((s, i) => {
+                    const I = iconMap[s.id];
+                    return (
+                      <button
+                        key={s.id}
+                        className={
+                          'scenario-card ' + (choice === s.id ? 'selected' : '')
+                        }
+                        onClick={() => setChoice(s.id)}
+                        aria-pressed={choice === s.id}
+                        aria-label={
+                          (s.id === 'werewolf' ? '狼人剧本 · ' : '') + s.title
+                        }
+                        style={{ '--scenario-color': s.color }}
+                      >
+                        <div
+                          className="scenario-art"
+                          style={atlas([5, 3, 8, 7][i])}
+                        />
+                        <div className="scenario-shade" />
+                        <span className="chapter-no">{s.number}</span>
+                        <I className="chapter-icon" size={27} />
+                        <div className="scenario-copy">
+                          <span className="scenario-type">{s.type}</span>
+                          <h3>{s.title}</h3>
+                          <p>{s.intro}</p>
+                          <div className="chapter-footer">
+                            <span>{s.difficulty}难度</span>
+                            <span>
+                              {choice === s.id ? (
+                                <>
+                                  <Check size={14} />
+                                  已选择
+                                </>
+                              ) : (
+                                <>
+                                  选择故事
+                                  <ArrowRight size={15} />
+                                </>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
               <div className="team-setup">
                 <div>
                   <span className="eyebrow">YOUR EXPLORERS</span>
@@ -1202,10 +1296,15 @@ export default function Home() {
                   {saved && (
                     <button
                       className="secondary-button"
-                      onClick={() => setGame(saved)}
+                      onClick={() => {
+                        setChoice(
+                          saved.automaticHaunt ? 'mystery' : saved.scenario,
+                        );
+                        setGame(saved);
+                      }}
                     >
                       <RotateCcw size={16} />
-                      继续探索
+                      继续旧局 · {gameModeLabel(saved)}
                     </button>
                   )}
                   <button
@@ -1214,7 +1313,12 @@ export default function Home() {
                       setGame(createGame(choice, Date.now(), count))
                     }
                   >
-                    推开大门
+                    新开一局 ·{' '}
+                    {gameModeLabel({
+                      scenario: choice,
+                      automaticHaunt: choice === 'mystery',
+                      phase: 'explore',
+                    })}
                     <ArrowRight size={19} />
                   </button>
                 </div>
@@ -1264,7 +1368,16 @@ export default function Home() {
               <small>
                 {FLOORS.find((f) => f.id === room.floor).name} · {room.name}
               </small>
+              <small className="current-game-mode">{gameModeLabel(game)}</small>
             </div>
+            <AttributeFeedback
+              feedback={{
+                ...attributeFeedback,
+                changes: attributeFeedback.changes.filter((c) =>
+                  canInspectHero(game, game.heroes[c.heroId], net.room),
+                ),
+              }}
+            />
             <div className="map-focus-toolbar">
               <button
                 className={'secondary-button ' + (partyOpen ? 'selected' : '')}
@@ -1318,141 +1431,106 @@ export default function Home() {
                     </span>
                   </h2>
                 </div>
-                <div className="hero-list">
-                  {game.heroes.map((h) => (
-                    <button
-                      key={h.id}
-                      className={
-                        'hero-card ' +
-                        (h.id === game.active ? 'active ' : '') +
-                        (h.dead || h.traitor ? 'fallen' : '')
-                      }
-                      style={{ '--hero-color': h.color }}
-                      onClick={() => send({ type: 'select', id: h.id })}
-                      disabled={
-                        h.dead ||
-                        h.traitor ||
-                        !!p ||
-                        (!!net.session &&
-                          (waiting ||
-                            (net.room?.seats[h.id] || net.room?.hostId) !==
-                              net.room?.you))
-                      }
-                      aria-pressed={h.id === game.active}
-                    >
-                      <div className="hero-heading">
-                        <span className="hero-portrait">
-                          {h.traitor ? (
-                            <Ghost size={24} />
-                          ) : h.dead ? (
-                            <Skull size={24} />
+                <FactionRoster
+                  game={game}
+                  send={send}
+                  net={net}
+                  waiting={waiting}
+                  pending={p}
+                  Traits={Traits}
+                  changes={attributeFeedback.changes}
+                />
+                {canInspectHero(game, hero, net.room) ? (
+                  <div className="inventory">
+                    <div className="mini-heading">
+                      <span>
+                        <Package size={15} />
+                        物品与预兆
+                      </span>
+                      <span>{hero.items.length + hero.omens.length}</span>
+                    </div>
+                    {!hero.items.length && !hero.omens.length && (
+                      <p className="empty-inventory">
+                        发现带图标的房间，
+                        <br />
+                        会自动抽取对应卡牌。
+                      </p>
+                    )}
+                    {hero.items.map((id) => {
+                      const c = ITEMS.find((c) => c.id === id);
+                      return (
+                        <div className="item-card" key={id}>
+                          <strong>{c.title}</strong>
+                          <p>{c.effect}</p>
+                          {c.use === 'movement' ? (
+                            <button
+                              className="text-button"
+                              disabled={
+                                !!p ||
+                                hero.ended ||
+                                hero.stopped ||
+                                hero.used.includes(id)
+                              }
+                              onClick={() => send({ type: 'useItem', id })}
+                            >
+                              {hero.stopped
+                                ? '本轮已停止移动 · 下轮可饮用'
+                                : '饮用 · 剩余移动力 +2'}
+                            </button>
+                          ) : c.use ? (
+                            <div className="item-use-options">
+                              {(c.use === 'healPhysical'
+                                ? ['might', 'speed']
+                                : ['sanity', 'knowledge']
+                              ).map((k) => (
+                                <button
+                                  key={k}
+                                  disabled={
+                                    !!p ||
+                                    hero.ended ||
+                                    hero.stats[k] >= hero.start[k]
+                                  }
+                                  onClick={() =>
+                                    send({ type: 'useItem', id, trait: k })
+                                  }
+                                >
+                                  恢复{TRAITS[k]}
+                                </button>
+                              ))}
+                            </div>
                           ) : (
-                            h.mark
+                            <span className="passive-label">
+                              携带效果已生效
+                            </span>
                           )}
-                        </span>
-                        <span className="hero-title">
-                          <strong>{h.name}</strong>
-                          <small>
-                            {h.traitor ? '已叛变' : h.dead ? '已死亡' : h.role}
-                          </small>
-                        </span>
-                        {h.id === game.active && (
-                          <span className="active-mark">行动中</span>
-                        )}
-                      </div>
-                      <Traits hero={h} compact={h.id !== game.active} />
-                      <div className="hero-bottom">
-                        <span>
-                          {
-                            FLOORS.find(
-                              (f) => f.id === roomAt(game, h.pos).floor,
-                            ).name
-                          }{' '}
-                          · {roomAt(game, h.pos).name}
-                        </span>
-                        <span>
-                          {h.ended
-                            ? '已结束'
-                            : h.stopped
-                              ? '已停止移动'
-                              : `${h.moves}移动`}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <div className="inventory">
-                  <div className="mini-heading">
-                    <span>
-                      <Package size={15} />
-                      物品与预兆
-                    </span>
-                    <span>{hero.items.length + hero.omens.length}</span>
+                        </div>
+                      );
+                    })}
+                    {hero.omens.map((id) => {
+                      const c = OMENS.find((c) => c.id === id);
+                      return (
+                        <div className="item-card omen-item" key={id}>
+                          <strong>
+                            <Eye size={13} />
+                            {c.title}
+                          </strong>
+                          <p>{c.effect}</p>
+                          {hauntCardRule(c, game) && (
+                            <div className="haunt-card-rule">
+                              <strong>☾ 作祟能力已解锁</strong>
+                              <p>{hauntCardRule(c, game)}</p>
+                            </div>
+                          )}
+                          <span className="passive-label">获得效果已结算</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {!hero.items.length && !hero.omens.length && (
-                    <p className="empty-inventory">
-                      发现带图标的房间，
-                      <br />
-                      会自动抽取对应卡牌。
-                    </p>
-                  )}
-                  {hero.items.map((id) => {
-                    const c = ITEMS.find((c) => c.id === id);
-                    return (
-                      <div className="item-card" key={id}>
-                        <strong>{c.title}</strong>
-                        <p>{c.effect}</p>
-                        {c.use === 'movement' ? (
-                          <button
-                            className="text-button"
-                            disabled={
-                              !!p || hero.ended || hero.used.includes(id)
-                            }
-                            onClick={() => send({ type: 'useItem', id })}
-                          >
-                            饮用 · 移动力 +2
-                          </button>
-                        ) : c.use ? (
-                          <div className="item-use-options">
-                            {(c.use === 'healPhysical'
-                              ? ['might', 'speed']
-                              : ['sanity', 'knowledge']
-                            ).map((k) => (
-                              <button
-                                key={k}
-                                disabled={
-                                  !!p ||
-                                  hero.ended ||
-                                  hero.stats[k] >= hero.start[k]
-                                }
-                                onClick={() =>
-                                  send({ type: 'useItem', id, trait: k })
-                                }
-                              >
-                                恢复{TRAITS[k]}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="passive-label">携带效果已生效</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {hero.omens.map((id) => {
-                    const c = OMENS.find((c) => c.id === id);
-                    return (
-                      <div className="item-card omen-item" key={id}>
-                        <strong>
-                          <Eye size={13} />
-                          {c.title}
-                        </strong>
-                        <p>{c.effect}</p>
-                        <span className="passive-label">获得效果已结算</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                ) : (
+                  <p className="private-info">
+                    对方阵营的随身物品与属性轨不公开。
+                  </p>
+                )}
                 <div className="save-status">
                   <Save size={13} />
                   {net.session
@@ -1474,6 +1552,12 @@ export default function Home() {
                   <Sparkles size={16} />
                   {game.feedback}
                 </output>
+                <WerewolfPanel
+                  game={game}
+                  send={send}
+                  net={net}
+                  waiting={waiting}
+                />
                 <div className="action-bar">
                   <div className="current-room">
                     <span className="eyebrow">{hero.name} · 当前位置</span>
@@ -1629,15 +1713,17 @@ export default function Home() {
                         />
                       </div>
                       <div className="objective-progress">
-                        {game.scenario === 'bells'
-                          ? `${game.progress}/3 祭坛已封印`
-                          : game.scenario === 'mirror'
-                            ? game.mirrorFound
-                              ? '真身已现形！'
-                              : `${game.progress}/3 古镜已调查`
-                            : game.powered
-                              ? '电力已恢复，返回入口'
-                              : `${game.fuses}/2 保险丝已找到`}
+                        {game.scenario === 'werewolf'
+                          ? game.progress + '/2 月印已净化；全部完成后回入口'
+                          : game.scenario === 'bells'
+                            ? `${game.progress}/3 祭坛已封印`
+                            : game.scenario === 'mirror'
+                              ? game.mirrorFound
+                                ? '真身已现形！'
+                                : `${game.progress}/3 古镜已调查`
+                              : game.powered
+                                ? '电力已恢复，返回入口'
+                                : `${game.fuses}/2 保险丝已找到`}
                       </div>
                       <ul className="target-list">
                         {(game.targetRooms || []).map((id) => {
@@ -1659,6 +1745,9 @@ export default function Home() {
                                   {r.name}
                                   <small>
                                     {targetLabels[r.target]}
+                                    {r.target === 'moonSeal'
+                                      ? ` · ${r.charges || 0}/${r.requiredCharges} 次净化`
+                                      : ''}
                                     {r.done ? ' · 已完成' : ''}
                                   </small>
                                 </span>
@@ -1737,10 +1826,20 @@ export default function Home() {
                   <Skull size={38} />
                 )}
                 <DialogTitle>
-                  {game.result?.won ? '你们看见了黎明。' : '宅邸留下了你们。'}
+                  {game.scenario === 'werewolf'
+                    ? game.result?.won
+                      ? '解围成功 · 好人阵营获胜'
+                      : '血月终夜 · 狼群阵营获胜'
+                    : game.result?.won
+                      ? '你们看见了黎明。'
+                      : '宅邸留下了你们。'}
                 </DialogTitle>
                 <DialogDescription>
-                  {game.result?.won ? sc.ending : game.result?.reason}
+                  {game.scenario === 'werewolf'
+                    ? game.result?.reason
+                    : game.result?.won
+                      ? sc.ending
+                      : game.result?.reason}
                 </DialogDescription>
                 <div className="result-stats">
                   <span>
@@ -1758,7 +1857,13 @@ export default function Home() {
                   onClick={() =>
                     net.session
                       ? (net.leave(), setView('network'))
-                      : setGame(createGame(sc.id, Date.now(), game.count))
+                      : setGame(
+                          createGame(
+                            game.automaticHaunt ? 'mystery' : sc.id,
+                            Date.now(),
+                            game.count,
+                          ),
+                        )
                   }
                 >
                   再来一局
@@ -1772,7 +1877,7 @@ export default function Home() {
                     setView('game');
                   }}
                 >
-                  选择另一个故事
+                  返回入屋准备
                 </button>
               </DialogContent>
             </Dialog>
@@ -1827,7 +1932,7 @@ export default function Home() {
             </ol>
             <p className="help-note">
               36张房间牌、10张事件卡、10张物品卡、12张预兆卡均为本 Demo
-              的原创内容。保留三个原创剧本和单人模式；仍未覆盖原版全部特殊房间、卡牌交易、怪物规则；已加入局域网联机，异地联网将在后续扩展。
+              的原创内容。包含四个原创剧本、单人模式与局域网联机；仍未覆盖原版全部特殊房间、卡牌交易、怪物规则，异地联网将在后续扩展。
             </p>
             <button className="gold-button" onClick={() => setHelp(false)}>
               我准备好了

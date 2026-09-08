@@ -17,8 +17,9 @@ import {
   validateDraft,
 } from '@/lib/catalog.mjs';
 import { FLOORS, TRAITS } from '@/lib/game-data.mjs';
+import { hauntCardRule } from '../lib/game-view.mjs';
 const KEY = 'hillhouse-workshop-v1';
-export default function Workshop({ onClose, TileFace }) {
+export default function Workshop({ onClose, TileFace, game }) {
   const [category, setCategory] = useState('rooms'),
     [query, setQuery] = useState(''),
     [drafts, setDrafts] = useState([]),
@@ -393,6 +394,12 @@ export default function Workshop({ onClose, TileFace }) {
                     />
                   </label>
                 ))}
+              {hauntCardRule(edit, game) && (
+                <div className="haunt-card-rule">
+                  <strong>☾ 作祟能力已解锁</strong>
+                  <p>{hauntCardRule(edit, game)}</p>
+                </div>
+              )}
               {edit.success && (
                 <div className="card-rules">
                   <strong>

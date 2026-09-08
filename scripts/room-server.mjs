@@ -55,7 +55,9 @@ export function createRoomService({
       const count = Number(data.count);
       if (
         ![3, 4, 5, 6].includes(count) ||
-        !['bells', 'mirror', 'flood'].includes(data.scenario)
+        !['mystery', 'werewolf', 'bells', 'mirror', 'flood'].includes(
+          data.scenario,
+        )
       )
         fail(400, '剧本或人数不正确。');
       let code;
@@ -146,6 +148,9 @@ export function createRoomService({
             'rest',
             'attack',
             'interact',
+            'boardWindow',
+            'cure',
+            'wolfOrder',
           ].includes(a.type)
         )
           fail(400, '不支持的操作。');
@@ -153,7 +158,12 @@ export function createRoomService({
         if (a.type === 'select' && activeOwner !== player.id)
           fail(403, '请等当前玩家结束行动后再切换角色。');
         const p = pending(r.game),
-          heroId = a.type === 'select' ? a.id : (p?.heroId ?? r.game.active),
+          heroId =
+            a.type === 'wolfOrder'
+              ? a.heroId
+              : a.type === 'select'
+                ? a.id
+                : (p?.heroId ?? r.game.active),
           owner = r.seats[heroId] || r.hostId;
         const global =
           p &&

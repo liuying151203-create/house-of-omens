@@ -149,14 +149,38 @@ export default function DiceRequest({
                       : '由你投掷'}
                   {done ? ' · 已投掷' : ''}
                 </small>
-                <EmojiDice
-                  dice={r.dice}
-                  count={r.count}
-                  motion={motion}
-                  onSettled={() =>
-                    setSettled((v) => (v.includes(r.id) ? v : [...v, r.id]))
-                  }
-                />
+                <div className="dice-with-action">
+                  <EmojiDice
+                    dice={r.dice}
+                    count={r.count}
+                    motion={motion}
+                    onSettled={() =>
+                      setSettled((v) => (v.includes(r.id) ? v : [...v, r.id]))
+                    }
+                  />
+                  {!r.dice && (
+                    <button
+                      className="roll-small-button"
+                      disabled={!own || r.computer || net?.busy}
+                      aria-label={
+                        own
+                          ? '投掷' + (r.label || '这一组骰子')
+                          : '等待对方投掷'
+                      }
+                      title={
+                        r.computer
+                          ? '电脑自动投掷'
+                          : own
+                            ? '投掷这一组'
+                            : '等待对方投掷'
+                      }
+                      onClick={() => send({ type: 'rollDice', sideId: r.id })}
+                    >
+                      <Dices size={18} />
+                      <span>{r.computer ? '自动' : own ? '投掷' : '等待'}</span>
+                    </button>
+                  )}
+                </div>
                 {done ? (
                   <div className="side-total">
                     点数{' '}
@@ -168,15 +192,7 @@ export default function DiceRequest({
                   </div>
                 ) : r.dice ? (
                   <span className="roll-wait">骰子翻滚中…</span>
-                ) : (
-                  <button
-                    className="secondary-button"
-                    disabled={!own || net?.busy}
-                    onClick={() => send({ type: 'rollDice', sideId: r.id })}
-                  >
-                    {own ? '投掷这一组' : '等待对方投掷'}
-                  </button>
-                )}
+                ) : null}
                 {i < p.rolls.length - 1 && (
                   <span className="roll-versus">VS</span>
                 )}
@@ -184,18 +200,6 @@ export default function DiceRequest({
             );
           })}
         </div>
-        {!finished && (
-          <button
-            className="gold-button"
-            disabled={!available.length || net?.busy}
-            onClick={() =>
-              send({ type: 'rollAll', sideIds: available.map((r) => r.id) })
-            }
-          >
-            <Dices size={20} />
-            {available.length ? '投掷全部可控骰子' : '等待其他玩家投掷'}
-          </button>
-        )}
         {finished && (
           <button
             className="gold-button"

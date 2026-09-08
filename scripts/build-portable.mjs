@@ -37,7 +37,7 @@ const js = result.outputFiles[0].text
   .replaceAll('</script', '<\\/script');
 await fs.writeFile(
   out + '.tmp',
-  `<!doctype html><html lang="zh-CN" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>山屋惊魂 · 三个午夜故事</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,
+  `<!doctype html><html lang="zh-CN" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>预兆之屋 · 四个午夜故事</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,
 );
 await fs.rename(out + '.tmp', out);
 console.log('Portable single-file demo created:', out);

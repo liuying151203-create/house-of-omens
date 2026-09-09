@@ -4,6 +4,7 @@ import './game.css';
 import './revision.css';
 import './iteration-three.css';
 import './immersion.css';
+import './map-stage.css';
 
 export const metadata: Metadata = {
   title: '预兆之屋 · 四个午夜故事',
@@ -22,4 +23,3 @@ export default function RootLayout({
     </html>
   );
 }
-

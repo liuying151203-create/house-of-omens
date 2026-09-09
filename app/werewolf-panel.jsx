@@ -1,3 +1,4 @@
+import { cardCureBonus } from '../lib/card-rules.mjs';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
 export default function WerewolfPanel({ game, send, net, waiting }) {
   if (game.scenario !== 'werewolf' || game.phase !== 'haunt') return null;
@@ -49,8 +50,8 @@ export default function WerewolfPanel({ game, send, net, waiting }) {
               onClick={() => send({ type: 'cure', heroId: x.id })}
             >
               治疗{x.name} · 知识 3+
-              {h.omens.includes('locket') || x.omens.includes('locket')
-                ? ' · 吊坠 +2'
+              {cardCureBonus(game, h, x)
+                ? ' · 卡牌 +' + cardCureBonus(game, h, x)
                 : ''}
             </button>
           ))}

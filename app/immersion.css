@@ -349,7 +349,7 @@
   text-shadow: 0 1px #fff7;
 }
 .is-rolling .emoji-die {
-  animation: emote-roll 0.8s ease-in-out both;
+  animation: emote-roll 0.75s ease-in-out infinite;
   animation-delay: var(--die-delay);
 }
 .rolling-faces {
@@ -638,7 +638,7 @@
   background: #332e27ee;
 }
 .moonlit-room {
-  box-shadow: inset 0 0 28px #b2ceff38 !important;
+  box-shadow: inset 0 0 0 1px #afcee74d;
 }
 .tile-window {
   position: absolute;
@@ -691,6 +691,121 @@
 }
 
 /* Keep room edges clear; the active pawn carries the turn indicator. */
+.quick-playtest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  margin-top: 16px;
+  border: 1px solid #819abb;
+  border-radius: 10px;
+  background: #172738;
+}
+.quick-playtest > div {
+  flex: 1 1 280px;
+}
+.quick-playtest strong {
+  color: #d4e4f7;
+  font-size: 16px;
+}
+.quick-playtest p {
+  color: #aabed2;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 8px 0 0;
+}
+.quick-playtest button {
+  white-space: normal;
+}
+.network-start-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.playtest-preset-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+  flex: 1 1 240px;
+  color: #d4e4f7;
+  font-size: 14px;
+}
+.playtest-preset-picker select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #8095b3;
+  border-radius: 6px;
+  color: #eef4ff;
+  background: #223447;
+}
+.playtest-preset-picker small {
+  color: #aec3d7;
+  line-height: 1.6;
+}
+.playtest-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 22px;
+  padding: 12px 16px;
+  border: 1px dashed #839dba;
+  border-radius: 8px;
+  background: #182837;
+}
+.playtest-controls > div:first-child {
+  flex: 1 1 260px;
+}
+.playtest-controls strong {
+  color: #d1e2f4;
+  font-size: 14px;
+}
+.playtest-controls p,
+.playtest-controls small {
+  color: #aec1d3;
+  line-height: 1.6;
+  font-size: 12px;
+  margin: 5px 0 0;
+}
+.playtest-control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.playtest-control-buttons .secondary-button {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.playtest-controls > small,
+.playtest-controls > output {
+  flex-basis: 100%;
+}
+.playtest-controls > output {
+  color: #c1e4ce;
+  font-size: 13px;
+}
+.result-dialog .playtest-controls {
+  margin: 0;
+  text-align: left;
+}
+.prompt-test-tools {
+  border-top: 1px dashed #8093ac77;
+  padding-top: 10px;
+}
+.prompt-test-tools summary {
+  color: #b6c9df;
+  font-size: 12px;
+  cursor: pointer;
+}
+.prompt-test-tools .playtest-controls {
+  margin: 10px 0 0;
+}
+@media (max-width: 680px) {
+  .playtest-controls {
+    margin: 8px 10px;
+  }
+}
 .map-focus .pawn.selected-pawn {
   outline: 3px solid #ffe1a2 !important;
   outline-offset: 3px;

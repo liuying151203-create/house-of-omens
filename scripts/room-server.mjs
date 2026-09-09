@@ -1,4 +1,5 @@
 import { rollOwner } from '../lib/roll-ownership.mjs';
+import { createHauntPlaytest, playtestPresets } from '../lib/playtest.mjs';
 import http from 'node:http';
 import os from 'node:os';
 import fs from 'node:fs/promises';
@@ -125,7 +126,24 @@ export function createRoomService({
         if (player.id !== r.hostId) fail(403, '由房主开始游戏。');
         if (r.game) fail(409, '已经开局。');
         if (r.players.length < 2) fail(409, '至少邀请另一位玩家加入。');
-        r.game = gameFactory(r.scenario, Date.now(), r.count);
+        if (data.hauntPlaytest === true && r.scenario === 'mystery')
+          fail(400, '快速测试需要先指定剧本，请重新创建定向试玩房间。');
+        if (
+          data.hauntPlaytest === true &&
+          !playtestPresets(r.scenario).some(
+            (p) => p.id === (data.playtestFocus ?? 'basic'),
+          )
+        )
+          fail(400, '此剧本不支持所选测试场景。');
+        r.game =
+          data.hauntPlaytest === true
+            ? createHauntPlaytest(
+                r.scenario,
+                Date.now(),
+                r.count,
+                data.playtestFocus ?? 'basic',
+              )
+            : gameFactory(r.scenario, Date.now(), r.count);
       } else if (data.type === 'action') {
         if (!r.game) fail(409, '对局尚未开始。');
         const a = data.action;
@@ -140,6 +158,7 @@ export function createRoomService({
             'rotate',
             'place',
             'advance',
+            'resolveDice',
             'allocate',
             'allocateDamage',
             'rollDice',

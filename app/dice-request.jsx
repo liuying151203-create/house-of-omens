@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import { Dices, Check, ArrowRight } from 'lucide-react';
+import { Dices, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,11 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { rollOwner } from '@/lib/roll-ownership.mjs';
+const ROLL_ANIMATION_MS = 1500,
+  RESULT_HOLD_MS = 1400;
 function EmojiDice({ dice, count, motion, onSettled }) {
   const signature = dice?.join(',') ?? null,
-    [shown, setShown] = useState(signature);
+    [shown, setShown] = useState(null);
   const callback = useRef(onSettled);
   useEffect(() => {
     callback.current = onSettled;
@@ -22,7 +24,7 @@ function EmojiDice({ dice, count, motion, onSettled }) {
         setShown(signature);
         callback.current();
       },
-      motion && shown !== signature ? 950 : 0,
+      motion && shown !== signature ? ROLL_ANIMATION_MS : 0,
     );
     return () => clearTimeout(timer);
   }, [signature, motion, shown]);
@@ -72,12 +74,11 @@ export default function DiceRequest({
   toggleMotion,
   autoRoll,
   toggleAuto,
+  testTools,
 }) {
   const p = game.queue[0],
     room = net?.room,
-    [settled, setSettled] = useState(() =>
-      p.rolls.filter((r) => r.dice).map((r) => r.id),
-    );
+    [settled, setSettled] = useState([]);
   const mine = (r) => !room || rollOwner(room, r) === room.you;
   const available = p.rolls.filter((r) => !r.dice && mine(r)),
     automatic = available.filter((r) => autoRoll || r.computer);
@@ -90,7 +91,7 @@ export default function DiceRequest({
     if (!autoIds || net?.busy) return;
     const timer = setTimeout(
       () => sendRef.current({ type: 'rollAll', sideIds: autoIds.split(',') }),
-      350,
+      750,
     );
     return () => clearTimeout(timer);
   }, [autoIds, net?.busy]);
@@ -98,6 +99,14 @@ export default function DiceRequest({
     ready =
       finished && (!motion || p.rolls.every((r) => settled.includes(r.id)));
   const confirmer = !room || (room.seats[p.heroId] || room.hostId) === room.you;
+  useEffect(() => {
+    if (!ready || !confirmer || net?.busy) return;
+    const timer = setTimeout(
+      () => sendRef.current({ type: 'resolveDice', requestId: p.uid }),
+      RESULT_HOLD_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [ready, confirmer, net?.busy, p.uid]);
   return (
     <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent
@@ -201,19 +210,15 @@ export default function DiceRequest({
           })}
         </div>
         {finished && (
-          <button
-            className="gold-button"
-            disabled={!ready || !confirmer || net?.busy}
-            onClick={() => send({ type: 'advance' })}
-          >
+          <output className="dice-auto-status" aria-live="polite">
             {!ready
               ? '等待骰子停稳'
               : confirmer
-                ? '结算结果'
-                : '等待行动方结算'}
-            <ArrowRight size={18} />
-          </button>
+                ? '点数已揭晓，稍后自动结算…'
+                : '正在同步检定结果…'}
+          </output>
         )}
+        {testTools}
       </DialogContent>
     </Dialog>
   );

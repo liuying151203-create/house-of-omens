@@ -1,0 +1,1038 @@
+/* Stable tabletop regions: roster left, chapter right, explorer below. */
+.app.map-stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: #0b1317;
+}
+.map-stage [hidden] {
+  display: none !important;
+}
+.map-stage .game-layout {
+  display: block;
+  position: static;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+.map-stage .board-panel {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+}
+.map-stage .board-panel > * {
+  pointer-events: auto;
+}
+.map-stage .map-viewport,
+.map-stage:has(.placement-dock) .map-viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    #263a3b,
+    #142326 43%,
+    #080f15
+  );
+  touch-action: none;
+  overscroll-behavior: none;
+  cursor: grab;
+}
+.map-stage .map-viewport:active {
+  cursor: grabbing;
+}
+.map-stage .map-viewport.haunted-map {
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    #293342,
+    #16222d 42%,
+    #0c1019
+  );
+}
+.map-stage .modular-map {
+  padding: 100dvh 100vw;
+  min-height: 100%;
+  box-sizing: border-box;
+  align-content: start;
+  justify-content: start;
+}
+.map-stage .map-north,
+.map-stage .board-legend {
+  display: none;
+}
+.map-stage .topbar {
+  position: fixed;
+  inset: 16px 22px auto;
+  z-index: 35;
+  height: 54px;
+  padding: 7px 12px;
+  border: 1px solid #c3d7d329;
+  border-radius: 12px;
+  background: #101c23df;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 8px 30px #0003;
+}
+.map-stage .brand small {
+  display: none;
+}
+.map-stage .brand {
+  font-size: 18px;
+}
+.map-stage .top-center {
+  display: flex;
+  font-size: 14px;
+}
+.map-stage .settings-toggle {
+  margin-left: auto;
+}
+.map-stage .top-actions {
+  position: absolute;
+  right: 0;
+  top: 64px;
+  width: min(330px, calc(100vw - 44px));
+  padding: 16px;
+  flex-wrap: wrap;
+  border: 1px solid #acc5c442;
+  border-radius: 12px;
+  background: #15242af5;
+  box-shadow: 0 16px 45px #0007;
+}
+/* Only floor names are framed; occupants sit below their corresponding tab. */
+.map-stage .floor-tabs {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  gap: 5px;
+}
+.map-stage .floor-tabs [data-slot='tabs-list'] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  min-height: 42px;
+  gap: 3px;
+  padding: 3px;
+  background: #122129ed;
+  border: 1px solid #b9ccc52b;
+  border-radius: 10px;
+}
+.map-stage .floor-tabs [data-slot='tabs-trigger'] {
+  display: flex;
+  height: auto;
+  min-width: 0;
+  padding: 8px;
+  flex-wrap: nowrap;
+  border-radius: 7px;
+  font-size: 14px;
+}
+.floor-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.floor-occupants {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  pointer-events: none;
+}
+.map-stage .floor-party {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  padding: 5px 10px 7px;
+  border: 0;
+  background: transparent;
+}
+.map-stage .floor-hero {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  flex: 0 0 24px;
+  position: relative;
+  font-size: 12px;
+  pointer-events: auto;
+  box-shadow: 0 2px 7px #0009;
+}
+.map-stage .floor-hero-active {
+  outline-offset: 2px;
+}
+.map-stage .floor-hero .infection-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -5px;
+  top: auto;
+  line-height: 14px;
+  min-width: 16px;
+  font-size: 12px;
+  padding: 0 3px;
+}
+.map-stage .floor-hint {
+  font-size: 12px;
+  text-align: center;
+  color: #c8d5d5;
+}
+.map-stage .floor-hint:empty {
+  display: none;
+}
+.map-stage .board-heading {
+  position: fixed;
+  z-index: 5;
+  right: 22px;
+  bottom: 72px;
+  padding: 0;
+}
+.map-stage .board-heading > div:first-child {
+  display: none;
+}
+.map-stage .map-tools {
+  padding: 5px 8px;
+  border: 1px solid #b9ccc52b;
+  border-radius: 10px;
+  background: #122129e8;
+  font-size: 13px;
+}
+/* Navigation buttons belong to the window they open. */
+.floating-dock {
+  display: contents;
+}
+.floating-dock > button {
+  position: fixed;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 15px;
+  min-height: 42px;
+  border: 1px solid #b7cbc83d;
+  border-radius: 9px;
+  font-size: 14px;
+  color: #c7d5d7;
+  background: #101d25ed;
+  box-shadow: 0 7px 24px #0004;
+}
+.floating-dock > button[aria-expanded='true'],
+.floating-dock > button:hover {
+  background: #30454c;
+  color: #fff0d0;
+  border-color: #cebf935c;
+}
+.floating-dock small {
+  font-size: 12px;
+  margin-left: 7px;
+  color: #c7d5d7;
+}
+.floating-dock .roster-toggle {
+  left: 22px;
+  top: 84px;
+}
+.floating-dock .chapter-toggle {
+  right: 22px;
+  top: 84px;
+}
+.floating-dock .journal-toggle {
+  right: 22px;
+  bottom: 18px;
+}
+.floating-dock .tools-toggle {
+  left: 22px;
+  bottom: 18px;
+}
+.floating-dock .dock-action {
+  display: none;
+}
+@keyframes floating-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.map-stage .floating-window {
+  position: fixed;
+  z-index: 25;
+  top: 138px;
+  width: 280px;
+  max-height: calc(100dvh - 218px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 16px;
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid #adc7c345;
+  border-radius: 12px;
+  background: #14242af2;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 18px 65px #0006;
+  animation: floating-fade 0.18s ease-out;
+}
+.map-stage .floating-window > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.floating-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.floating-heading > strong {
+  font-size: 16px;
+  color: #ecdfc0;
+}
+.map-stage .party-panel {
+  left: 22px;
+  transform: none;
+}
+.map-stage .party-panel .panel-heading {
+  display: none;
+}
+.map-stage .story-panel {
+  left: auto;
+  right: 22px;
+  max-height: calc(50dvh - 115px);
+}
+.map-stage .story-top h2 {
+  font-size: 22px;
+}
+.map-stage .story-top .eyebrow {
+  font-size: 12px;
+}
+.map-stage .journal-panel {
+  left: auto;
+  right: 22px;
+  top: auto;
+  bottom: 125px;
+  max-height: calc(50dvh - 160px);
+}
+.map-stage .journal-panel .journal {
+  margin: 0;
+}
+.map-stage .journal-panel .journal-entries {
+  max-height: none;
+  overflow: visible;
+}
+.map-stage .actions-window,
+.map-stage .test-window {
+  top: 205px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100dvh - 230px);
+  z-index: 38;
+}
+.map-stage .test-window .playtest-controls {
+  margin: 0;
+}
+.map-stage .turn-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+}
+.map-stage .turn-banner > small {
+  width: 100%;
+}
+.map-stage .actions-window .action-bar {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 12px;
+  gap: 12px;
+}
+.map-stage .action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.map-stage .action-buttons > button {
+  width: 100%;
+  min-height: 44px;
+}
+.map-stage .wolf-panel {
+  margin: 0;
+  font-size: 14px;
+}
+.map-stage .rest-controls,
+.map-stage .deck-counter {
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.map-stage .turn-controls {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: stretch;
+  margin: 0;
+  padding: 12px 0 0;
+  background: transparent;
+}
+.map-stage .turn-controls > span,
+.map-stage .turn-controls > small {
+  font-size: 14px;
+  margin: 0;
+  white-space: normal;
+}
+.map-stage .turn-controls .gold-button {
+  width: 100%;
+}
+.map-stage .live-feedback {
+  margin: 0;
+  font-size: 14px;
+}
+/* Personal attributes are full tracks, with current and starting values highlighted. */
+.map-stage .personal-panel {
+  position: fixed;
+  z-index: 22;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(750px, calc(100vw - 650px));
+  max-height: min(360px, calc(100dvh - 230px));
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  padding: 14px;
+  border: 1px solid #aac6c452;
+  border-radius: 14px;
+  background: #12222bf2;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 14px 45px #0006;
+  font-size: 14px;
+  scrollbar-width: thin;
+}
+.personal-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.personal-heading > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 21px;
+  flex-shrink: 0;
+}
+.personal-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+}
+.personal-heading strong {
+  font-size: 18px;
+  color: #f4e7c8;
+}
+.personal-heading small,
+.personal-panel > small {
+  font-size: 12px;
+  color: #adc2c9;
+}
+.personal-panel > small {
+  grid-column: 1 / -1;
+}
+.personal-condition {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px 10px;
+  max-width: 240px;
+}
+.personal-condition b {
+  font-size: 13px;
+  color: #ebc494;
+}
+.personal-location {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #aebfbf;
+}
+.personal-panel .traits-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  gap: 8px 12px;
+}
+.personal-panel .trait-row {
+  padding: 6px;
+  background: #b4d6dc0c;
+  border-radius: 6px;
+}
+.personal-panel .trait-caption {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.personal-panel .trait-caption strong {
+  font-size: 18px;
+}
+.personal-panel .trait-track {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+}
+.personal-panel .trait-track > span {
+  flex: 1;
+  min-width: 0;
+  height: 23px;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+}
+.personal-panel .trait-track .trait-current {
+  background: #e2c990;
+  color: #12222b;
+  box-shadow: 0 0 0 1px #ffe0a0;
+  font-weight: 700;
+}
+.personal-panel .trait-track .trait-start {
+  border-bottom: 2px solid #e2c990;
+}
+.personal-carry {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+.personal-carry > strong {
+  font-size: 12px;
+  color: #b8c9ca;
+}
+.personal-carry .hero-inventory {
+  max-height: 65px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.personal-panel .enemy-public-stats {
+  grid-column: 1 / -1;
+}
+.hero-inventory {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.inventory-empty {
+  color: #99aeb2;
+  font-size: 13px;
+}
+.carried-card {
+  border: 1px solid #b8be9340;
+  border-radius: 6px;
+  background: #283537;
+  max-width: 100%;
+}
+.carried-card > summary {
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 8px;
+  color: #d8d9bb;
+}
+.carried-card[open] {
+  width: 100%;
+}
+.carried-card-content {
+  padding: 0 10px 10px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.personal-carry .hero-inventory {
+  max-height: 145px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.personal-actions {
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  bottom: -16px;
+  padding: 8px 0;
+  background: #12222b;
+}
+.personal-actions > button {
+  padding: 10px 9px;
+  font-size: 14px;
+  min-height: 42px;
+  flex: 1;
+}
+.personal-actions > .gold-button {
+  flex: 1.6;
+}
+.roster-person {
+  border: 1px solid #abc4be30;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.roster-person > .hero-card {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+}
+.roster-person > .hero-card:disabled {
+  opacity: 1;
+}
+.roster-person > .hero-card:disabled .active-mark {
+  opacity: 0.7;
+}
+.roster-person > .hero-inventory,
+.roster-person > .private-info {
+  padding: 10px;
+  border-top: 1px solid #abc4be20;
+}
+
+.personal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: end;
+  position: static;
+  padding: 0;
+  background: transparent;
+}
+.personal-actions > button {
+  padding: 8px 12px;
+  font-size: 14px;
+  min-height: 36px;
+  flex: none;
+}
+.personal-actions > .gold-button {
+  flex: none;
+}
+/* Moonlight becomes a small corner status, leaving room art and doors visible. */
+.map-stage .modular-room .moon-marker {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: auto;
+  bottom: auto;
+  width: 27px;
+  height: 23px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 6px;
+  border: 1px solid #b8d4ef77;
+  background: #17293adf;
+  color: #d3e9ff;
+  pointer-events: none;
+}
+.map-stage .modular-room .moon-marker sup {
+  font-size: 10px;
+  align-self: flex-start;
+  margin-top: 3px;
+}
+.map-stage .modular-room .moon-marker.boarded {
+  border-color: #9cbca177;
+  color: #cee3bf;
+  background: #1c3028df;
+}
+.map-stage .moonlit-room {
+  box-shadow: inset 0 0 0 1px #afcee74d;
+}
+.map-stage .overview-map .moon-marker {
+  display: none;
+}
+.map-stage .placement-dock {
+  position: fixed;
+  z-index: 30;
+  bottom: 325px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(670px, calc(100vw - 40px));
+  max-height: 30dvh;
+  overflow: auto;
+  margin: 0;
+  border-radius: 12px;
+  background: #192b32f5;
+  box-shadow: 0 16px 55px #0008;
+}
+.map-stage .network-status {
+  position: fixed;
+  right: 22px;
+  top: 75px;
+  z-index: 36;
+  max-width: calc(100vw - 44px);
+  font-size: 12px;
+}
+.map-stage .attribute-feedback {
+  position: fixed;
+  z-index: 48;
+  bottom: 330px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(600px, calc(100vw - 40px));
+  box-shadow: 0 10px 35px #0007;
+}
+.enemy-motion-banner {
+  position: fixed;
+  z-index: 45;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(670px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 20px;
+  border: 1px solid #dbb4b859;
+  border-radius: 12px;
+  background: #241f30ed;
+  color: #f5dcda;
+  box-shadow: 0 15px 50px #0008;
+}
+.enemy-motion-symbol {
+  font-size: 30px;
+}
+.enemy-motion-banner > div {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+}
+.enemy-motion-banner strong {
+  font-size: 16px;
+}
+.enemy-motion-banner span,
+.enemy-motion-banner small {
+  font-size: 14px;
+}
+.travelling-enemy {
+  z-index: 12;
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 2px solid #dcbcc1;
+  border-radius: 50%;
+  background: #4d3347;
+  box-shadow: 0 0 24px #fbb1b366;
+  font-size: 25px;
+  pointer-events: none;
+  animation: enemy-step 0.68s ease-in-out both;
+}
+@keyframes enemy-step {
+  from {
+    transform: translate(var(--step-x), var(--step-y));
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+.inline-roll-result {
+  display: block;
+  padding: 15px;
+  border: 1px solid #a9d2bd70;
+  border-radius: 10px;
+  background: #263e37;
+  color: #e0f0df;
+  text-align: left;
+  white-space: pre-line;
+}
+.inline-roll-result strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.inline-roll-result p {
+  font-size: 16px;
+  line-height: 1.65;
+  margin-top: 8px;
+}
+.dice-auto-status {
+  display: block;
+  padding: 12px;
+  text-align: center;
+  color: #cde0cd;
+}
+.resolved-rolls {
+  display: grid;
+  gap: 10px;
+}
+.resolved-rolls .dice-group > span {
+  font-size: 14px;
+}
+.exploration-rule {
+  color: #bdc6b9;
+  font-size: 14px;
+}
+
+.enemy-motion-banner {
+  bottom: 330px;
+}
+@media (max-width: 1190px) {
+  .map-stage .floating-window {
+    width: 230px;
+    max-height: calc(100dvh - 460px);
+  }
+  .map-stage .personal-panel {
+    width: min(650px, calc(100vw - 520px));
+    min-width: 340px;
+    max-height: 340px;
+  }
+  .map-stage .party-panel {
+    left: 14px;
+  }
+  .map-stage .story-panel {
+    right: 14px;
+  }
+  .map-stage .journal-panel {
+    right: 14px;
+    bottom: 125px;
+    max-height: calc(50dvh - 160px);
+    z-index: 28;
+  }
+  .map-stage .board-heading {
+    right: 14px;
+    bottom: 76px;
+    z-index: 30;
+  }
+  .map-stage .actions-window,
+  .map-stage .test-window {
+    width: min(440px, calc(100vw - 40px));
+    max-height: calc(100dvh - 230px);
+  }
+}
+@media (max-width: 760px) {
+  .map-stage .topbar {
+    inset: 10px 12px auto;
+    height: 50px;
+  }
+  .map-stage .top-center {
+    font-size: 12px;
+  }
+  .map-stage .brand {
+    font-size: 16px;
+  }
+  .map-stage .brand-seal {
+    display: none;
+  }
+  .map-stage .floor-tabs {
+    top: 70px;
+    width: min(400px, calc(100vw - 24px));
+  }
+  .map-stage .floor-tabs [data-slot='tabs-trigger'] {
+    padding: 7px 4px;
+    font-size: 13px;
+  }
+  .map-stage .floor-party {
+    gap: 8px;
+    padding: 5px 4px;
+  }
+  .map-stage .floor-hero {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    flex-basis: 22px;
+  }
+  .floating-dock > button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .floating-dock .roster-toggle {
+    left: 12px;
+    top: 185px;
+  }
+  .floating-dock .chapter-toggle {
+    right: 12px;
+    top: 185px;
+  }
+  .floating-dock .journal-toggle {
+    right: 12px;
+    bottom: 10px;
+  }
+  .floating-dock .tools-toggle {
+    left: 12px;
+    bottom: 10px;
+  }
+  .map-stage .personal-panel {
+    width: calc(100vw - 24px);
+    min-width: 0;
+    bottom: 64px;
+    max-height: 300px;
+    padding: 10px;
+    gap: 6px;
+  }
+  .personal-heading > span {
+    display: none;
+  }
+  .personal-heading strong {
+    font-size: 16px;
+  }
+  .personal-heading small {
+    font-size: 12px;
+  }
+  .personal-panel .traits-grid {
+    gap: 6px;
+  }
+  .personal-panel .trait-row {
+    padding: 4px;
+  }
+  .personal-panel .trait-track {
+    gap: 2px;
+    overflow-x: auto;
+  }
+  .personal-panel .trait-track > span {
+    min-width: 13px;
+    height: 20px;
+  }
+  .personal-carry .hero-inventory {
+    max-height: 53px;
+  }
+  .personal-actions > button {
+    padding: 7px;
+    font-size: 13px;
+  }
+  .map-stage .floating-window {
+    top: 237px;
+    bottom: 375px;
+    width: calc(100vw - 24px);
+    max-height: none;
+    z-index: 28;
+  }
+  .map-stage .party-panel {
+    left: 12px;
+  }
+  .map-stage .story-panel {
+    right: 12px;
+    width: calc(50vw - 18px);
+  }
+  .map-stage .party-panel {
+    width: calc(50vw - 18px);
+  }
+  .map-stage .party-panel .traits-grid {
+    grid-template-columns: 1fr;
+  }
+  .map-stage .party-panel .hero-heading {
+    flex-wrap: wrap;
+  }
+  .map-stage .party-panel .hero-title strong {
+    font-size: 14px;
+  }
+  .map-stage .journal-panel {
+    left: auto;
+    right: 12px;
+    top: 237px;
+    bottom: 375px;
+    width: calc(100vw - 24px);
+  }
+  .map-stage .actions-window,
+  .map-stage .test-window {
+    top: 185px;
+    bottom: 64px;
+    width: calc(100vw - 24px);
+    max-height: none;
+  }
+  .map-stage .board-heading {
+    right: 12px;
+    bottom: 375px;
+    z-index: 30;
+  }
+  .map-stage .map-tools {
+    gap: 4px;
+    font-size: 12px;
+  }
+  .map-stage .attribute-feedback {
+    bottom: 365px;
+  }
+  .enemy-motion-banner,
+  .map-stage .placement-dock {
+    bottom: 390px;
+  }
+  .enemy-motion-banner {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+}
+@media (max-height: 650px) and (min-width: 761px) {
+  .map-stage .personal-panel {
+    width: min(580px, calc(100vw - 520px));
+    max-height: calc(100dvh - 220px);
+  }
+  .map-stage .party-panel {
+    max-height: calc(100dvh - 215px);
+  }
+  .map-stage .story-panel {
+    max-height: calc(50dvh - 90px);
+  }
+  .map-stage .journal-panel {
+    bottom: 125px;
+    max-height: calc(50dvh - 150px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .travelling-enemy,
+  .map-stage .floating-window {
+    animation: none;
+  }
+}
+
+.chapter-phase {
+  color: #c3d2cc;
+  font-size: 14px;
+}
+.chapter-rule {
+  font-size: 14px;
+}
+.chapter-rule summary {
+  cursor: pointer;
+  color: #dfcda4;
+}
+.chapter-rule p {
+  margin-top: 8px;
+  line-height: 1.7;
+}
+.personal-panel .track-legend {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #adc2c9;
+}
+.personal-panel .trait-track .trait-start:after {
+  display: none;
+}

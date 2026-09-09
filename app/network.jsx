@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { HEROES } from '@/lib/game-data.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
+import { PlaytestPresetPicker } from './playtest-controls';
 const SESSION = 'hillhouse-network-session';
 export function useNetwork(setGame) {
   const [session, setSession] = useState(null),
@@ -22,6 +23,8 @@ export function useNetwork(setGame) {
           ...next.game,
           viewFloor:
             prev &&
+            (!next.game.queue[0]?.enemyMovements ||
+              prev.queue[0]?.uid === next.game.queue[0]?.uid) &&
             prev.active === next.game.active &&
             prev.round === next.game.round &&
             prev.heroes[prev.active]?.pos ===
@@ -151,6 +154,7 @@ export function useNetwork(setGame) {
   return { session, room, error, busy, connected, connect, update, leave };
 }
 export function NetworkLobby({ net, scenario, count, onClose }) {
+  const [playtestFocus, setPlaytestFocus] = useState('basic');
   const [name, setName] = useState(''),
     [code, setCode] = useState(''),
     [addresses, setAddresses] = useState([]);
@@ -288,13 +292,38 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
             })}
           </div>
           {r.you === r.hostId ? (
-            <button
-              className="gold-button"
-              disabled={net.busy || r.players.length < 2}
-              onClick={() => net.update({ type: 'start' })}
-            >
-              全员入座，开始探索
-            </button>
+            <div className="network-start-actions">
+              {r.scenario !== 'mystery' && (
+                <PlaytestPresetPicker
+                  scenario={r.scenario}
+                  value={playtestFocus}
+                  onChange={setPlaytestFocus}
+                />
+              )}
+              <button
+                className="gold-button"
+                disabled={net.busy || r.players.length < 2}
+                onClick={() => net.update({ type: 'start' })}
+              >
+                全员入座，开始探索
+              </button>
+              {r.scenario !== 'mystery' && (
+                <button
+                  className="secondary-button"
+                  disabled={net.busy || r.players.length < 2}
+                  onClick={() =>
+                    net.update({
+                      type: 'start',
+                      hauntPlaytest: true,
+                      playtestFocus:
+                        r.scenario === 'werewolf' ? playtestFocus : 'basic',
+                    })
+                  }
+                >
+                  定向测试 · 直接进入作祟
+                </button>
+              )}
+            </div>
           ) : (
             <p>等待房主开始游戏…</p>
           )}

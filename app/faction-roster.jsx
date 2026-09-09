@@ -1,3 +1,4 @@
+import HeroInventory from './hero-inventory';
 import { Skull, LockKeyhole } from 'lucide-react';
 import {
   rosterGroups,
@@ -43,81 +44,89 @@ export default function FactionRoster({
                 ? []
                 : changes.filter((c) => c.heroId === h.id);
               return (
-                <button
-                  key={h.id}
-                  className={
-                    'hero-card ' +
-                    (h.id === game.active && !h.dead && !h.traitor
-                      ? 'active '
-                      : '') +
-                    (h.dead ? 'fallen ' : '') +
-                    (delta.length ? 'hero-changed' : '')
-                  }
-                  style={{ '--hero-color': h.color }}
-                  onClick={() => send({ type: 'select', id: h.id })}
-                  disabled={
-                    h.dead ||
-                    h.traitor ||
-                    h.ended ||
-                    !!pending ||
-                    (net.session && (waiting || !mine))
-                  }
-                  aria-pressed={h.id === game.active}
-                >
-                  <div className="hero-heading">
-                    <span className="hero-portrait">
-                      {h.dead ? <Skull size={24} /> : h.traitor ? '👻' : h.mark}
-                    </span>
-                    <span className="hero-title">
-                      <strong>{h.name}</strong>
-                      <small>
+                <article className="roster-person" key={h.id}>
+                  <button
+                    className={
+                      'hero-card ' +
+                      (h.id === game.active && !h.dead && !h.traitor
+                        ? 'active '
+                        : '') +
+                      (h.dead ? 'fallen ' : '') +
+                      (delta.length ? 'hero-changed' : '')
+                    }
+                    style={{ '--hero-color': h.color }}
+                    onClick={() => send({ type: 'select', id: h.id })}
+                    disabled={
+                      h.dead ||
+                      h.traitor ||
+                      h.ended ||
+                      !!pending ||
+                      (net.session && (waiting || !mine))
+                    }
+                    aria-pressed={h.id === game.active}
+                  >
+                    <div className="hero-heading">
+                      <span className="hero-portrait">
+                        {h.dead ? (
+                          <Skull size={24} />
+                        ) : h.traitor ? (
+                          '👻'
+                        ) : (
+                          h.mark
+                        )}
+                      </span>
+                      <span className="hero-title">
+                        <strong>{h.name}</strong>
+                        <small>
+                          {h.dead
+                            ? '已死亡'
+                            : h.traitor
+                              ? '已转化'
+                              : statusOf(h, 'infection')
+                                ? `狼毒 · ${statusOf(h, 'infection').turns}轮`
+                                : statusOf(h, 'immunity')
+                                  ? '净血保护'
+                                  : h.role}
+                        </small>
+                      </span>
+                      {h.id === game.active && !h.dead && !h.traitor && (
+                        <span className="active-mark">行动中</span>
+                      )}
+                    </div>
+                    {!privateTraits && (
+                      <Traits
+                        hero={h}
+                        compact={h.id !== game.active}
+                        changes={delta}
+                      />
+                    )}
+                    {delta.length > 0 && (
+                      <span className="hero-change-summary">
+                        {delta
+                          .map(
+                            (c) =>
+                              `${TRAITS[c.trait]} ${c.steps > 0 ? '+' : ''}${c.steps}格`,
+                          )
+                          .join(' · ')}
+                      </span>
+                    )}
+                    <div className="hero-bottom">
+                      <span>{locationLabel(game, h.pos)}</span>
+                      <span>
                         {h.dead
                           ? '已死亡'
                           : h.traitor
-                            ? '已转化'
-                            : statusOf(h, 'infection')
-                              ? `狼毒 · ${statusOf(h, 'infection').turns}轮`
-                              : statusOf(h, 'immunity')
-                                ? '净血保护'
-                                : h.role}
-                      </small>
-                    </span>
-                    {h.id === game.active && !h.dead && !h.traitor && (
-                      <span className="active-mark">行动中</span>
-                    )}
-                  </div>
-                  {!privateTraits && (
-                    <Traits
-                      hero={h}
-                      compact={h.id !== game.active}
-                      changes={delta}
-                    />
-                  )}
-                  {delta.length > 0 && (
-                    <span className="hero-change-summary">
-                      {delta
-                        .map(
-                          (c) =>
-                            `${TRAITS[c.trait]} ${c.steps > 0 ? '+' : ''}${c.steps}格`,
-                        )
-                        .join(' · ')}
-                    </span>
-                  )}
-                  <div className="hero-bottom">
-                    <span>{locationLabel(game, h.pos)}</span>
-                    <span>
-                      {h.dead
-                        ? '已死亡'
-                        : h.traitor
-                          ? '普通人物能力停用'
-                          : h.ended
-                            ? '已结束'
-                            : h.stopped
-                              ? '已停止移动'
-                              : `${h.moves}移动`}
-                    </span>
-                  </div>
-                </button>
+                            ? '普通人物能力停用'
+                            : h.ended
+                              ? '已结束'
+                              : h.stopped
+                                ? '已停止移动'
+                                : `${h.moves}移动`}
+                      </span>
+                    </div>
+                  </button>
+                  <HeroInventory game={game} hero={h} room={net.room} />
+                </article>
               );
             })}
             {group.enemies.map((e) => (

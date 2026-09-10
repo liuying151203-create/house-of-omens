@@ -158,6 +158,7 @@ export function createRoomService({
             'rotate',
             'place',
             'advance',
+            'continueCard',
             'resolveDice',
             'allocate',
             'allocateDamage',

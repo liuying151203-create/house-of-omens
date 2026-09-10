@@ -1,6 +1,12 @@
 import { cardCureBonus } from '../lib/card-rules.mjs';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
-export default function WerewolfPanel({ game, send, net, waiting }) {
+export default function WerewolfPanel({
+  game,
+  send,
+  net,
+  waiting,
+  rulesOnly = false,
+}) {
   if (game.scenario !== 'werewolf' || game.phase !== 'haunt') return null;
   const h = game.heroes[game.active],
     room = game.rooms.find((r) => r.id === h.pos);
@@ -31,31 +37,33 @@ export default function WerewolfPanel({ game, send, net, waiting }) {
           本室净化 {room.charges || 0}/{room.requiredCharges} · 知识 4+
         </div>
       )}
-      <div className="wolf-actions">
-        {moonlit(game, room) && (
-          <button
-            disabled={disabled}
-            onClick={() => send({ type: 'boardWindow' })}
-          >
-            封住本室窗户 · 消耗互动
-          </button>
-        )}
-        {room.states?.boarded && <span>本室已封窗，狼人无月光加成</span>}
-        {infected
-          .filter((x) => x.pos === h.pos)
-          .map((x) => (
+      {!rulesOnly && (
+        <div className="wolf-actions">
+          {moonlit(game, room) && (
             <button
-              key={x.id}
               disabled={disabled}
-              onClick={() => send({ type: 'cure', heroId: x.id })}
+              onClick={() => send({ type: 'boardWindow' })}
             >
-              治疗{x.name} · 知识 3+
-              {cardCureBonus(game, h, x)
-                ? ' · 卡牌 +' + cardCureBonus(game, h, x)
-                : ''}
+              封住本室窗户 · 消耗互动
             </button>
-          ))}
-      </div>
+          )}
+          {room.states?.boarded && <span>本室已封窗，狼人无月光加成</span>}
+          {infected
+            .filter((x) => x.pos === h.pos)
+            .map((x) => (
+              <button
+                key={x.id}
+                disabled={disabled}
+                onClick={() => send({ type: 'cure', heroId: x.id })}
+              >
+                治疗{x.name} · 知识 3+
+                {cardCureBonus(game, h, x)
+                  ? ' · 卡牌 +' + cardCureBonus(game, h, x)
+                  : ''}
+              </button>
+            ))}
+        </div>
+      )}
       {infected.map((x) => (
         <div className="infection-row" key={x.id}>
           <b>{x.name}</b>
@@ -79,7 +87,8 @@ export default function WerewolfPanel({ game, send, net, waiting }) {
                 ? ' · 月光 +1'
                 : ''}
             </small>
-            {net.session &&
+            {!rulesOnly &&
+              net.session &&
               (net.room?.seats[e.heroId] || net.room?.hostId) ===
                 net.room?.you && (
                 <label>

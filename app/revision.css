@@ -407,7 +407,9 @@
 }
 .tile-card-icon {
   position: absolute;
-  top: 9px;
+  top: auto;
+  right: auto;
+  bottom: 9px;
   left: 9px;
   width: 22px;
   height: 22px;
@@ -443,7 +445,8 @@
 .stairs-symbol {
   position: absolute;
   right: 9px;
-  top: 11px;
+  top: auto;
+  bottom: 9px;
   color: #b6c6af;
   background: #102219c9;
 }
@@ -676,7 +679,8 @@
 .placement-tile .tile-card-icon {
   width: 27px;
   height: 27px;
-  top: 15px;
+  top: auto;
+  bottom: 15px;
   left: 15px;
 }
 .placement-details {

@@ -1,12 +1,14 @@
-import { Check, Footprints } from 'lucide-react';
+import HeroStatusBadges from './hero-status-badges';
+import { Check, Footprints, Package } from 'lucide-react';
 import {
   personalHero,
   locationLabel,
   enemyHero,
   canInspectHero,
 } from '../lib/game-view.mjs';
-import { statusOf, wolfMight } from '../lib/werewolf.mjs';
+import { wolfMight } from '../lib/werewolf.mjs';
 import HeroInventory from './hero-inventory';
+import ExplorerEmblem from './explorer-emblem';
 
 export default function PersonalPanel({
   game,
@@ -16,14 +18,13 @@ export default function PersonalPanel({
   moving,
   Traits,
   changes,
-  onActions,
+  commands,
 }) {
   const hero = personalHero(game, net.room);
   if (!hero)
     return (
-      <aside className="personal-panel" aria-label="我的人物">
-        <strong>当前以旁观者身份查看</strong>
-        <p>可从全员栏查看公开状态。</p>
+      <aside className="spectator-badge">
+        旁观中 · 点击左侧人物查看公开资料
       </aside>
     );
   const active = hero.id === game.active;
@@ -38,89 +39,111 @@ export default function PersonalPanel({
     hero.traitor ||
     game.phase === 'over';
   const enemy = game.enemies.find((e) => enemyHero(game, e)?.id === hero.id);
-  const infection = statusOf(hero, 'infection');
+  const inspectable = canInspectHero(game, hero, net.room);
   return (
-    <aside className="personal-panel" aria-label="当前控制人物的状态与物品">
-      <div className="personal-heading">
-        <span style={{ color: hero.color }}>{hero.mark}</span>
-        <div>
-          <small>
-            {net.room ? '我的人物' : '当前人物'}
-            {active ? ' · 当前行动' : ' · 等待行动'}
-          </small>
+    <div
+      className="explorer-controls"
+      style={{ '--explorer-color': hero.color }}
+    >
+      {commands}
+      <aside className="explorer-vitals" aria-label="当前控制人物的状态">
+        <div className="explorer-identity">
+          <ExplorerEmblem hero={hero} />
           <strong>{hero.name}</strong>
+          <small>{hero.role}</small>
         </div>
-      </div>
-      <div className="personal-condition">
-        <span>
-          {hero.dead
-            ? '已死亡'
-            : hero.traitor
-              ? '已加入敌方阵营'
-              : hero.stopped
-                ? '本回合停止移动'
-                : hero.moves + ' 点移动力'}
-        </span>
-        {infection && <b>狼毒 · {infection.turns} 轮后转化</b>}
-        {statusOf(hero, 'immunity') && <b>净血保护中</b>}
-      </div>
-      <span className="personal-location">
-        {locationLabel(game, enemy?.pos || hero.pos)}
-      </span>
-      {canInspectHero(game, hero, net.room) ? (
-        <>
-          <Traits
-            hero={hero}
-            compact={false}
-            changes={changes.filter((c) => c.heroId === hero.id)}
-          />
-          <small className="track-legend">
-            亮色格：当前数值 · 下划线：起始格 · ☠：死亡
-          </small>
-        </>
-      ) : (
-        enemy && (
-          <div className="enemy-public-stats">
-            <span>
-              生命 {enemy.hp}/{enemy.maxHp}
+        <div className="explorer-readout">
+          <header>
+            <span className="explorer-movement">
+              <Footprints size={15} />
+              <b>
+                {hero.dead || hero.traitor || hero.stopped || hero.ended
+                  ? '—'
+                  : hero.moves}
+              </b>
+              <span>
+                {hero.dead
+                  ? '已死亡'
+                  : hero.traitor
+                    ? '已转化'
+                    : hero.ended
+                      ? '行动结束'
+                      : hero.stopped
+                        ? '停止移动'
+                        : '移动'}
+              </span>
             </span>
-            <span>力量 {wolfMight(game, enemy)}</span>
-            <span>移动 {enemy.speed}</span>
-          </div>
-        )
-      )}
-      <div className="personal-carry">
-        <strong>随身物品与预兆</strong>
+            <span
+              className="explorer-position"
+              title={locationLabel(game, enemy?.pos || hero.pos)}
+            >
+              {locationLabel(game, enemy?.pos || hero.pos)}
+            </span>
+          </header>
+          {inspectable ? (
+            <Traits
+              hero={hero}
+              compact={false}
+              changes={changes.filter((c) => c.heroId === hero.id)}
+            />
+          ) : (
+            enemy && (
+              <div className="monster-readout">
+                <b>
+                  生命 {enemy.hp}/{enemy.maxHp}
+                </b>
+                <span>力量 {wolfMight(game, enemy)}</span>
+                <span>移动 {enemy.speed}</span>
+              </div>
+            )
+          )}
+          <footer>
+            <span
+              className="turn-state-dot"
+              title={active ? '正在行动' : '等待队友行动'}
+              aria-label={active ? '正在行动' : '等待队友行动'}
+              data-active={active}
+            />
+            <HeroStatusBadges game={game} hero={hero} />
+          </footer>
+        </div>
+      </aside>
+      <aside className="explorer-satchel" aria-label="随身物品与预兆">
+        <header>
+          <span>
+            <Package size={14} />
+            随身物品{' '}
+            {inspectable && (
+              <small>{hero.items.length + hero.omens.length}</small>
+            )}
+          </span>
+        </header>
         <HeroInventory
           game={game}
           hero={hero}
           room={net.room}
           send={send}
           disabled={disabled}
+          slots
         />
-      </div>
-      <div className="personal-actions">
-        <button className="secondary-button" onClick={onActions}>
-          <Footprints size={16} />
-          更多行动
-        </button>
-        <button
-          className="gold-button"
-          disabled={disabled}
-          onClick={() => send({ type: 'endHero' })}
-        >
-          <Check size={16} />
-          结束当前行动
-        </button>
-      </div>
-      {!active && (
-        <small>正在等待{game.heroes[game.active].name}结束行动。</small>
-      )}
-      {active &&
-        !hero.ended &&
-        game.phase === 'haunt' &&
-        game.heroes.filter((h) => !h.dead && !h.traitor && !h.ended).length ===
-          1 && <small>最后一名好人，结束后敌人开始追猎。</small>}
-    </aside>
+      </aside>
+      <button
+        className="finish-turn"
+        disabled={disabled}
+        onClick={() => send({ type: 'endHero' })}
+        title={
+          !active
+            ? '等待当前人物结束行动'
+            : game.phase === 'haunt' &&
+                game.heroes.filter((h) => !h.dead && !h.traitor && !h.ended)
+                  .length === 1
+              ? '结束后敌人开始追猎'
+              : '结束当前人物行动'
+        }
+      >
+        <Check size={26} />
+        <span>{hero.ended ? '已结束' : '结束行动'}</span>
+      </button>
+    </div>
   );
 }

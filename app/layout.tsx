@@ -5,6 +5,7 @@ import './revision.css';
 import './iteration-three.css';
 import './immersion.css';
 import './map-stage.css';
+import './explorer-ui.css';
 
 export const metadata: Metadata = {
   title: '预兆之屋 · 四个午夜故事',

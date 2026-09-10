@@ -17,7 +17,6 @@ import {
   Eye,
   Waves,
   Footprints,
-  Swords,
   Compass,
   DoorOpen,
   Volume2,
@@ -61,7 +60,6 @@ import {
   ROOM_DECK,
   TRAITS,
   TRAIT_KEYS,
-  ENTRANCE,
   DIRS,
   createInteractiveGame as createGame,
   act,
@@ -76,8 +74,16 @@ import {
 } from '@/lib/game-engine.mjs';
 import Workshop from './workshop';
 import PersonalPanel from './personal-panel';
-import { mapScrollTarget } from '../lib/map-camera.mjs';
+import { mapScrollTarget, preserveMapScroll } from '../lib/map-camera.mjs';
+import {
+  explorationScope,
+  selectExploration,
+} from '../lib/exploration-preview.mjs';
+import RoomStatusIcons from './room-status-icons';
+import CardNotice from './card-notice';
 import WerewolfPanel from './werewolf-panel';
+import ExplorerActions from './explorer-actions';
+import DeckSupply from './deck-supply';
 import FactionRoster from './faction-roster';
 import AttributeFeedback, { useAttributeChanges } from './attribute-feedback';
 import {
@@ -136,21 +142,13 @@ const iconMap = {
   },
   cardIcons = { event: Sparkles, item: Package, omen: Eye };
 const targetLabels = {
-    moonSeal: '月印',
-    moonRitual: '解咒入口',
-    seal: '祭坛',
-    mirror: '古镜',
-    fuse: '保险丝',
-    generator: '发电机',
-  },
-  targetActions = {
-    moonSeal: '净化月印',
-    moonRitual: '完成解咒',
-    seal: '进行封印',
-    mirror: '调查古镜',
-    fuse: '拾取保险丝',
-    generator: '修复发电机',
-  };
+  moonSeal: '月印',
+  moonRitual: '解咒入口',
+  seal: '祭坛',
+  mirror: '古镜',
+  fuse: '保险丝',
+  generator: '发电机',
+};
 const atlas = (t) => ({
   backgroundImage: 'url(./rooms.png)',
   backgroundSize: '300% 300%',
@@ -177,9 +175,24 @@ function TileFace({ tile, rotation = tile.rotation || 0 }) {
       ))}
       <span className="room-name">{tile.name}</span>
       {CardIcon && (
-        <span className={'tile-card-icon icon-' + tile.icon}>
+        <span
+          className={'tile-card-icon icon-' + tile.icon}
+          title={
+            { event: '事件房间', item: '物品房间', omen: '预兆房间' }[tile.icon]
+          }
+          aria-label={
+            { event: '事件房间', item: '物品房间', omen: '预兆房间' }[tile.icon]
+          }
+        >
           <CardIcon size={15} />
         </span>
+      )}
+      {['stairs', 'upper', 'stairsDown', 'basement'].includes(tile.special) && (
+        <ArrowUpDown
+          className="stairs-symbol"
+          size={17}
+          aria-label="上下楼通道"
+        />
       )}
     </>
   );
@@ -524,14 +537,22 @@ function Prompt({
           {p.kind !== 'damage' && (
             <button
               className="gold-button"
-              onClick={() => send({ type: tile ? 'place' : 'advance' })}
+              onClick={() =>
+                send(
+                  p.kind === 'card'
+                    ? { type: 'continueCard', requestId: p.uid }
+                    : { type: tile ? 'place' : 'advance' },
+                )
+              }
             >
               {tile
                 ? '放置房间并进入'
                 : p.kind === 'card'
                   ? c.trait && p.cardType === 'event'
-                    ? '投掷属性骰'
-                    : '结算卡牌效果'
+                    ? '掷骰并查看结果'
+                    : p.cardType === 'event'
+                      ? '应用并继续'
+                      : '收下并继续'
                   : p.kind === 'hauntRoll'
                     ? '掷骰，试探黑暗'
                     : p.kind === 'hauntResult' && p.triggers
@@ -592,6 +613,8 @@ function FloorPeople({ game, f }) {
 }
 function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
   const [snapped, setSnapped] = useState(false);
+  const [explorationPreview, setExplorationPreview] = useState(null);
+  const cameraLayout = useRef(null);
   const drag = useRef(null);
   const suppressClick = useRef(false);
   const placement = pending(game)?.kind === 'placement' ? pending(game) : null;
@@ -639,119 +662,159 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
     },
     [minX, maxX, minY, maxY, focusX, focusY, zoom],
   );
+  const motionPosition = enemyMotion?.frame?.pos;
   useLayoutEffect(() => {
-    centerMap(fitNext.current);
+    const viewport = ref.current;
+    const previous = cameraLayout.current;
+    if (
+      !previous ||
+      previous.floor !== floor ||
+      previous.zoom !== zoom ||
+      fitNext.current ||
+      (motionPosition && previous.motionPosition !== motionPosition)
+    ) {
+      centerMap(fitNext.current);
+    } else {
+      viewport.scrollTo({
+        ...preserveMapScroll({
+          left: viewport.scrollLeft,
+          top: viewport.scrollTop,
+          previous,
+          minX,
+          minY,
+          zoom,
+        }),
+        behavior: 'instant',
+      });
+    }
     fitNext.current = false;
-  }, [centerMap]);
+    cameraLayout.current = { floor, zoom, minX, minY, motionPosition };
+  }, [centerMap, floor, zoom, minX, minY, motionPosition]);
   useEffect(() => {
-    const observer = new ResizeObserver(() =>
-      centerMap(cameraOverview.current),
-    );
-    observer.observe(ref.current);
+    const viewport = ref.current;
+    let width = viewport.clientWidth,
+      height = viewport.clientHeight;
+    const observer = new ResizeObserver(() => {
+      if (width === viewport.clientWidth && height === viewport.clientHeight)
+        return;
+      width = viewport.clientWidth;
+      height = viewport.clientHeight;
+      centerMap(cameraOverview.current);
+    });
+    observer.observe(viewport);
     return () => observer.disconnect();
   }, [centerMap]);
+  useEffect(() => {
+    const cancel = (event) => {
+      if (event.key === 'Escape') setExplorationPreview(null);
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, []);
   return (
     <>
-      <div className="board-heading">
-        <div>
-          <span className="eyebrow">BLACK PINE MANOR</span>
-          <h2>黑松岭宅邸</h2>
+      <div className="map-navigation">
+        <div className="board-heading">
+          <div>
+            <span className="eyebrow">BLACK PINE MANOR</span>
+            <h2>黑松岭宅邸</h2>
+          </div>
+          <div className="map-tools">
+            <button
+              className="secondary-button"
+              onClick={() => centerMap(false, 'smooth')}
+            >
+              <Compass size={14} />
+              回到人物
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => {
+                const size = Math.max(
+                  4,
+                  Math.min(
+                    110,
+                    (ref.current.clientWidth - 30) / (cols + (cols - 1) / 11),
+                    (ref.current.clientHeight - 250) / (rows + (rows - 1) / 11),
+                  ),
+                );
+                fitNext.current = true;
+                setZoom(size);
+                if (size === zoom) {
+                  centerMap(true);
+                  fitNext.current = false;
+                }
+              }}
+            >
+              <Maximize size={14} />
+              全图
+            </button>
+            <button
+              aria-label="缩小地图"
+              className="icon-button"
+              disabled={zoom <= 30}
+              onClick={() => setZoom((z) => Math.max(30, z - 15))}
+            >
+              <Minus size={16} />
+            </button>
+            <span>{Math.round((zoom / 110) * 100)}%</span>
+            <button
+              aria-label="放大地图"
+              className="icon-button"
+              disabled={zoom >= 155}
+              onClick={() => setZoom((z) => Math.min(155, z + 15))}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
         </div>
-        <div className="map-tools">
-          <button
-            className="secondary-button"
-            onClick={() => centerMap(false, 'smooth')}
-          >
-            <Compass size={14} />
-            回到人物
-          </button>
-          <button
-            className="secondary-button"
-            onClick={() => {
-              const size = Math.max(
-                4,
-                Math.min(
-                  110,
-                  (ref.current.clientWidth - 30) / (cols + (cols - 1) / 11),
-                  (ref.current.clientHeight - 250) / (rows + (rows - 1) / 11),
-                ),
-              );
-              fitNext.current = true;
-              setZoom(size);
-              if (size === zoom) {
-                centerMap(true);
-                fitNext.current = false;
-              }
-            }}
-          >
-            <Maximize size={14} />
-            全图
-          </button>
-          <button
-            aria-label="缩小地图"
-            className="icon-button"
-            disabled={zoom <= 30}
-            onClick={() => setZoom((z) => Math.max(30, z - 15))}
-          >
-            <Minus size={16} />
-          </button>
-          <span>{Math.round((zoom / 110) * 100)}%</span>
-          <button
-            aria-label="放大地图"
-            className="icon-button"
-            disabled={zoom >= 155}
-            onClick={() => setZoom((z) => Math.min(155, z + 15))}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
+        <Tabs
+          value={String(floor)}
+          onValueChange={(v) => send({ type: 'viewFloor', floor: Number(v) })}
+          className="floor-tabs"
+        >
+          <TabsList>
+            {FLOORS.map((f) => (
+              <TabsTrigger value={String(f.id)} key={f.id}>
+                <span className="floor-title">
+                  <Layers size={14} />
+                  {f.name}
+                  <small>
+                    {game.rooms.filter((r) => r.floor === f.id).length}
+                  </small>
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <div className="floor-occupants" aria-label="各楼层人物与敌人">
+            {FLOORS.map((f) => (
+              <FloorPeople key={f.id} game={game} f={f} />
+            ))}
+          </div>
+          {FLOORS.map((f) => (
+            <TabsContent value={String(f.id)} key={f.id}>
+              {f.id === -1 && !game.basementUnlocked ? (
+                <div className="floor-hint">
+                  地下室尚未连通。在一楼探索，寻找「地下阶梯」。
+                </div>
+              ) : (
+                <div className="floor-hint">
+                  {roomAt(game, hero.pos).floor === f.id
+                    ? ''
+                    : `正在查看${f.name} · ${hero.name}位于${FLOORS.find((f) => f.id === roomAt(game, hero.pos).floor).name}`}
+                </div>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
-      <Tabs
-        value={String(floor)}
-        onValueChange={(v) => send({ type: 'viewFloor', floor: Number(v) })}
-        className="floor-tabs"
-      >
-        <TabsList>
-          {FLOORS.map((f) => (
-            <TabsTrigger value={String(f.id)} key={f.id}>
-              <span className="floor-title">
-                <Layers size={14} />
-                {f.name}
-                <small>
-                  {game.rooms.filter((r) => r.floor === f.id).length}
-                </small>
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <div className="floor-occupants" aria-label="各楼层人物与敌人">
-          {FLOORS.map((f) => (
-            <FloorPeople key={f.id} game={game} f={f} />
-          ))}
-        </div>
-        {FLOORS.map((f) => (
-          <TabsContent value={String(f.id)} key={f.id}>
-            {f.id === -1 && !game.basementUnlocked ? (
-              <div className="floor-hint">
-                地下室尚未连通。在一楼探索，寻找「地下阶梯」。
-              </div>
-            ) : (
-              <div className="floor-hint">
-                {roomAt(game, hero.pos).floor === f.id
-                  ? ''
-                  : `正在查看${f.name} · ${hero.name}位于${FLOORS.find((f) => f.id === roomAt(game, hero.pos).floor).name}`}
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
       <div
         className={
           'map-viewport ' + (game.phase === 'haunt' ? 'haunted-map' : '')
         }
         ref={ref}
         onPointerDown={(e) => {
-          if (e.button !== 0) return;
+          if (e.button !== 0 || e.target.closest('.room-status-icons')) return;
           suppressClick.current = false;
           drag.current = {
             x: e.clientX,
@@ -839,87 +902,69 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               ),
               here = hero.pos === r.id;
             return (
-              <button
+              <div
+                className="room-cell"
                 key={r.id}
-                data-current={here}
-                data-motion={enemyMotion?.frame?.pos === r.id}
-                disabled={!legal.move.includes(r.id)}
-                onClick={() => send({ type: 'move', pos: r.id })}
-                className={
-                  'modular-room ' +
-                  (here ? 'current ' : '') +
-                  (legal.move.includes(r.id) ? 'reachable ' : '') +
-                  (r.target ? 'quest-room ' : '') +
-                  (moonlit(game, r) ? 'moonlit-room' : '')
-                }
                 style={{ gridColumn: r.x - minX + 1, gridRow: r.y - minY + 1 }}
-                title={`${r.name}${moonlit(game, r) ? ' · 月光：狼人力量 +1，可封窗解除' : r.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
-                aria-label={`${r.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
               >
-                <TileFace tile={r} />
-                {moonlit(game, r) && (
-                  <span
-                    className="moon-marker"
-                    title="月光房间：狼人力量 +1；可在行动中封窗"
-                    aria-label="月光加成，狼人力量加一"
-                  >
-                    ☾<sup>+1</sup>
+                <button
+                  data-current={here}
+                  data-motion={enemyMotion?.frame?.pos === r.id}
+                  disabled={!legal.move.includes(r.id)}
+                  onClick={() => send({ type: 'move', pos: r.id })}
+                  className={
+                    'modular-room ' +
+                    (here ? 'current ' : '') +
+                    (legal.move.includes(r.id) ? 'reachable ' : '') +
+                    (r.target ? 'quest-room ' : '') +
+                    (moonlit(game, r) ? 'moonlit-room' : '')
+                  }
+                  title={`${r.name}${moonlit(game, r) ? ' · 月光：狼人力量 +1，可封窗解除' : r.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
+                  aria-label={`${r.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
+                >
+                  <TileFace tile={r} />
+                  <span className="room-tokens">
+                    {occupants.map((h) => (
+                      <span
+                        className={
+                          'pawn ' +
+                          (h.id === game.active ? 'selected-pawn' : '')
+                        }
+                        style={{ backgroundColor: h.color }}
+                        key={h.id}
+                        title={
+                          h.name +
+                          (h.id === game.active && !h.ended
+                            ? ' · 当前行动'
+                            : '')
+                        }
+                        aria-label={
+                          h.name +
+                          (h.id === game.active && !h.ended
+                            ? ' · 当前行动'
+                            : '')
+                        }
+                      >
+                        {h.mark}
+                      </span>
+                    ))}
+                    {enemies.map((e) => (
+                      <span
+                        className="enemy-pawn"
+                        key={e.id}
+                        title={e.name + ' ' + e.hp + '/' + e.maxHp}
+                      >
+                        {['alpha', 'wolf'].includes(e.kind) ? (
+                          '🐺'
+                        ) : (
+                          <Ghost size={13} />
+                        )}
+                      </span>
+                    ))}
                   </span>
-                )}
-                {r.states?.boarded && (
-                  <span
-                    className="moon-marker boarded"
-                    title="已封窗：本室月光加成失效"
-                    aria-label="已封窗，无月光加成"
-                  >
-                    ▥
-                  </span>
-                )}
-                {r.target && (
-                  <span className={'quest-marker ' + (r.done ? 'done' : '')}>
-                    {r.done ? <Check size={12} /> : <Sparkles size={12} />}
-                    <span>{targetLabels[r.target]}</span>
-                  </span>
-                )}
-                {r.special &&
-                  ['stairs', 'upper', 'stairsDown', 'basement'].includes(
-                    r.special,
-                  ) && <ArrowUpDown className="stairs-symbol" size={17} />}
-                <span className="room-tokens">
-                  {occupants.map((h) => (
-                    <span
-                      className={
-                        'pawn ' + (h.id === game.active ? 'selected-pawn' : '')
-                      }
-                      style={{ backgroundColor: h.color }}
-                      key={h.id}
-                      title={
-                        h.name +
-                        (h.id === game.active && !h.ended ? ' · 当前行动' : '')
-                      }
-                      aria-label={
-                        h.name +
-                        (h.id === game.active && !h.ended ? ' · 当前行动' : '')
-                      }
-                    >
-                      {h.mark}
-                    </span>
-                  ))}
-                  {enemies.map((e) => (
-                    <span
-                      className="enemy-pawn"
-                      key={e.id}
-                      title={e.name + ' ' + e.hp + '/' + e.maxHp}
-                    >
-                      {['alpha', 'wolf'].includes(e.kind) ? (
-                        '🐺'
-                      ) : (
-                        <Ghost size={13} />
-                      )}
-                    </span>
-                  ))}
-                </span>
-              </button>
+                </button>
+                <RoomStatusIcons game={game} room={r} />
+              </div>
             );
           })}
           {[
@@ -933,10 +978,16 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
             const choice = legal.explore.find(
               (e) => e.x === f.x && e.y === f.y,
             );
+            const previewing =
+              choice &&
+              explorationPreview?.scope === explorationScope(game) &&
+              explorationPreview.x === f.x &&
+              explorationPreview.y === f.y;
             return (
               <button
                 className={
                   'frontier-cell ' +
+                  (previewing ? 'exploration-preview ' : '') +
                   (choice ? 'active-frontier' : '') +
                   (isPlacement
                     ? ' placement-ghost ' + (snapped ? 'snapped' : '')
@@ -958,14 +1009,22 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                     setSnapped(true);
                   }
                 }}
-                onClick={() =>
-                  isPlacement
-                    ? setSnapped(true)
-                    : send({ type: 'explore', dir: choice.dir })
-                }
+                onClick={() => {
+                  if (isPlacement) {
+                    setSnapped(true);
+                    return;
+                  }
+                  const next = selectExploration(
+                    game,
+                    explorationPreview,
+                    choice,
+                  );
+                  setExplorationPreview(next.preview);
+                  if (next.action) send(next.action);
+                }}
                 aria-label={
                   choice
-                    ? `从${roomAt(game, choice.from).name}${DIRS[choice.dir].name}门探索新房间`
+                    ? `${previewing ? '再次点击抽取房间，' : '预览探索位置，'}从${roomAt(game, choice.from).name}${DIRS[choice.dir].name}门探索新房间`
                     : '未探索的门外'
                 }
               >
@@ -976,7 +1035,9 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                 ) : (
                   <>
                     <Plus size={19} />
-                    <span>{choice ? '探索' : '未知'}</span>
+                    <span>
+                      {previewing ? '再次点击抽取' : choice ? '探索' : '未知'}
+                    </span>
                   </>
                 )}
               </button>
@@ -1236,7 +1297,9 @@ export default function Home() {
       setPanel(null);
     if (net.session && a.type !== 'viewFloor') {
       if (
-        (waiting && !['rollDice', 'rollAll', 'wolfOrder'].includes(a.type)) ||
+        (waiting &&
+          !['rollDice', 'rollAll', 'wolfOrder'].includes(a.type) &&
+          !(a.type === 'endRound' && net.room?.you === net.room?.hostId)) ||
         net.busy
       )
         return;
@@ -1251,9 +1314,6 @@ export default function Home() {
   }
   const sc = SCENARIOS.find((s) => s.id === (game?.scenario || choice)),
     Icon = iconMap[sc.id],
-    hero = game?.heroes[game.active],
-    legal = game ? actions(game) : null,
-    room = game ? roomAt(game, hero.pos) : null,
     remaining = game ? living(game).filter((h) => !h.ended).length : 0;
   const waiting =
     !!net.room?.game &&
@@ -1306,6 +1366,17 @@ export default function Home() {
               </>
             )}
           </div>
+          {game?.playtest?.mode === 'haunt' && (
+            <button
+              className="top-test-toggle"
+              aria-expanded={panel === 'test'}
+              aria-controls="test-details"
+              onClick={() => togglePanel('test')}
+            >
+              <FlaskConical size={19} />
+              <span>测试</span>
+            </button>
+          )}
           {game && (
             <button
               className="icon-button settings-toggle"
@@ -1659,61 +1730,6 @@ export default function Home() {
                 <Users size={19} />
                 <span>全员状态</span>
               </button>
-              <button
-                className="dock-action"
-                aria-expanded={panel === 'actions'}
-                aria-controls="action-details"
-                onClick={() => togglePanel('actions')}
-              >
-                <span className="dock-pawn" style={{ color: hero.color }}>
-                  {hero.mark}
-                </span>
-                <span>
-                  {hero.name}
-                  <small>
-                    {hero.stopped
-                      ? '移动已停止 · 可互动'
-                      : hero.moves + ' 点移动'}
-                    {game.phase === 'haunt' && remaining === 1
-                      ? ' · 最后一人'
-                      : ''}
-                  </small>
-                </span>
-              </button>
-              <button
-                className="chapter-toggle"
-                aria-expanded={storyOpen}
-                aria-controls="story-details"
-                onClick={() => setStoryOpen((open) => !open)}
-              >
-                <BookOpen size={19} />
-                <span>
-                  章节 · 作祟
-                  {game.phase === 'haunt' && (
-                    <small>剩余 {game.limit - game.elapsed} 轮</small>
-                  )}
-                </span>
-              </button>
-              <button
-                className="journal-toggle"
-                aria-expanded={journalOpen}
-                aria-controls="journal-details"
-                onClick={() => setJournalOpen((open) => !open)}
-              >
-                <BookOpen size={19} />
-                <span>探索手记</span>
-              </button>
-              {game.playtest?.mode === 'haunt' && (
-                <button
-                  className="tools-toggle"
-                  aria-expanded={panel === 'test'}
-                  aria-controls="test-details"
-                  onClick={() => togglePanel('test')}
-                >
-                  <FlaskConical size={19} />
-                  <span>测试</span>
-                </button>
-              )}
             </nav>
             {panel === 'test' && (
               <section
@@ -1739,6 +1755,17 @@ export default function Home() {
               </section>
             )}
             <EnemyMotion game={game} playback={enemyMotion} />
+            {game.cardNotice && (
+              <CardNotice key={game.cardNotice.uid} notice={game.cardNotice} />
+            )}
+            <DeckSupply
+              game={game}
+              net={net}
+              moving={enemyMotion.moving}
+              onEndRound={() =>
+                remaining > 0 ? setConfirm('round') : send({ type: 'endRound' })
+              }
+            />
             <PersonalPanel
               game={game}
               net={net}
@@ -1747,7 +1774,15 @@ export default function Home() {
               moving={enemyMotion.moving}
               Traits={Traits}
               changes={attributeFeedback.changes}
-              onActions={() => togglePanel('actions')}
+              commands={
+                <ExplorerActions
+                  game={game}
+                  send={send}
+                  net={net}
+                  waiting={waiting}
+                  moving={enemyMotion.moving}
+                />
+              }
             />
             <div
               className={
@@ -1781,6 +1816,7 @@ export default function Home() {
                   </h2>
                 </div>
                 <FactionRoster
+                  open={partyOpen}
                   game={game}
                   send={send}
                   net={net}
@@ -1808,349 +1844,213 @@ export default function Home() {
                   setZoom={setZoom}
                   locked={waiting || net.busy || enemyMotion.moving}
                 />
-                <section
-                  className="floating-window actions-window"
-                  id="action-details"
-                  hidden={panel !== 'actions'}
-                  aria-label="当前人物行动"
+              </section>
+              <div className="right-info-rail" aria-label="章节与探索记录">
+                <button
+                  className="chapter-toggle"
+                  aria-expanded={storyOpen}
+                  aria-controls="story-details"
+                  onClick={() => setStoryOpen((open) => !open)}
+                >
+                  <BookOpen size={19} />
+                  <span>
+                    章节 · 作祟
+                    {game.phase === 'haunt' && (
+                      <small>剩余 {game.limit - game.elapsed} 轮</small>
+                    )}
+                  </span>
+                </button>
+                <button
+                  className="journal-toggle"
+                  aria-expanded={journalOpen}
+                  aria-controls="journal-details"
+                  onClick={() => setJournalOpen((open) => !open)}
+                >
+                  <BookOpen size={19} />
+                  <span>探索手记</span>
+                </button>
+                <aside
+                  className="story-panel floating-window"
+                  id="story-details"
+                  hidden={!storyOpen}
                 >
                   <div className="floating-heading">
-                    <strong>当前人物行动</strong>
+                    <strong>
+                      {game.phase === 'explore' ? '探索章节' : '作祟章节'}
+                    </strong>
                     <button
                       className="icon-button"
-                      aria-label="收起行动窗口"
-                      onClick={() => setPanel(null)}
+                      aria-label="收起当前目标"
+                      onClick={() => setStoryOpen(false)}
                     >
                       <X size={18} />
                     </button>
                   </div>
-                  <div
-                    className="turn-banner"
-                    key={game.round + '-' + game.active}
-                    style={{ '--turn-color': hero.color }}
-                  >
-                    <span className="turn-number">第 {game.round} 回合</span>
-                    <span className="turn-pawn">{hero.mark}</span>
-                    <strong>
-                      {hero.name}
-                      {hero.ended ? '已结束行动' : '行动中'}
-                    </strong>
-                    <span>
-                      {hero.stopped
-                        ? '本回合停止移动，可继续互动'
-                        : hero.moves + ' 点移动力'}
-                    </span>
-                    <small>
-                      {FLOORS.find((f) => f.id === room.floor).name} ·{' '}
-                      {room.name}
-                    </small>
-                    <small className="current-game-mode">
-                      {gameModeLabel(game)}
-                    </small>
+                  <div className="story-top">
+                    <span className="eyebrow">CHAPTER {sc.number}</span>
+                    <Icon size={26} />
+                    <h2>{sc.title}</h2>
+                    <span className="english-title">{sc.subtitle}</span>
                   </div>
+                  <p className="chapter-phase">
+                    第 {game.round} 回合 ·{' '}
+                    {game.phase === 'explore'
+                      ? '探索阶段'
+                      : game.phase === 'over'
+                        ? '故事落幕'
+                        : '作祟阶段'}
+                  </p>
+                  {game.phase !== 'explore' && (
+                    <details className="chapter-rule">
+                      <summary>作祟规则与背景</summary>
+                      <p>{sc.haunt}</p>
+                    </details>
+                  )}
                   <WerewolfPanel
                     game={game}
                     send={send}
                     net={net}
                     waiting={waiting}
+                    rulesOnly
                   />
-                  <div className="action-bar">
-                    <div className="current-room">
-                      <span className="eyebrow">{hero.name} · 当前位置</span>
-                      <strong>{room.name}</strong>
-                      <span className="muted">
-                        速度 {traitValue(hero, 'speed')} · 剩余移动 {hero.moves}
-                        {hero.stopped ? ' · 本回合停止移动' : ''}
+                  <div
+                    className={
+                      'objective-card ' +
+                      (game.phase === 'haunt' ? 'haunting' : '')
+                    }
+                  >
+                    <div className="mini-heading">
+                      <span>
+                        {game.phase === 'explore' ? '探索目标' : '作祟目标'}
                       </span>
+                      <span>✦</span>
                     </div>
-                    <div className="action-buttons">
-                      {legal.stairs.map((id) => (
-                        <button
-                          key={id}
-                          className="quest-action"
-                          onClick={() => send({ type: 'move', pos: id })}
-                        >
-                          <ArrowUpDown size={17} />
-                          <span>
-                            前往
-                            {
-                              FLOORS.find(
-                                (f) => f.id === roomAt(game, id).floor,
-                              ).name
-                            }
-                            <small>{legal.moveCost}点移动力</small>
-                          </span>
-                        </button>
-                      ))}
-                      {legal.interact && (
-                        <button
-                          className="quest-action"
-                          onClick={() => send({ type: 'interact' })}
-                        >
-                          <Zap size={17} />
-                          <span>
-                            {room.id === ENTRANCE && game.powered
-                              ? '一起逃生'
-                              : targetActions[room.target]}
-                            <small>每人每回合一次</small>
-                          </span>
-                        </button>
-                      )}
-                      {legal.attack.map((id) => {
-                        const e = game.enemies.find((e) => e.id === id);
-                        return (
-                          <button
-                            key={id}
-                            className="attack-action"
-                            onClick={() => send({ type: 'attack', id })}
-                          >
-                            <Swords size={17} />
-                            <span>
-                              攻击{e.name}
-                              <small>
-                                {e.hp}/{e.maxHp}生命 · 本回合一次
-                              </small>
-                            </span>
-                          </button>
-                        );
-                      })}
-                      <button
-                        disabled={hero.ended || !!p || game.phase === 'over'}
-                        onClick={() => send({ type: 'endHero' })}
-                      >
-                        <Check size={17} />
-                        <span>
-                          结束此人行动
-                          <small>
-                            {remaining === 1 && game.phase === 'haunt'
-                              ? '全队结束后，敌人将移动并攻击'
-                              : '切换下一名队员'}
-                          </small>
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                  {legal.rest && (
-                    <div className="rest-controls">
-                      <span>休整：恢复1格，随后停止移动</span>
-                      {TRAIT_KEYS.filter(
-                        (k) => hero.stats[k] < hero.start[k],
-                      ).map((k) => (
-                        <button
-                          key={k}
-                          onClick={() => send({ type: 'rest', trait: k })}
-                        >
-                          {TRAITS[k]} +1
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="deck-counter">
-                    {['event', 'item', 'omen'].map((type) => {
-                      const I = cardIcons[type];
-                      return (
-                        <span key={type}>
-                          <I size={15} />
-                          {{ event: '事件', item: '物品', omen: '预兆' }[type]}
-                          牌堆 <strong>{game.decks[type].length}</strong>
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <div className="turn-controls">
-                    <span>{remaining}名队员尚未结束行动</span>
-                    <button
-                      className="gold-button"
-                      disabled={!!p || game.phase === 'over'}
-                      onClick={() =>
-                        remaining > 0
-                          ? setConfirm('round')
-                          : send({ type: 'endRound' })
-                      }
-                    >
-                      结束整轮
-                      <ArrowRight size={18} />
-                    </button>
-                    <small>
+                    <p>
                       {game.phase === 'explore'
-                        ? '所有队员按速度恢复移动力'
-                        : '敌人行动，作祟倒计时推进'}
-                    </small>
+                        ? '探索三层宅邸，收集物品与预兆。预兆越多，作祟越可能发生。'
+                        : sc.objective}
+                    </p>
+                    {game.phase === 'explore' ? (
+                      <>
+                        <div className="omen-track">
+                          <Eye size={23} />
+                          <strong>{game.omens}</strong>
+                          <span>张预兆</span>
+                        </div>
+                        <p className="haunt-roll-help">
+                          抽到预兆后投等量骰子
+                          <br />
+                          总点数 ≥ 5，作祟降临
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="countdown">
+                          <Clock size={15} />
+                          <span>
+                            剩余 {Math.max(0, game.limit - game.elapsed)} 回合
+                          </span>
+                        </div>
+                        <div className="danger-track">
+                          <i
+                            style={{
+                              width: `${(game.elapsed / game.limit) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="objective-progress">
+                          {game.scenario === 'werewolf'
+                            ? game.progress + '/2 月印已净化；全部完成后回入口'
+                            : game.scenario === 'bells'
+                              ? `${game.progress}/3 祭坛已封印`
+                              : game.scenario === 'mirror'
+                                ? game.mirrorFound
+                                  ? '真身已现形！'
+                                  : `${game.progress}/3 古镜已调查`
+                                : game.powered
+                                  ? '电力已恢复，返回入口'
+                                  : `${game.fuses}/2 保险丝已找到`}
+                        </div>
+                        <ul className="target-list">
+                          {(game.targetRooms || []).map((id) => {
+                            const r = roomAt(game, id);
+                            return (
+                              <li key={id}>
+                                <button
+                                  onClick={() =>
+                                    send({ type: 'viewFloor', floor: r.floor })
+                                  }
+                                >
+                                  {r.done ? (
+                                    <Check size={12} />
+                                  ) : (
+                                    <Sparkles size={12} />
+                                  )}
+                                  <span>
+                                    {FLOORS.find((f) => f.id === r.floor).name}{' '}
+                                    · {r.name}
+                                    <small>
+                                      {targetLabels[r.target]}
+                                      {r.target === 'moonSeal'
+                                        ? ` · ${r.charges || 0}/${r.requiredCharges} 次净化`
+                                        : ''}
+                                      {r.done ? ' · 已完成' : ''}
+                                    </small>
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </>
+                    )}
                   </div>
-                </section>
-              </section>
-              <aside
-                className="story-panel floating-window"
-                id="story-details"
-                hidden={!storyOpen}
-              >
-                <div className="floating-heading">
-                  <strong>
-                    {game.phase === 'explore' ? '探索章节' : '作祟章节'}
-                  </strong>
-                  <button
-                    className="icon-button"
-                    aria-label="收起当前目标"
-                    onClick={() => setStoryOpen(false)}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="story-top">
-                  <span className="eyebrow">CHAPTER {sc.number}</span>
-                  <Icon size={26} />
-                  <h2>{sc.title}</h2>
-                  <span className="english-title">{sc.subtitle}</span>
-                </div>
-                <p className="chapter-phase">
-                  第 {game.round} 回合 ·{' '}
-                  {game.phase === 'explore'
-                    ? '探索阶段'
-                    : game.phase === 'over'
-                      ? '故事落幕'
-                      : '作祟阶段'}
-                </p>
-                {game.phase !== 'explore' && (
-                  <details className="chapter-rule">
-                    <summary>作祟规则与背景</summary>
-                    <p>{sc.haunt}</p>
-                  </details>
-                )}
-                <div
-                  className={
-                    'objective-card ' +
-                    (game.phase === 'haunt' ? 'haunting' : '')
-                  }
+                </aside>
+                <aside
+                  className="journal-panel floating-window"
+                  id="journal-details"
+                  hidden={!journalOpen}
+                  aria-label="探索手记"
                 >
-                  <div className="mini-heading">
-                    <span>
-                      {game.phase === 'explore' ? '探索目标' : '作祟目标'}
-                    </span>
-                    <span>✦</span>
+                  <div className="floating-heading">
+                    <strong>探索手记</strong>
+                    <button
+                      className="icon-button"
+                      aria-label="收起探索手记"
+                      onClick={() => setJournalOpen(false)}
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
-                  <p>
-                    {game.phase === 'explore'
-                      ? '探索三层宅邸，收集物品与预兆。预兆越多，作祟越可能发生。'
-                      : sc.objective}
-                  </p>
-                  {game.phase === 'explore' ? (
-                    <>
-                      <div className="omen-track">
-                        <Eye size={23} />
-                        <strong>{game.omens}</strong>
-                        <span>张预兆</span>
-                      </div>
-                      <p className="haunt-roll-help">
-                        抽到预兆后投等量骰子
-                        <br />
-                        总点数 ≥ 5，作祟降临
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="countdown">
-                        <Clock size={15} />
-                        <span>
-                          剩余 {Math.max(0, game.limit - game.elapsed)} 回合
-                        </span>
-                      </div>
-                      <div className="danger-track">
-                        <i
-                          style={{
-                            width: `${(game.elapsed / game.limit) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="objective-progress">
-                        {game.scenario === 'werewolf'
-                          ? game.progress + '/2 月印已净化；全部完成后回入口'
-                          : game.scenario === 'bells'
-                            ? `${game.progress}/3 祭坛已封印`
-                            : game.scenario === 'mirror'
-                              ? game.mirrorFound
-                                ? '真身已现形！'
-                                : `${game.progress}/3 古镜已调查`
-                              : game.powered
-                                ? '电力已恢复，返回入口'
-                                : `${game.fuses}/2 保险丝已找到`}
-                      </div>
-                      <ul className="target-list">
-                        {(game.targetRooms || []).map((id) => {
-                          const r = roomAt(game, id);
-                          return (
-                            <li key={id}>
-                              <button
-                                onClick={() =>
-                                  send({ type: 'viewFloor', floor: r.floor })
-                                }
-                              >
-                                {r.done ? (
-                                  <Check size={12} />
-                                ) : (
-                                  <Sparkles size={12} />
-                                )}
-                                <span>
-                                  {FLOORS.find((f) => f.id === r.floor).name} ·{' '}
-                                  {r.name}
-                                  <small>
-                                    {targetLabels[r.target]}
-                                    {r.target === 'moonSeal'
-                                      ? ` · ${r.charges || 0}/${r.requiredCharges} 次净化`
-                                      : ''}
-                                    {r.done ? ' · 已完成' : ''}
-                                  </small>
-                                </span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </>
-                  )}
-                </div>
-              </aside>
-              <aside
-                className="journal-panel floating-window"
-                id="journal-details"
-                hidden={!journalOpen}
-                aria-label="探索手记"
-              >
-                <div className="floating-heading">
-                  <strong>探索手记</strong>
-                  <button
-                    className="icon-button"
-                    aria-label="收起探索手记"
-                    onClick={() => setJournalOpen(false)}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <output className="live-feedback" key={game.feedbackId}>
-                  <Sparkles size={16} />
-                  {game.feedback}
-                </output>
-                <div className="journal">
-                  <div className="mini-heading">
-                    <span>
-                      <BookOpen size={15} />
-                      探索手记
-                    </span>
-                    <span>最新</span>
+                  <output className="live-feedback" key={game.feedbackId}>
+                    <Sparkles size={16} />
+                    {game.feedback}
+                  </output>
+                  <div className="journal">
+                    <div className="mini-heading">
+                      <span>
+                        <BookOpen size={15} />
+                        探索手记
+                      </span>
+                      <span>最新</span>
+                    </div>
+                    <div className="journal-entries">
+                      {game.logs.map((l, i) => (
+                        <div
+                          className={
+                            'journal-entry ' + (i === 0 ? 'latest' : '')
+                          }
+                          key={l.id}
+                        >
+                          <span className="journal-dot" />
+                          <small>第{l.round}回合</small>
+                          <p>{l.text}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="journal-entries">
-                    {game.logs.slice(0, 16).map((l, i) => (
-                      <div
-                        className={'journal-entry ' + (i === 0 ? 'latest' : '')}
-                        key={l.id}
-                      >
-                        <span className="journal-dot" />
-                        <small>第{l.round}回合</small>
-                        <p>{l.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </aside>
+                </aside>
+              </div>
             </div>
             {!enemyMotion.moving && (
               <Prompt

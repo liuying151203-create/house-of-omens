@@ -1,5 +1,9 @@
+import HeroStatusBadges from './hero-status-badges';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Footprints, LockKeyhole, MapPin, ArrowRight } from 'lucide-react';
 import HeroInventory from './hero-inventory';
-import { Skull, LockKeyhole } from 'lucide-react';
+import ExplorerEmblem from './explorer-emblem';
 import {
   rosterGroups,
   locationLabel,
@@ -7,7 +11,7 @@ import {
   canInspectHero,
 } from '../lib/game-view.mjs';
 import { statusOf } from '../lib/werewolf.mjs';
-import { TRAITS } from '../lib/game-data.mjs';
+import { TRAITS, TRAIT_KEYS, FLOORS } from '../lib/game-data.mjs';
 
 export default function FactionRoster({
   game,
@@ -17,16 +21,59 @@ export default function FactionRoster({
   pending,
   Traits,
   changes,
+  open = true,
 }) {
+  const [inspected, setInspected] = useState(null);
+  useEffect(() => {
+    const close = (e) => {
+      if (e.key === 'Escape') setInspected(null);
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, []);
+  const groups = rosterGroups(game);
+  const person = groups
+    .flatMap((g) => g.heroes)
+    .find((h) => inspected === 'hero-' + h.id);
+  const enemy = groups
+    .flatMap((g) => g.enemies)
+    .find((e) => inspected === 'enemy-' + e.id);
+  const floorName = (pos) =>
+    FLOORS.find((f) => f.id === game.rooms.find((r) => r.id === pos)?.floor)
+      ?.name || '未知位置';
+  const status = (h) =>
+    h.dead
+      ? '已死亡'
+      : h.traitor
+        ? '已转化'
+        : h.ended
+          ? '已结束'
+          : h.stopped
+            ? '停止移动'
+            : h.moves + ' 移动';
+  const mine =
+    person &&
+    (!net.session ||
+      (net.room?.seats[person.id] || net.room?.hostId) === net.room?.you);
+  const selectable =
+    person &&
+    mine &&
+    !person.dead &&
+    !person.traitor &&
+    !person.ended &&
+    !pending &&
+    !waiting &&
+    !net.busy;
+  const visible = person && canInspectHero(game, person, net.room);
   return (
-    <div className="faction-roster">
-      {rosterGroups(game).map((group) => (
+    <div className="party-rail">
+      {groups.map((group) => (
         <section
-          className={'faction-group faction-' + group.id}
+          className={'rail-faction rail-' + group.id}
           key={group.id}
           aria-label={group.name}
         >
-          <h3 className="faction-heading">
+          <h3>
             {group.name}
             <span>
               {group.heroes.length +
@@ -34,159 +81,205 @@ export default function FactionRoster({
                 (group.unknown ? 1 : 0)}
             </span>
           </h3>
-          <div className="hero-list">
-            {group.heroes.map((h) => {
-              const mine =
-                !net.session ||
-                (net.room?.seats[h.id] || net.room?.hostId) === net.room?.you;
-              const privateTraits = !canInspectHero(game, h, net.room);
-              const delta = privateTraits
-                ? []
-                : changes.filter((c) => c.heroId === h.id);
-              return (
-                <article className="roster-person" key={h.id}>
-                  <button
+          {group.heroes.map((h) => {
+            const publicStats = canInspectHero(game, h, net.room);
+            return (
+              <button
+                key={'hero-' + h.id}
+                className={
+                  'party-member ' +
+                  (h.id === game.active ? 'member-active ' : '') +
+                  (h.dead ? 'member-fallen' : '')
+                }
+                style={{ '--explorer-color': h.color }}
+                aria-label={'查看' + h.name + '的状态与物品'}
+                aria-expanded={inspected === 'hero-' + h.id}
+                onClick={() =>
+                  setInspected(
+                    inspected === 'hero-' + h.id ? null : 'hero-' + h.id,
+                  )
+                }
+              >
+                <ExplorerEmblem hero={h} small />
+                <span className="member-summary">
+                  <strong>
+                    {h.name}
+                    <small>{floorName(h.pos)}</small>
+                  </strong>
+                  {publicStats && (
+                    <span className="member-stats">
+                      {TRAIT_KEYS.map((k) => (
+                        <span
+                          key={k}
+                          title={TRAITS[k]}
+                          className={
+                            changes.some(
+                              (c) => c.heroId === h.id && c.trait === k,
+                            )
+                              ? 'member-stat-changed'
+                              : ''
+                          }
+                        >
+                          {TRAITS[k][0]}
+                          <b>{h.tracks[k][h.stats[k]]}</b>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  <span
                     className={
-                      'hero-card ' +
-                      (h.id === game.active && !h.dead && !h.traitor
-                        ? 'active '
-                        : '') +
-                      (h.dead ? 'fallen ' : '') +
-                      (delta.length ? 'hero-changed' : '')
+                      'member-status ' +
+                      (statusOf(h, 'infection') ? 'infected-status' : '')
                     }
-                    style={{ '--hero-color': h.color }}
-                    onClick={() => send({ type: 'select', id: h.id })}
-                    disabled={
-                      h.dead ||
-                      h.traitor ||
-                      h.ended ||
-                      !!pending ||
-                      (net.session && (waiting || !mine))
-                    }
-                    aria-pressed={h.id === game.active}
                   >
-                    <div className="hero-heading">
-                      <span className="hero-portrait">
-                        {h.dead ? (
-                          <Skull size={24} />
-                        ) : h.traitor ? (
-                          '👻'
-                        ) : (
-                          h.mark
-                        )}
-                      </span>
-                      <span className="hero-title">
-                        <strong>{h.name}</strong>
-                        <small>
-                          {h.dead
-                            ? '已死亡'
-                            : h.traitor
-                              ? '已转化'
-                              : statusOf(h, 'infection')
-                                ? `狼毒 · ${statusOf(h, 'infection').turns}轮`
-                                : statusOf(h, 'immunity')
-                                  ? '净血保护'
-                                  : h.role}
-                        </small>
-                      </span>
-                      {h.id === game.active && !h.dead && !h.traitor && (
-                        <span className="active-mark">行动中</span>
-                      )}
-                    </div>
-                    {!privateTraits && (
-                      <Traits
-                        hero={h}
-                        compact={h.id !== game.active}
-                        changes={delta}
-                      />
-                    )}
-                    {delta.length > 0 && (
-                      <span className="hero-change-summary">
-                        {delta
-                          .map(
-                            (c) =>
-                              `${TRAITS[c.trait]} ${c.steps > 0 ? '+' : ''}${c.steps}格`,
-                          )
-                          .join(' · ')}
-                      </span>
-                    )}
-                    <div className="hero-bottom">
-                      <span>{locationLabel(game, h.pos)}</span>
-                      <span>
-                        {h.dead
-                          ? '已死亡'
-                          : h.traitor
-                            ? '普通人物能力停用'
-                            : h.ended
-                              ? '已结束'
-                              : h.stopped
-                                ? '已停止移动'
-                                : `${h.moves}移动`}
-                      </span>
-                    </div>
-                  </button>
-                  <HeroInventory game={game} hero={h} room={net.room} />
-                </article>
-              );
-            })}
-            {group.enemies.map((e) => (
-              <article className="hero-card enemy-roster-card" key={e.id}>
-                <div className="hero-heading">
-                  <span className="hero-portrait">{enemyMark(e)}</span>
-                  <span className="hero-title">
-                    <strong>{e.name}</strong>
-                    <small>
-                      {e.explorerName
-                        ? `原探险者 · ${e.explorerName}`
-                        : '已现身'}
-                    </small>
+                    {h.id === game.active && !h.dead && !h.traitor ? (
+                      <i aria-label="当前行动人物" />
+                    ) : null}
+                    {status(h)}
+                    <HeroStatusBadges game={game} hero={h} inline />
                   </span>
-                </div>
-                <div className="enemy-public-stats">
+                </span>
+              </button>
+            );
+          })}
+          {group.enemies.map((e) => (
+            <button
+              className="party-member member-enemy"
+              key={e.id}
+              aria-label={'查看' + e.name}
+              aria-expanded={inspected === 'enemy-' + e.id}
+              onClick={() =>
+                setInspected(
+                  inspected === 'enemy-' + e.id ? null : 'enemy-' + e.id,
+                )
+              }
+            >
+              <span className="enemy-emblem">{enemyMark(e)}</span>
+              <span className="member-summary">
+                <strong>{e.name}</strong>
+                <span className="monster-health">
+                  <span
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (e.hp / e.maxHp) * 100))}%`,
+                    }}
+                  />
+                </span>
+                <span className="member-status">
+                  {e.hp}/{e.maxHp} 生命 · {floorName(e.pos)}
+                </span>
+              </span>
+            </button>
+          ))}
+          {group.unknown && (
+            <div className="party-member member-unknown">
+              <span className="enemy-emblem">?</span>
+              <span className="member-summary">
+                <strong>镜魇</strong>
+                <span className="member-status">
+                  <LockKeyhole size={12} />
+                  尚未现形
+                </span>
+              </span>
+            </div>
+          )}
+        </section>
+      ))}
+      {open &&
+        (person || enemy) &&
+        createPortal(
+          <aside
+            className="roster-inspector"
+            aria-label={(person?.name || enemy.name) + '的详细资料'}
+          >
+            <header>
+              <strong>{person?.name || enemy.name}</strong>
+              <button
+                className="icon-button"
+                aria-label="关闭人物资料"
+                onClick={() => setInspected(null)}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <p className="inspector-location">
+              <MapPin size={14} />
+              {locationLabel(game, person?.pos || enemy.pos)}
+            </p>
+            {person ? (
+              <>
+                <span className="inspector-condition">
+                  {person.role} · {status(person)}
+                </span>
+                {visible ? (
+                  <Traits
+                    hero={person}
+                    compact={false}
+                    changes={changes.filter((c) => c.heroId === person.id)}
+                  />
+                ) : (
+                  <p className="private-info">
+                    <LockKeyhole size={14} />
+                    此人物的属性与物品未公开或已停用。
+                  </p>
+                )}
+                <HeroStatusBadges game={game} hero={person} />
+                <h4>持有物品与预兆</h4>
+                <HeroInventory game={game} hero={person} room={net.room} />
+                {mine && !person.dead && !person.traitor && (
+                  <button
+                    className="gold-button"
+                    disabled={!selectable || person.id === game.active}
+                    onClick={() => {
+                      send({ type: 'select', id: person.id });
+                      setInspected(null);
+                    }}
+                  >
+                    <Footprints size={15} />
+                    {person.id === game.active
+                      ? '当前行动人物'
+                      : '切换为此人物行动'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="inspector-enemy-stats">
                   <span>
-                    生命{' '}
+                    生命
                     <b>
-                      {e.hp}/{e.maxHp}
+                      {enemy.hp}/{enemy.maxHp}
                     </b>
                   </span>
                   <span>
-                    力量 <b>{e.might}</b>
+                    力量<b>{enemy.might}</b>
                   </span>
                   <span>
-                    移动 <b>{e.speed}</b>
+                    移动<b>{enemy.speed}</b>
                   </span>
                 </div>
+                <p className="private-info">
+                  <LockKeyhole size={14} />
+                  {enemy.explorerName
+                    ? '原人物的物品与属性轨已停用。'
+                    : '仅展示已公开能力。'}
+                </p>
                 <button
-                  className="enemy-location text-button"
+                  className="secondary-button"
                   onClick={() =>
                     send({
                       type: 'viewFloor',
-                      floor: game.rooms.find((r) => r.id === e.pos).floor,
+                      floor: game.rooms.find((r) => r.id === enemy.pos).floor,
                     })
                   }
                 >
-                  {locationLabel(game, e.pos)}
+                  查看所在楼层
+                  <ArrowRight size={15} />
                 </button>
-                <p className="private-info">
-                  <LockKeyhole size={12} />
-                  {e.explorerName
-                    ? '转化前的物品与属性轨不作为怪物能力展示'
-                    : '仅显示已公开能力'}
-                </p>
-              </article>
-            ))}
-            {group.unknown && (
-              <article className="hero-card unknown-entity">
-                <span className="hero-portrait">?</span>
-                <strong>镜魇 · 未现形</strong>
-                <p className="private-info">
-                  位置与数值未公开，调查古镜后揭晓。
-                </p>
-              </article>
+              </>
             )}
-          </div>
-        </section>
-      ))}
+          </aside>,
+          document.body,
+        )}
     </div>
   );
 }

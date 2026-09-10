@@ -20,7 +20,7 @@ export default function DamagePlanner({ game, p, send }) {
       <div className="damage-counter">
         {h.name} · 还需分配 <strong>{left}</strong> / {p.remaining} 点
       </div>
-      <p className="allocation-status">默认方案已填好，可直接确认或调整。</p>
+
       {keys.map((k) => {
         const after = Math.max(minimum, h.stats[k] - allocation[k]);
         return (
@@ -123,7 +123,9 @@ export default function DamagePlanner({ game, p, send }) {
       <button
         className="gold-button"
         disabled={left !== 0}
-        onClick={() => send({ type: 'allocateDamage', allocation })}
+        onClick={() =>
+          send({ type: 'allocateDamage', requestId: p.uid, allocation })
+        }
       >
         <Check size={17} />
         {lethal

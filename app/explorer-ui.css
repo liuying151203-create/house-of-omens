@@ -920,7 +920,7 @@
 .right-info-rail .wolf-progress {
   display: none;
 }
-/* Tools are attached to the floor control and wrap beneath it on narrower screens. */
+/* Floors stay centered; tools occupy a separate compact column on their right. */
 .map-stage .map-navigation {
   position: fixed;
   z-index: 10;
@@ -1090,8 +1090,15 @@
   }
 }
 @media (max-width: 1540px) {
-  .map-stage .map-navigation .board-heading {
-    position: static;
+  .map-stage .map-navigation .map-tools {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    max-width: 142px;
+  }
+  .map-stage .map-navigation .map-tools > span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: center;
   }
 }
 @media (max-width: 1200px) and (min-width: 761px) {
@@ -1113,10 +1120,32 @@
 @media (max-width: 760px) {
   .map-stage .map-navigation {
     top: 70px;
-    width: min(400px, calc(100vw - 24px));
+    width: min(340px, calc(100vw - 208px));
   }
-  .map-stage .map-navigation .board-heading {
-    position: static;
+  .map-stage .map-navigation .map-tools {
+    width: 88px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .map-stage .map-navigation .map-tools .map-tool-label {
+    display: none;
+  }
+  .map-stage .map-navigation .map-tools button {
+    min-width: 0;
+    padding: 6px;
+    justify-content: center;
+  }
+  .map-stage .map-navigation .floor-title > svg,
+  .map-stage .map-navigation .floor-title > small {
+    display: none;
+  }
+  .map-stage .map-navigation .floor-tabs [role='tab'] {
+    padding-inline: 2px;
+    min-width: 0;
+  }
+  .map-stage .map-navigation .floor-title {
+    gap: 0;
+    font-size: 14px;
+    white-space: nowrap;
   }
   .map-stage .right-info-rail {
     top: 230px;
@@ -1317,4 +1346,60 @@
   border-radius: 4px;
   background: #243b3b;
   font-size: 14px;
+}
+
+.room-floor-choices {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-block: 0.5rem;
+}
+.room-floor-choices button[aria-pressed='true'] {
+  border-color: var(--gold, #d7bb77);
+  color: #efdba1;
+}
+.room-arrival {
+  animation: room-arrival 1.6s ease-out both;
+}
+.room-arrival-fall {
+  animation-name: room-fall;
+}
+@keyframes room-arrival {
+  from {
+    opacity: 0.15;
+    filter: brightness(2);
+    transform: translateY(-18px);
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.3);
+  }
+  to {
+    filter: brightness(1);
+    transform: none;
+  }
+}
+@keyframes room-fall {
+  from {
+    opacity: 0.3;
+    transform: translateY(-35px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-arrival {
+    animation: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .map-stage .right-info-rail {
+    top: 202px;
+  }
 }

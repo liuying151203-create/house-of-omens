@@ -112,7 +112,7 @@ test('checkpoints preserve pending rolls exactly and refuse other fixtures, norm
 test('preset selection is validated for direct and LAN starts and guests cannot insert it', () => {
   assert.deepEqual(
     playtestPresets('mirror').map((p) => p.id),
-    ['basic'],
+    ['basic', 'elevator', 'collapse'],
   );
   assert.throws(() => createHauntPlaytest('mirror', 23, 3, 'ritual'), /不支持/);
   assert.throws(

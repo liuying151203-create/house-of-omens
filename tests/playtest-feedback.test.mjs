@@ -23,7 +23,8 @@ import { createRoomService } from '../scripts/room-server.mjs';
 function lastOmen(scenario) {
   const game = createInteractiveGame(scenario, 72, 3);
   game.queue = [];
-  game.omens = 2;
+  // Make this the actual last omen: the scenario test must not depend on room-shuffle RNG.
+  game.omens = OMENS.length - 1;
   game.decks.omen = ['mirror-shard'];
   drawCard(game, 'omen', game.heroes[0]);
   return game;

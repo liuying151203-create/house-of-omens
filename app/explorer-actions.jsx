@@ -34,6 +34,30 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
     !!game.queue.length || net.busy || moving || game.phase === 'over';
   const disabled = busy || waiting || hero.dead || hero.traitor || hero.ended;
   const buttons = [];
+  if (legal.elevator)
+    buttons.push({
+      id: 'elevator',
+      Icon: ArrowUpDown,
+      label: '启动电梯',
+      detail: '掷 2 枚骰决定楼层，每人每轮一次',
+      action: { type: 'useElevator' },
+    });
+  if (legal.fall)
+    buttons.push({
+      id: 'fall',
+      Icon: ArrowUpDown,
+      label: '跳入地下室',
+      detail: '不消耗移动力，承受 1 枚骰的肉体伤害；无法沿原路爬回',
+      action: { type: 'jumpDown' },
+    });
+  if (legal.returnStairs)
+    buttons.push({
+      id: 'return-stairs',
+      Icon: ArrowUpDown,
+      label: '寻找回程暗梯',
+      detail: legal.moveCost + ' 移动 · 永久连通门厅',
+      action: { type: 'findReturnStairs' },
+    });
   for (const id of legal.stairs)
     buttons.push({
       id: 'stairs-' + id,

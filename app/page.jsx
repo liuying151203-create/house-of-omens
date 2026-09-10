@@ -67,6 +67,7 @@ import {
   living,
   pending,
   frontiers,
+  roomPlacementOptions,
   roomAt,
   doorsOf,
   traitValue,
@@ -187,7 +188,14 @@ function TileFace({ tile, rotation = tile.rotation || 0 }) {
           <CardIcon size={15} />
         </span>
       )}
-      {['stairs', 'upper', 'stairsDown', 'basement'].includes(tile.special) && (
+      {[
+        'stairs',
+        'upper',
+        'stairsDown',
+        'basement',
+        'elevator',
+        'collapse',
+      ].includes(tile.special) && (
         <ArrowUpDown
           className="stairs-symbol"
           size={17}
@@ -539,8 +547,12 @@ function Prompt({
               className="gold-button"
               onClick={() =>
                 send(
-                  p.kind === 'card'
-                    ? { type: 'continueCard', requestId: p.uid }
+                  ['card', 'roomFall'].includes(p.kind)
+                    ? {
+                        type:
+                          p.kind === 'card' ? 'continueCard' : 'continueRoom',
+                        requestId: p.uid,
+                      }
                     : { type: tile ? 'place' : 'advance' },
                 )
               }
@@ -553,15 +565,17 @@ function Prompt({
                     : p.cardType === 'event'
                       ? '应用并继续'
                       : '收下并继续'
-                  : p.kind === 'hauntRoll'
-                    ? '掷骰，试探黑暗'
-                    : p.kind === 'hauntResult' && p.triggers
-                      ? '揭开作祟剧本'
-                      : p.kind === 'haunt'
-                        ? '我已了解，面对作祟'
-                        : p.rollReceipt
-                          ? '收起结果，继续'
-                          : '确认并继续'}
+                  : p.kind === 'roomFall'
+                    ? '掷骰，查看伤害'
+                    : p.kind === 'hauntRoll'
+                      ? '掷骰，试探黑暗'
+                      : p.kind === 'hauntResult' && p.triggers
+                        ? '揭开作祟剧本'
+                        : p.kind === 'haunt'
+                          ? '我已了解，面对作祟'
+                          : p.rollReceipt
+                            ? '收起结果，继续'
+                            : '确认并继续'}
               <ArrowRight size={18} />
             </button>
           )}
@@ -617,7 +631,17 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
   const cameraLayout = useRef(null);
   const drag = useRef(null);
   const suppressClick = useRef(false);
-  const placement = pending(game)?.kind === 'placement' ? pending(game) : null;
+  const currentPlacement =
+    pending(game)?.kind === 'placement' ? pending(game) : null;
+  const placement = currentPlacement?.destinations
+    ? {
+        ...currentPlacement,
+        options: roomPlacementOptions(
+          currentPlacement.destinations,
+          currentPlacement,
+        ),
+      }
+    : currentPlacement;
   const tile = placement
     ? ROOM_DECK.find((t) => t.id === placement.tileId)
     : null;
@@ -626,7 +650,9 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
     legal = locked ? { move: [], explore: [] } : actions(game),
     floor = game.viewFloor;
   const rooms = game.rooms.filter((r) => r.floor === floor),
-    allFrontiers = frontiers(game, floor),
+    allFrontiers = placement?.destinations
+      ? placement.destinations.filter((d) => d.floor === floor)
+      : frontiers(game, floor),
     cells = [...rooms, ...allFrontiers];
   const minX = Math.min(...cells.map((r) => r.x)) - 1,
     maxX = Math.max(...cells.map((r) => r.x)) + 1,
@@ -670,6 +696,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
       !previous ||
       previous.floor !== floor ||
       previous.zoom !== zoom ||
+      previous.roomMotion !== game.roomMotion?.uid ||
       fitNext.current ||
       (motionPosition && previous.motionPosition !== motionPosition)
     ) {
@@ -688,8 +715,23 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
       });
     }
     fitNext.current = false;
-    cameraLayout.current = { floor, zoom, minX, minY, motionPosition };
-  }, [centerMap, floor, zoom, minX, minY, motionPosition]);
+    cameraLayout.current = {
+      floor,
+      zoom,
+      minX,
+      minY,
+      motionPosition,
+      roomMotion: game.roomMotion?.uid,
+    };
+  }, [
+    centerMap,
+    floor,
+    zoom,
+    minX,
+    minY,
+    motionPosition,
+    game.roomMotion?.uid,
+  ]);
   useEffect(() => {
     const viewport = ref.current;
     let width = viewport.clientWidth,
@@ -722,13 +764,17 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
           <div className="map-tools">
             <button
               className="secondary-button"
+              aria-label="回到人物"
+              title="回到人物"
               onClick={() => centerMap(false, 'smooth')}
             >
               <Compass size={14} />
-              回到人物
+              <span className="map-tool-label">回到人物</span>
             </button>
             <button
               className="secondary-button"
+              aria-label="全图"
+              title="全图"
               onClick={() => {
                 const size = Math.max(
                   4,
@@ -747,7 +793,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               }}
             >
               <Maximize size={14} />
-              全图
+              <span className="map-tool-label">全图</span>
             </button>
             <button
               aria-label="缩小地图"
@@ -903,8 +949,17 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               here = hero.pos === r.id;
             return (
               <div
-                className="room-cell"
-                key={r.id}
+                className={
+                  'room-cell ' +
+                  (game.roomMotion?.roomId === r.id
+                    ? 'room-arrival room-arrival-' + game.roomMotion.kind
+                    : '')
+                }
+                key={
+                  r.id +
+                  '-' +
+                  (game.roomMotion?.roomId === r.id ? game.roomMotion.uid : '')
+                }
                 style={{ gridColumn: r.x - minX + 1, gridRow: r.y - minY + 1 }}
               >
                 <button
@@ -975,6 +1030,9 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               placement.floor === floor &&
               placement.x === f.x &&
               placement.y === f.y;
+            const destination = placement?.destinations?.find(
+              (d) => d.floor === floor && d.x === f.x && d.y === f.y,
+            );
             const choice = legal.explore.find(
               (e) => e.x === f.x && e.y === f.y,
             );
@@ -988,14 +1046,14 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                 className={
                   'frontier-cell ' +
                   (previewing ? 'exploration-preview ' : '') +
-                  (choice ? 'active-frontier' : '') +
+                  (choice || destination ? 'active-frontier' : '') +
                   (isPlacement
                     ? ' placement-ghost ' + (snapped ? 'snapped' : '')
                     : '')
                 }
                 key={`${f.x},${f.y}`}
                 style={{ gridColumn: f.x - minX + 1, gridRow: f.y - minY + 1 }}
-                disabled={!choice && !isPlacement}
+                disabled={locked || (!choice && !isPlacement && !destination)}
                 onDragOver={(e) => {
                   if (isPlacement) {
                     e.preventDefault();
@@ -1014,6 +1072,14 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                     setSnapped(true);
                     return;
                   }
+                  if (destination) {
+                    send({
+                      type: 'roomDestination',
+                      from: destination.from,
+                      dir: destination.dir,
+                    });
+                    return;
+                  }
                   const next = selectExploration(
                     game,
                     explorationPreview,
@@ -1025,7 +1091,9 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                 aria-label={
                   choice
                     ? `${previewing ? '再次点击抽取房间，' : '预览探索位置，'}从${roomAt(game, choice.from).name}${DIRS[choice.dir].name}门探索新房间`
-                    : '未探索的门外'
+                    : destination
+                      ? `选择${roomAt(game, destination.from).name}${DIRS[destination.dir].name}门为落点`
+                      : '未探索的门外'
                 }
               >
                 {isPlacement ? (
@@ -1036,7 +1104,13 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                   <>
                     <Plus size={19} />
                     <span>
-                      {previewing ? '再次点击抽取' : choice ? '探索' : '未知'}
+                      {destination
+                        ? '选择落点'
+                        : previewing
+                          ? '再次点击抽取'
+                          : choice
+                            ? '探索'
+                            : '未知'}
                     </span>
                   </>
                 )}
@@ -1064,9 +1138,46 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
           </div>
           <div className="dock-copy">
             <span className="eyebrow">
-              抽到房间 · {FLOORS.find((f) => f.id === placement.floor).name}
+              {placement.mode === 'elevator'
+                ? '电梯停靠'
+                : placement.mode === 'collapse'
+                  ? '坍塌落点'
+                  : '抽到房间'}{' '}
+              · {FLOORS.find((f) => f.id === placement.floor).name}
             </span>
             <h3>{tile.name}</h3>
+            {placement.destinations && (
+              <div className="room-floor-choices" aria-label="选择落点楼层">
+                {FLOORS.filter((f) =>
+                  placement.destinations.some((d) => d.floor === f.id),
+                ).map((f) => {
+                  const target = placement.destinations.find(
+                    (d) => d.floor === f.id,
+                  );
+                  return (
+                    <button
+                      key={f.id}
+                      disabled={locked}
+                      className="secondary-button"
+                      aria-pressed={placement.floor === f.id}
+                      onClick={() =>
+                        send({
+                          type: 'roomDestination',
+                          from: target.from,
+                          dir: target.dir,
+                        })
+                      }
+                    >
+                      {f.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {placement.text && <p>{placement.text}</p>}
+            {placement.mode === 'collapse' && (
+              <p>楼板断裂。选择亮起的门口安放地下室房间。</p>
+            )}
             <p>
               从「{roomAt(game, placement.from).name}」的
               {DIRS[placement.dir].name}
@@ -1106,7 +1217,11 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                 setSnapped(false);
               }}
             >
-              确认放置并进入
+              {placement.mode === 'elevator'
+                ? '确认停靠'
+                : placement.mode === 'collapse'
+                  ? '确认落点'
+                  : '确认放置并进入'}
               <Check size={16} />
             </button>
           </div>

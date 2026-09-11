@@ -45,7 +45,10 @@ test('entering or passing through the elevator never rolls until the explorer ch
   s = act(s, { type: 'move', pos: 'mystic-elevator' });
   assert.equal(s.queue.length, 0);
   assert.equal(s.seed, seed);
-  assert.equal(s.heroes[0].elevatorUsed, false);
+  assert.equal(
+    s.heroes[0].moves,
+    fixture('mystic-elevator').heroes[0].moves - 1,
+  );
   assert(actions(s).elevator);
   s = act(s, { type: 'move', pos: 'foyer' });
   assert.equal(s.queue.length, 0);
@@ -95,6 +98,39 @@ function resolvedRoll(s, dice) {
   });
   return act(s, { type: 'resolveDice', requestId: s.queue[0].uid });
 }
+
+test('repeated elevator starts spend only the operator movement and stop at zero, including old saves', () => {
+  let s = fixture('mystic-elevator', true);
+  s.heroes[0].pos = 'mystic-elevator';
+  s.heroes[0].moves = 2;
+  s.heroes[0].elevatorUsed = true; // Legacy save data must no longer lock the action.
+  s.heroes[1].pos = 'mystic-elevator';
+  const passengerMoves = s.heroes[1].moves;
+  const round = s.round;
+  for (const remaining of [1, 0]) {
+    assert(actions(s).elevator);
+    s = act(s, { type: 'useElevator' });
+    assert.deepEqual(act(s, { type: 'useElevator' }), s);
+    const requestId = s.queue[0].uid;
+    s = resolvedRoll(s, [[1, 2]]);
+    assert.equal(s.heroes[0].moves, remaining);
+    s = act(s, { type: 'place' });
+    assert.deepEqual(act(s, { type: 'resolveDice', requestId }), s);
+    assert.equal(s.heroes[1].moves, passengerMoves);
+    s = JSON.parse(JSON.stringify(s));
+  }
+  assert.equal(s.round, round);
+  assert(!actions(s).elevator);
+  assert.deepEqual(act(s, { type: 'useElevator' }), s);
+  s.heroes[0].moves = 3;
+  s.heroes[0].stopped = true;
+  assert(!actions(s).elevator);
+  assert.deepEqual(act(s, { type: 'useElevator' }), s);
+  assert.equal(
+    s.logs.filter((l) => l.text.includes('花费1点移动力启动神秘电梯')).length,
+    2,
+  );
+});
 function finish(s) {
   for (let i = 0; s.queue.length && i < 100; i++) {
     const p = s.queue[0];
@@ -133,7 +169,10 @@ test('elevator outcomes offer only their rolled floors, including a free floor c
       [...new Set(p.destinations.map((d) => d.floor))].sort((a, b) => a - b),
       floors,
     );
-    assert.equal(s.heroes[0].elevatorUsed, true);
+    assert.equal(
+      s.heroes[0].moves,
+      fixture('mystic-elevator').heroes[0].moves - 2,
+    );
     assert(validSave(s));
   }
 });
@@ -159,8 +198,7 @@ test('elevator relocation preserves passengers, enemies, tokens and objectives w
   assert.equal(roomAt(s, 'mystic-elevator').tokens[0].id, 'key');
   assert.equal(roomAt(s, 'mystic-elevator').charges, 2);
   assert.equal(s.heroes[0].moves, beforeMoves);
-  assert(!actions(s).elevator);
-  assert.deepEqual(act(s, { type: 'useElevator' }), s);
+  assert(actions(s).elevator);
   assert.equal(
     new Set(s.rooms.map((r) => `${r.floor},${r.x},${r.y}`)).size,
     s.rooms.length,
@@ -168,14 +206,17 @@ test('elevator relocation preserves passengers, enemies, tokens and objectives w
   assert.equal(s.roomMotion.kind, 'elevator');
 });
 
-test('no legal elevator destination leaves its tile in place and still consumes the use', () => {
+test('no legal elevator destination leaves its tile in place and still spends one movement point', () => {
   let s = fixture('mystic-elevator', true);
   roomAt(s, 'upper').doors = [];
   s = resolvedRoll(enterAndUse(s, 'mystic-elevator'), [[1, 2]]);
   assert.equal(s.queue[0].kind, 'check');
   assert.equal(roomAt(s, 'mystic-elevator').floor, 0);
   assert.match(s.queue[0].text, /留在原处/);
-  assert(s.heroes[0].elevatorUsed);
+  assert.equal(
+    s.heroes[0].moves,
+    fixture('mystic-elevator').heroes[0].moves - 2,
+  );
 });
 
 test('zero elevator result damages every explorer passenger only after the crash dice settle', () => {

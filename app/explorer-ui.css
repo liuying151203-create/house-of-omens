@@ -846,14 +846,30 @@
   }
 }
 
+/* Shared HUD geometry keeps the centered floors and right-side controls apart. */
+.map-stage {
+  --hud-top: 84px;
+  --hud-edge: 22px;
+  --hud-gap: 8px;
+  --hud-floor-width: 420px;
+  --hud-tools-width: 150px;
+  --hud-tools-columns: 4;
+  --hud-rail-width: min(
+    238px,
+    calc(
+      (100vw - var(--hud-floor-width)) / 2 - var(--hud-tools-width) -
+        var(--hud-gap) * 2 - var(--hud-edge)
+    )
+  );
+}
 /* One right-hand flow prevents chapter and journal from overlapping at any height. */
 .map-stage .right-info-rail {
   position: fixed;
   z-index: 25;
-  top: 84px;
-  right: 22px;
+  top: var(--hud-top);
+  right: var(--hud-edge);
   bottom: 78px;
-  width: 238px;
+  width: var(--hud-rail-width);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -884,6 +900,24 @@
 }
 .right-info-rail .chapter-toggle {
   order: 0;
+  align-self: stretch;
+  justify-content: center;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 4px 8px;
+  line-height: 1.25;
+}
+.right-info-rail .chapter-toggle > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+.right-info-rail .chapter-toggle > span {
+  min-width: 0;
+}
+.right-info-rail .chapter-toggle small {
+  margin: 2px 0 0;
 }
 .right-info-rail .journal-toggle {
   position: fixed;
@@ -920,14 +954,14 @@
 .right-info-rail .wolf-progress {
   display: none;
 }
-/* Floors stay centered; tools occupy a separate compact column on their right. */
+/* Floors stay centered; the camera dock has an explicit, non-growing width. */
 .map-stage .map-navigation {
   position: fixed;
   z-index: 10;
   left: 50%;
-  top: 84px;
+  top: var(--hud-top);
   transform: translateX(-50%);
-  width: 420px;
+  width: var(--hud-floor-width);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -938,23 +972,55 @@
   position: static;
   transform: none;
   width: 100%;
+  margin: 0;
   order: 0;
   pointer-events: auto;
 }
-.map-stage .map-navigation .board-heading {
+.map-stage .map-camera-dock {
   position: absolute;
-  left: calc(100% + 8px);
+  left: calc(100% + var(--hud-gap));
   top: 0;
-  right: auto;
-  bottom: auto;
-  width: max-content;
-  order: 1;
+  width: var(--hud-tools-width);
   pointer-events: auto;
 }
-.map-stage .map-navigation .map-tools {
+.map-stage .map-camera-tools {
+  display: grid;
+  grid-template-columns: repeat(var(--hud-tools-columns), minmax(0, 1fr));
   gap: 4px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
   padding: 4px;
-  white-space: nowrap;
+  border: 1px solid #b9ccc52b;
+  border-radius: 10px;
+  background: #122129ed;
+}
+.map-stage .map-camera-tools > button {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #c9d5cf;
+}
+.map-stage .map-camera-tools > button:hover:not(:disabled) {
+  background: #30454c;
+  color: #fff0d0;
+}
+.map-stage .map-camera-tools > button:focus-visible {
+  outline: 2px solid #d4bf87;
+  outline-offset: 1px;
+}
+.map-stage .map-camera-tools > button > svg {
+  width: 18px;
+  height: 18px;
 }
 .map-stage .top-test-toggle {
   display: flex;
@@ -1089,26 +1155,13 @@
     max-width: calc(100vw - 560px);
   }
 }
-@media (max-width: 1540px) {
-  .map-stage .map-navigation .map-tools {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    max-width: 142px;
-  }
-  .map-stage .map-navigation .map-tools > span {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    text-align: center;
-  }
-}
 @media (max-width: 1200px) and (min-width: 761px) {
-  .map-stage .right-info-rail {
-    right: 14px;
-    bottom: 280px;
-    width: 222px;
+  .map-stage {
+    --hud-edge: 14px;
+    --hud-floor-width: clamp(240px, 34vw, 340px);
   }
-  .map-stage .map-navigation {
-    width: 340px;
+  .map-stage .right-info-rail {
+    bottom: 280px;
   }
   .right-info-rail .journal-toggle {
     right: 14px;
@@ -1118,21 +1171,10 @@
   }
 }
 @media (max-width: 760px) {
-  .map-stage .map-navigation {
-    top: 70px;
-    width: min(340px, calc(100vw - 208px));
-  }
-  .map-stage .map-navigation .map-tools {
-    width: 88px;
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .map-stage .map-navigation .map-tools .map-tool-label {
-    display: none;
-  }
-  .map-stage .map-navigation .map-tools button {
-    min-width: 0;
-    padding: 6px;
-    justify-content: center;
+  .map-stage {
+    --hud-top: 70px;
+    --hud-edge: 12px;
+    --hud-floor-width: min(340px, calc(100vw - 196px));
   }
   .map-stage .map-navigation .floor-title > svg,
   .map-stage .map-navigation .floor-title > small {
@@ -1398,8 +1440,9 @@
   }
 }
 
-@media (min-width: 761px) and (max-width: 1100px) {
-  .map-stage .right-info-rail {
-    top: 202px;
+@media (max-width: 1100px) {
+  .map-stage {
+    --hud-tools-width: 78px;
+    --hud-tools-columns: 2;
   }
 }

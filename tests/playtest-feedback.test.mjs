@@ -219,7 +219,8 @@ test('keeper movement and death update the converted explorer for both new and o
     s = act(s, { type: 'endRound' });
     assert.equal(s.enemies[0].pos, 'stairs');
     assert.equal(s.heroes.find((h) => h.traitor).pos, 'stairs');
-    s.queue = [];
+    while (pending(s)) s = act(s, { type: 'advance' });
+    assert.equal(s.round, 2);
     s.heroes[s.active].pos = 'stairs';
     s.enemies[0].hp = 1;
     s._rollReplay = [[2, 2, 2, 2], [0]];

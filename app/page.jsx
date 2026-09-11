@@ -649,6 +649,13 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
     hero = game.heroes[game.active],
     legal = locked ? { move: [], explore: [] } : actions(game),
     floor = game.viewFloor;
+  const previewContext = `${floor}:${hero.id}:${hero.pos}`;
+  const [previousPreviewContext, setPreviousPreviewContext] =
+    useState(previewContext);
+  if (previousPreviewContext !== previewContext) {
+    setPreviousPreviewContext(previewContext);
+    setExplorationPreview(null);
+  }
   const rooms = game.rooms.filter((r) => r.floor === floor),
     allFrontiers = placement?.destinations
       ? placement.destinations.filter((d) => d.floor === floor)
@@ -756,20 +763,24 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
   return (
     <>
       <div className="map-navigation">
-        <div className="board-heading">
-          <div>
-            <span className="eyebrow">BLACK PINE MANOR</span>
-            <h2>黑松岭宅邸</h2>
-          </div>
-          <div className="map-tools">
+        <div className="map-camera-dock">
+          <div
+            className="map-camera-tools"
+            role="group"
+            aria-label="地图视角工具"
+          >
             <button
               className="secondary-button"
               aria-label="回到人物"
               title="回到人物"
-              onClick={() => centerMap(false, 'smooth')}
+              onClick={() => {
+                const heroFloor = roomAt(game, hero.pos).floor;
+                if (floor !== heroFloor)
+                  send({ type: 'viewFloor', floor: heroFloor });
+                else centerMap(false, 'smooth');
+              }}
             >
-              <Compass size={14} />
-              <span className="map-tool-label">回到人物</span>
+              <Compass size={18} />
             </button>
             <button
               className="secondary-button"
@@ -792,20 +803,20 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                 }
               }}
             >
-              <Maximize size={14} />
-              <span className="map-tool-label">全图</span>
+              <Maximize size={18} />
             </button>
             <button
               aria-label="缩小地图"
+              title={`缩小地图 · 当前 ${Math.round((zoom / 110) * 100)}%`}
               className="icon-button"
               disabled={zoom <= 30}
               onClick={() => setZoom((z) => Math.max(30, z - 15))}
             >
               <Minus size={16} />
             </button>
-            <span>{Math.round((zoom / 110) * 100)}%</span>
             <button
               aria-label="放大地图"
+              title={`放大地图 · 当前 ${Math.round((zoom / 110) * 100)}%`}
               className="icon-button"
               disabled={zoom >= 155}
               onClick={() => setZoom((z) => Math.min(155, z + 15))}
@@ -1034,7 +1045,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               (d) => d.floor === floor && d.x === f.x && d.y === f.y,
             );
             const choice = legal.explore.find(
-              (e) => e.x === f.x && e.y === f.y,
+              (e) => e.floor === floor && e.x === f.x && e.y === f.y,
             );
             const previewing =
               choice &&
@@ -1484,6 +1495,7 @@ export default function Home() {
           {game?.playtest?.mode === 'haunt' && (
             <button
               className="top-test-toggle"
+              aria-label="测试"
               aria-expanded={panel === 'test'}
               aria-controls="test-details"
               onClick={() => togglePanel('test')}
@@ -1878,7 +1890,9 @@ export default function Home() {
               net={net}
               moving={enemyMotion.moving}
               onEndRound={() =>
-                remaining > 0 ? setConfirm('round') : send({ type: 'endRound' })
+                remaining > 0
+                  ? setConfirm('round')
+                  : send({ type: 'endRound', round: game.round })
               }
             />
             <PersonalPanel
@@ -2361,7 +2375,8 @@ export default function Home() {
             <button
               className="gold-button"
               onClick={() => {
-                if (confirm === 'round') send({ type: 'endRound' });
+                if (confirm === 'round')
+                  send({ type: 'endRound', round: game.round });
                 else if (net.session) {
                   net.leave();
                   setView('game');

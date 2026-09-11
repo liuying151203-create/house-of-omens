@@ -46,7 +46,8 @@ test('first frontier click only previews; second draws exactly one room without 
 
 test('changing floor, actor, or game progress invalidates a previous exploration confirmation', () => {
   const game = start();
-  const frontier = { x: 1, y: 1, dir: 1 };
+  const frontier = actions(game).explore[0];
+  assert(frontier);
   const first = selectExploration(game, null, frontier).preview;
   for (const change of [
     (s) => s.serial++,
@@ -62,6 +63,79 @@ test('changing floor, actor, or game progress invalidates a previous exploration
     selectExploration(game, first, { x: -1, y: 1, dir: 3 }).action,
     null,
   );
+});
+
+test('viewing another floor cannot preview or confirm a same-coordinate exploration', () => {
+  let game = start();
+  game.heroes[0].pos = 'basement';
+  game.viewFloor = -1;
+  const door = actions(game).explore.find((f) => f.dir === 1);
+  const preview = selectExploration(game, null, door).preview;
+  assert(preview);
+  game = act(game, { type: 'viewFloor', floor: 0 });
+  const before = structuredClone(game);
+  for (const target of [
+    door,
+    { ...door, floor: 0, from: 'foyer' },
+    undefined,
+  ]) {
+    assert.deepEqual(selectExploration(game, preview, target), {
+      preview: null,
+      action: null,
+    });
+  }
+  assert.deepEqual(game, before);
+  game = act(game, { type: 'viewFloor', floor: -1 });
+  const first = selectExploration(game, null, door);
+  const second = selectExploration(game, first.preview, door);
+  assert.equal(second.action.floor, -1);
+  assert.equal(second.action.from, 'basement');
+  const result = act(game, second.action);
+  assert.equal(pending(result).floor, -1);
+  assert.equal(result.decks.rooms.length, game.decks.rooms.length - 1);
+});
+
+test('engine and LAN reject exploration with a wrong floor, room or coordinate without drawing', () => {
+  const game = start();
+  game.heroes[0].pos = 'basement';
+  game.viewFloor = -1;
+  const door = actions(game).explore.find((f) => f.dir === 1);
+  const action = { type: 'explore', ...door };
+  const api = createRoomService({ gameFactory: () => structuredClone(game) });
+  const host = api.create({ count: 3, scenario: 'werewolf' });
+  const guest = api.join({ code: host.code });
+  const room = api.update(host.code, host.key, {
+    type: 'start',
+    revision: guest.revision,
+  });
+  for (const patch of [
+    { floor: 0 },
+    { from: 'foyer' },
+    { x: door.x + 1 },
+    { y: door.y + 1 },
+  ]) {
+    const invalid = { ...action, ...patch };
+    assert.deepEqual(act(game, invalid), game);
+    assert.throws(
+      () =>
+        api.update(host.code, host.key, {
+          type: 'action',
+          revision: room.revision,
+          action: invalid,
+        }),
+      /当前不能/,
+    );
+    assert.deepEqual(
+      api.read(host.code, host.key).game.decks.rooms,
+      game.decks.rooms,
+    );
+  }
+  const result = api.update(host.code, host.key, {
+    type: 'action',
+    revision: room.revision,
+    action,
+  });
+  assert.equal(pending(result.game).floor, -1);
 });
 
 test('grid expansion preserves room screen positions and clicks without expansion preserve manual panning', () => {

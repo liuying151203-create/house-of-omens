@@ -130,7 +130,9 @@ export default function PersonalPanel({
       <button
         className="finish-turn"
         disabled={disabled}
-        onClick={() => send({ type: 'endHero' })}
+        onClick={() =>
+          send({ type: 'endHero', actorId: hero.id, round: game.round })
+        }
         title={
           !active
             ? '等待当前人物结束行动'

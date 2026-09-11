@@ -39,7 +39,7 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
       id: 'elevator',
       Icon: ArrowUpDown,
       label: '启动电梯',
-      detail: '掷 2 枚骰决定楼层，每人每轮一次',
+      detail: '消耗 1 点移动力 · 掷 2 枚骰决定楼层 · 本回合可重复启动',
       action: { type: 'useElevator' },
     });
   if (legal.fall)

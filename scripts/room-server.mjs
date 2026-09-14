@@ -162,6 +162,7 @@ export function createRoomService({
             'continueRoom',
             'roomDestination',
             'useElevator',
+            'stayElevator',
             'jumpDown',
             'findReturnStairs',
             'resolveDice',

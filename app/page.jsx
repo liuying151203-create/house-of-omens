@@ -1202,6 +1202,15 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
               ?.blocked > 0 && <small>其他未对齐的相邻门视为封闭门。</small>}
           </div>
           <div className="dock-actions">
+            {placement.mode === 'elevator' && placement.total === 4 && (
+              <button
+                className="secondary-button"
+                disabled={locked}
+                onClick={() => send({ type: 'stayElevator' })}
+              >
+                留在原位
+              </button>
+            )}
             <button
               className="secondary-button"
               disabled={locked || placement.options.length < 2}

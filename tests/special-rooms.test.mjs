@@ -69,7 +69,9 @@ test('rotating a shared landing cell switches between both legal door anchors an
     rotation: 0,
     doors: [0, 1, 2, 3],
   });
-  s = resolvedRoll(enterAndUse(s, 'mystic-elevator'), [[1, 1]]);
+  s = act(s, { type: 'move', pos: 'mystic-elevator' });
+  roomAt(s, 'mystic-elevator').floor = -1;
+  s = resolvedRoll(act(s, { type: 'useElevator' }), [[1, 1]]);
   const d = s.queue[0].destinations.find((d) => d.x === -1 && d.y === -1);
   s = act(s, { type: 'roomDestination', from: d.from, dir: d.dir });
   const first = s.queue[0];
@@ -99,6 +101,76 @@ function resolvedRoll(s, dice) {
   return act(s, { type: 'resolveDice', requestId: s.queue[0].uid });
 }
 
+test('same-floor elevator rolls preserve position, orientation and passengers while spending one move', () => {
+  for (const [floor, dice] of [
+    [0, [1, 1]],
+    [1, [1, 2]],
+    [-1, [0, 1]],
+    [-1, [0, 0]],
+  ]) {
+    let s = fixture('mystic-elevator', true);
+    s.heroes[0].pos = s.heroes[1].pos = 'mystic-elevator';
+    roomAt(s, 'mystic-elevator').floor = floor;
+    const before = structuredClone(s);
+    s = resolvedRoll(act(s, { type: 'useElevator' }), [dice]);
+    assert.equal(s.queue[0].kind, 'check');
+    assert.match(s.queue[0].text, /当前楼层/);
+    assert(!s.queue.some((p) => p.kind === 'placement'));
+    assert.deepEqual(s.rooms, before.rooms);
+    assert.deepEqual(s.heroes[1], before.heroes[1]);
+    assert.equal(s.heroes[0].moves, before.heroes[0].moves - 1);
+    assert.equal(s.roomMotion, before.roomMotion);
+    assert.equal(
+      s.queue.some((p) => p.kind === 'roomFall'),
+      dice[0] + dice[1] === 0,
+    );
+  }
+});
+
+test('four allows a new legal position on the current floor after restoring the pending choice', () => {
+  let s = fixture('mystic-elevator', true);
+  s.heroes[1].pos = 'mystic-elevator';
+  s = resolvedRoll(enterAndUse(s, 'mystic-elevator'), [[2, 2]]);
+  const before = structuredClone(roomAt(s, 'mystic-elevator'));
+  const target = s.queue[0].destinations.find(
+    (d) => d.floor === before.floor && (d.x !== before.x || d.y !== before.y),
+  );
+  assert(target);
+  s = act(JSON.parse(JSON.stringify(s)), {
+    type: 'roomDestination',
+    from: target.from,
+    dir: target.dir,
+  });
+  const moves = s.heroes[0].moves;
+  s = act(s, { type: 'place' });
+  const room = roomAt(s, 'mystic-elevator');
+  assert.equal(room.floor, before.floor);
+  assert.equal(room.x, target.x);
+  assert.equal(room.y, target.y);
+  assert(connections(s, room.id).includes(target.from));
+  assert.equal(s.heroes[0].moves, moves);
+  assert.equal(s.heroes[1].pos, room.id);
+  assert.equal(s.queue.length, 0);
+});
+
+test('four offers every floor or an explicit unchanged original landing, including restored saves', () => {
+  let s = fixture('mystic-elevator', true);
+  s = resolvedRoll(enterAndUse(s, 'mystic-elevator'), [[2, 2]]);
+  assert.deepEqual(
+    [...new Set(s.queue[0].destinations.map((d) => d.floor))].sort(),
+    [-1, 0, 1],
+  );
+  const rooms = structuredClone(s.rooms),
+    moves = s.heroes[0].moves;
+  s = act(JSON.parse(JSON.stringify(s)), { type: 'stayElevator' });
+  assert.equal(s.queue.length, 0);
+  assert.deepEqual(s.rooms, rooms);
+  assert.equal(s.viewFloor, 0);
+  assert.equal(s.heroes[0].moves, moves);
+  assert(actions(s).elevator);
+  assert.deepEqual(act(s, { type: 'stayElevator' }), s);
+});
+
 test('repeated elevator starts spend only the operator movement and stop at zero, including old saves', () => {
   let s = fixture('mystic-elevator', true);
   s.heroes[0].pos = 'mystic-elevator';
@@ -114,7 +186,7 @@ test('repeated elevator starts spend only the operator movement and stop at zero
     const requestId = s.queue[0].uid;
     s = resolvedRoll(s, [[1, 2]]);
     assert.equal(s.heroes[0].moves, remaining);
-    s = act(s, { type: 'place' });
+    s = act(s, { type: s.queue[0].kind === 'placement' ? 'place' : 'advance' });
     assert.deepEqual(act(s, { type: 'resolveDice', requestId }), s);
     assert.equal(s.heroes[1].moves, passengerMoves);
     s = JSON.parse(JSON.stringify(s));
@@ -153,7 +225,6 @@ test('elevator outcomes offer only their rolled floors, including a free floor c
   for (const [dice, floors] of [
     [[0, 0], [-1]],
     [[0, 1], [-1]],
-    [[1, 1], [0]],
     [[1, 2], [1]],
     [
       [2, 2],

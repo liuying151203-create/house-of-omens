@@ -1,5 +1,6 @@
 'use client';
 import EnemyGlyph from './enemy-glyph';
+import ExplorerEmblem from './explorer-emblem';
 import Traits from './attribute-tracks';
 import LobbyScreen from './lobby-screen';
 import {
@@ -552,7 +553,7 @@ function FloorPeople({ game, f }) {
             title={h.name + (h.id === game.active ? ' · 当前行动' : '')}
             aria-label={h.name}
           >
-            {h.mark}
+            <ExplorerEmblem hero={h} token />
             {statusOf(h, 'infection') && (
               <sup className="infection-badge">
                 {statusOf(h, 'infection').turns}
@@ -961,7 +962,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                             : '')
                         }
                       >
-                        {h.mark}
+                        <ExplorerEmblem hero={h} token />
                       </span>
                     ))}
                     {enemies.map((e) => (

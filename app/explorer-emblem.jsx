@@ -11,7 +11,7 @@ import {
 import portraits from '../lib/portrait-art.json';
 const roleIcons = [PenLine, Compass, BookOpen, Cross, Camera, Wrench];
 
-export default function ExplorerEmblem({ hero, small = false }) {
+export default function ExplorerEmblem({ hero, small = false, token = false }) {
   const portrait = !hero.dead && !hero.traitor && portraits[hero.id];
   const Icon = hero.dead
     ? Skull
@@ -23,6 +23,7 @@ export default function ExplorerEmblem({ hero, small = false }) {
       className={
         'explorer-emblem ' +
         (small ? 'emblem-small ' : '') +
+        (token ? 'emblem-token ' : '') +
         (portrait ? 'emblem-portrait' : '')
       }
       style={{ '--explorer-color': hero.color }}

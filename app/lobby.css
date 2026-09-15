@@ -207,6 +207,31 @@
 .entry-person .emblem-portrait > b {
   display: none;
 }
+.explorer-emblem.emblem-token {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: none;
+  gap: 0;
+}
+.emblem-token > b {
+  display: none;
+}
+.emblem-token > svg {
+  width: 70%;
+  height: 70%;
+}
+.emblem-token > img {
+  filter: saturate(0.65) brightness(1);
+}
+.room-tokens .pawn {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
 .entry-close {
   position: absolute;
   right: 16px;

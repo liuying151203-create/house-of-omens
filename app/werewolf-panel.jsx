@@ -1,4 +1,4 @@
-import { cardCureBonus } from '../lib/card-rules.mjs';
+import { cureBonus } from '../lib/modifiers.mjs';
 import EnemyGlyph from './enemy-glyph';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
 export default function WerewolfPanel({
@@ -58,8 +58,8 @@ export default function WerewolfPanel({
                 onClick={() => send({ type: 'cure', heroId: x.id })}
               >
                 治疗{x.name} · 知识 3+
-                {cardCureBonus(game, h, x)
-                  ? ' · 卡牌 +' + cardCureBonus(game, h, x)
+                {cureBonus(game, h, x)
+                  ? ' · 卡牌 +' + cureBonus(game, h, x)
                   : ''}
               </button>
             ))}

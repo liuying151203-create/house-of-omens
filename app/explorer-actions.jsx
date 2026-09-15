@@ -15,7 +15,7 @@ import {
   TRAIT_KEYS,
 } from '../lib/game-engine.mjs';
 import { moonlit, statusOf } from '../lib/werewolf.mjs';
-import { cardCureBonus } from '../lib/card-rules.mjs';
+import { cureBonus } from '../lib/modifiers.mjs';
 import { publicEnemies } from '../lib/game-view.mjs';
 
 const targets = {
@@ -34,29 +34,14 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
     !!game.queue.length || net.busy || moving || game.phase === 'over';
   const disabled = busy || waiting || hero.dead || hero.traitor || hero.ended;
   const buttons = [];
-  if (legal.elevator)
+  const actionIcons = { vertical: ArrowUpDown };
+  for (const ability of legal.abilities)
     buttons.push({
-      id: 'elevator',
-      Icon: ArrowUpDown,
-      label: '启动电梯',
-      detail: '消耗 1 点移动力 · 掷 2 枚骰决定楼层 · 本回合可重复启动',
-      action: { type: 'useElevator' },
-    });
-  if (legal.fall)
-    buttons.push({
-      id: 'fall',
-      Icon: ArrowUpDown,
-      label: '跳入地下室',
-      detail: '不消耗移动力，承受 1 枚骰的肉体伤害；无法沿原路爬回',
-      action: { type: 'jumpDown' },
-    });
-  if (legal.returnStairs)
-    buttons.push({
-      id: 'return-stairs',
-      Icon: ArrowUpDown,
-      label: '寻找回程暗梯',
-      detail: legal.moveCost + ' 移动 · 永久连通门厅',
-      action: { type: 'findReturnStairs' },
+      id: 'ability-' + ability.id,
+      Icon: actionIcons[ability.icon] || Flag,
+      label: ability.label,
+      detail: ability.detail,
+      action: { type: ability.id },
     });
   for (const id of legal.stairs)
     buttons.push({
@@ -107,7 +92,7 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
       (h) =>
         !h.dead && !h.traitor && h.pos === hero.pos && statusOf(h, 'infection'),
     )) {
-      const bonus = cardCureBonus(game, hero, target);
+      const bonus = cureBonus(game, hero, target);
       buttons.push({
         id: 'cure-' + target.id,
         Icon: HeartPulse,

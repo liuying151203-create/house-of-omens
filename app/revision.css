@@ -427,7 +427,7 @@
 .icon-omen {
   color: #d08060;
 }
-.modular-room .room-tokens {
+.room-cell > .room-tokens {
   bottom: 32px;
 }
 .modular-room .quest-marker {
@@ -475,7 +475,7 @@
   background: #b49e6822;
   border-color: #e3cf8f;
 }
-.modular-room .pawn {
+.room-cell .pawn {
   transition: transform 0.25s;
   animation: pawn-arrive 0.35s ease-out;
 }

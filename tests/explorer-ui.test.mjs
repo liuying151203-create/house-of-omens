@@ -20,7 +20,8 @@ const built = await build({
     export {default as Roster} from './app/faction-roster.jsx';
     export {default as Personal} from './app/personal-panel.jsx';
     export {default as Commands} from './app/explorer-actions.jsx';
-    export {default as Supply} from './app/deck-supply.jsx';`,
+    export {default as Supply} from './app/deck-supply.jsx';
+    export {default as MapPawn} from './app/map-pawn.jsx';`,
     resolveDir: root,
   },
   absWorkingDir: root,
@@ -33,13 +34,22 @@ const built = await build({
 });
 await writeFile(bundle, built.outputFiles[0].contents);
 after(() => unlink(bundle));
-const { Inventory, Roster, Personal, Commands, Supply } = await import(
+const { Inventory, Roster, Personal, Commands, Supply, MapPawn } = await import(
   bundle.href
 );
 const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
 const start = () =>
   act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
+
+test('map explorer tokens are buttons for the matching status sheet', () => {
+  const hero = start().heroes[0];
+  const html = render(MapPawn, { hero, active: true });
+  assert.match(html, /<button/);
+  assert.match(html, new RegExp(`查看${hero.name}的状态`));
+  assert.match(html, /selected-pawn/);
+  assert.match(html, /portraits/);
+});
 
 test('wolf personal and roster readouts share health tracks and show effective moonlight strength without human traits', () => {
   const game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });

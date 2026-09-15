@@ -1,6 +1,6 @@
 'use client';
 import EnemyGlyph from './enemy-glyph';
-import ExplorerEmblem from './explorer-emblem';
+import MapPawn from './map-pawn';
 import Traits from './attribute-tracks';
 import LobbyScreen from './lobby-screen';
 import {
@@ -90,7 +90,7 @@ import {
   publicEnemies,
   canInspectHero,
 } from '../lib/game-view.mjs';
-import { moonlit, windowsOf, statusOf } from '../lib/werewolf.mjs';
+import { moonlit, windowsOf } from '../lib/werewolf.mjs';
 import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
@@ -536,7 +536,7 @@ function Prompt({
     </Dialog>
   );
 }
-function FloorPeople({ game, f }) {
+function FloorPeople({ game, f, onInspect }) {
   return (
     <fieldset className="floor-party" aria-label={f.name + '的人物'}>
       {game.heroes
@@ -544,39 +544,45 @@ function FloorPeople({ game, f }) {
           (h) => !h.dead && !h.traitor && roomAt(game, h.pos).floor === f.id,
         )
         .map((h) => (
-          <span
+          <MapPawn
             key={h.id}
+            hero={h}
+            active={h.id === game.active}
             className={
               'floor-hero ' + (h.id === game.active ? 'floor-hero-active' : '')
             }
-            style={{ '--pawn-color': h.color }}
-            title={h.name + (h.id === game.active ? ' · 当前行动' : '')}
-            aria-label={h.name}
-          >
-            <ExplorerEmblem hero={h} token />
-            {statusOf(h, 'infection') && (
-              <sup className="infection-badge">
-                {statusOf(h, 'infection').turns}
-              </sup>
-            )}
-          </span>
+            badge={
+              h.statuses?.find((status) => status.id === 'infection')?.turns
+            }
+            onInspect={onInspect}
+          />
         ))}
       {publicEnemies(game)
         .filter((e) => roomAt(game, e.pos)?.floor === f.id)
         .map((e) => (
-          <span
+          <button
+            type="button"
             className="floor-hero floor-enemy"
             key={e.id}
             title={e.name + ' · ' + f.name}
-            aria-label={e.name + '位于' + f.name}
+            aria-label={'查看' + e.name + '的状态，位于' + f.name}
+            onClick={() => onInspect?.('enemy-' + e.id)}
           >
             {<EnemyGlyph enemy={e} />}
-          </span>
+          </button>
         ))}
     </fieldset>
   );
 }
-function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
+function Board({
+  game,
+  send,
+  zoom,
+  setZoom,
+  locked = false,
+  enemyMotion,
+  onInspect,
+}) {
   const [snapped, setSnapped] = useState(false);
   const [explorationPreview, setExplorationPreview] = useState(null);
   const cameraLayout = useRef(null);
@@ -796,7 +802,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
           </TabsList>
           <div className="floor-occupants" aria-label="各楼层人物与敌人">
             {FLOORS.map((f) => (
-              <FloorPeople key={f.id} game={game} f={f} />
+              <FloorPeople key={f.id} game={game} f={f} onInspect={onInspect} />
             ))}
           </div>
           {FLOORS.map((f) => (
@@ -940,42 +946,34 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                   aria-label={`${r.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
                 >
                   <TileFace tile={r} />
-                  <span className="room-tokens">
-                    {occupants.map((h) => (
-                      <span
-                        className={
-                          'pawn ' +
-                          (h.id === game.active ? 'selected-pawn' : '')
-                        }
-                        style={{ backgroundColor: h.color }}
-                        key={h.id}
-                        title={
-                          h.name +
-                          (h.id === game.active && !h.ended
-                            ? ' · 当前行动'
-                            : '')
-                        }
-                        aria-label={
-                          h.name +
-                          (h.id === game.active && !h.ended
-                            ? ' · 当前行动'
-                            : '')
-                        }
-                      >
-                        <ExplorerEmblem hero={h} token />
-                      </span>
-                    ))}
-                    {enemies.map((e) => (
-                      <span
-                        className="enemy-pawn"
-                        key={e.id}
-                        title={e.name + ' ' + e.hp + '/' + e.maxHp}
-                      >
-                        <EnemyGlyph enemy={e} size={16} />
-                      </span>
-                    ))}
-                  </span>
                 </button>
+                <span className="room-tokens">
+                  {occupants.map((h) => (
+                    <MapPawn
+                      key={h.id}
+                      hero={h}
+                      active={h.id === game.active}
+                      onInspect={onInspect}
+                    />
+                  ))}
+                  {enemies.map((e) => (
+                    <button
+                      type="button"
+                      className="enemy-pawn"
+                      key={e.id}
+                      title={e.name + ' ' + e.hp + '/' + e.maxHp}
+                      aria-label={'查看' + e.name + '的状态'}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onPointerUp={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onInspect?.('enemy-' + e.id);
+                      }}
+                    >
+                      <EnemyGlyph enemy={e} size={16} />
+                    </button>
+                  ))}
+                </span>
                 <RoomStatusIcons game={game} room={r} />
               </div>
             );
@@ -1231,6 +1229,7 @@ export default function Home() {
     [partyOpen, setPartyOpen] = useState(true),
     [storyOpen, setStoryOpen] = useState(true),
     [journalOpen, setJournalOpen] = useState(false);
+  const [inspected, setInspected] = useState(null);
   const togglePanel = (name) =>
     setPanel((open) => (open === name ? null : name));
   const enemyMotion = useEnemyMotion(game, playtestEpoch);
@@ -1241,6 +1240,7 @@ export default function Home() {
         setPartyOpen(false);
         setStoryOpen(false);
         setJournalOpen(false);
+        setInspected(null);
       }
     };
     window.addEventListener('keydown', close);
@@ -1702,6 +1702,8 @@ export default function Home() {
                   pending={p}
                   Traits={Traits}
                   changes={attributeFeedback.changes}
+                  inspected={inspected}
+                  onInspectedChange={setInspected}
                 />
                 <div className="save-status">
                   <Save size={13} />
@@ -1721,6 +1723,10 @@ export default function Home() {
                   zoom={zoom}
                   setZoom={setZoom}
                   locked={waiting || net.busy || enemyMotion.moving}
+                  onInspect={(id) => {
+                    setInspected(id);
+                    setPartyOpen(true);
+                  }}
                 />
               </section>
               <div className="right-info-rail" aria-label="章节与探索记录">

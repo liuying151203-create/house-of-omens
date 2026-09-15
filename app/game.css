@@ -768,6 +768,8 @@ h1 {
   flex-wrap: wrap;
   width: 100%;
   padding: 0 3px;
+  z-index: 6;
+  pointer-events: none;
 }
 .pawn {
   width: 22px;
@@ -780,6 +782,9 @@ h1 {
   color: #172122;
   box-shadow: 0 1px 5px #000;
   border: 2px solid #d4d9ba99;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
 }
 .pawn.selected-pawn {
   outline: 1px solid #ffebbc;
@@ -794,6 +799,9 @@ h1 {
   border-radius: 50%;
   display: grid;
   place-items: center;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
 }
 .entrance-icon {
   position: absolute;

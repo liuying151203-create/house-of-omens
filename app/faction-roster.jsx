@@ -22,8 +22,13 @@ export default function FactionRoster({
   pending,
   changes,
   open = true,
+  inspected: controlledInspected,
+  onInspectedChange,
 }) {
-  const [inspected, setInspected] = useState(null);
+  const [localInspected, setLocalInspected] = useState(null);
+  const inspected =
+    controlledInspected === undefined ? localInspected : controlledInspected;
+  const setInspected = onInspectedChange || setLocalInspected;
   useEffect(() => {
     const close = (e) => {
       if (e.key === 'Escape') setInspected(null);

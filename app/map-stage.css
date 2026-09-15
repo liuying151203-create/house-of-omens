@@ -176,6 +176,8 @@
   font-size: 12px;
   pointer-events: auto;
   box-shadow: 0 2px 7px #0009;
+  padding: 0;
+  cursor: pointer;
 }
 .map-stage .floor-hero-active {
   outline-offset: 2px;

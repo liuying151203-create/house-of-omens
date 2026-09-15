@@ -5,6 +5,7 @@ import ItemGlyph from './item-glyph';
 import { resolveCard } from '../lib/card-rules.mjs';
 import { hauntCardRule, canInspectHero } from '../lib/game-view.mjs';
 import { TRAITS } from '../lib/game-data.mjs';
+import { itemInstances, itemInstanceUsed } from '../lib/item-instances.mjs';
 
 export default function HeroInventory({
   game,
@@ -45,9 +46,19 @@ export default function HeroInventory({
   if (!canInspectHero(game, hero, room))
     return <p className="private-info">物品与原人物能力未公开或已停用。</p>;
   const cards = [
-    ...hero.items.map((id) => resolveCard(game, 'item', id, hero.id)),
-    ...hero.omens.map((id) => resolveCard(game, 'omen', id, hero.id)),
+    ...itemInstances(hero).map((instance) => ({
+      ...resolveCard(game, 'item', instance.definitionId, hero.id),
+      cardType: 'item',
+      instanceId: instance.instanceId,
+    })),
+    ...hero.omens.map((id, index) => ({
+      ...resolveCard(game, 'omen', id, hero.id),
+      cardType: 'omen',
+      instanceId: `omen:${hero.id}:${id}:${index}`,
+    })),
   ];
+  const used = (card) =>
+    card.cardType === 'item' && itemInstanceUsed(hero, card);
   const content = (card) => (
     <div className="carried-card-content">
       <p>{card.effect}</p>
@@ -61,8 +72,14 @@ export default function HeroInventory({
         <div className="item-use-options">
           {card.use === 'movement' ? (
             <button
-              disabled={disabled || hero.stopped || hero.used.includes(card.id)}
-              onClick={() => send({ type: 'useItem', id: card.id })}
+              disabled={disabled || hero.stopped || used(card)}
+              onClick={() =>
+                send({
+                  type: 'useItem',
+                  id: card.id,
+                  instanceId: card.instanceId,
+                })
+              }
             >
               {hero.stopped ? '下回合可饮用' : '饮用 · 移动 +' + card.useAmount}
             </button>
@@ -75,10 +92,17 @@ export default function HeroInventory({
                 key={trait}
                 disabled={
                   disabled ||
-                  hero.used.includes(card.id) ||
+                  used(card) ||
                   hero.stats[trait] >= hero.start[trait]
                 }
-                onClick={() => send({ type: 'useItem', id: card.id, trait })}
+                onClick={() =>
+                  send({
+                    type: 'useItem',
+                    id: card.id,
+                    instanceId: card.instanceId,
+                    trait,
+                  })
+                }
               >
                 恢复{TRAITS[trait]}
               </button>
@@ -89,27 +113,27 @@ export default function HeroInventory({
     </div>
   );
   if (slots) {
-    const chosen = cards.find(
-      (card) => selected?.key === `${hero.id}:${card.id}`,
-    );
+    const chosen = cards.find((card) => selected?.key === card.instanceId);
     return (
       <div className="inventory-belt" aria-label={hero.name + '的道具槽'}>
         {cards.map((card, i) => {
-          const omen = hero.omens.includes(card.id),
-            key = `${hero.id}:${card.id}`;
+          const omen = card.cardType === 'omen',
+            key = card.instanceId;
           return (
             <button
               key={key + ':' + i}
               className={
                 'item-slot ' +
                 (omen ? 'slot-omen ' : '') +
-                (chosen?.id === card.id ? 'slot-selected' : '')
+                (chosen?.instanceId === card.instanceId ? 'slot-selected' : '')
               }
               aria-label={
                 card.title + (card.use ? '，可使用物品' : '，被动效果')
               }
-              aria-expanded={chosen?.id === card.id}
-              aria-controls={chosen?.id === card.id ? popupId : undefined}
+              aria-expanded={chosen?.instanceId === card.instanceId}
+              aria-controls={
+                chosen?.instanceId === card.instanceId ? popupId : undefined
+              }
               onPointerEnter={(e) => {
                 if (!selected?.pinned) reveal(e, key);
               }}
@@ -154,13 +178,10 @@ export default function HeroInventory({
               onPointerLeave={hideSoon}
             >
               <header>
-                <ItemGlyph
-                  id={chosen.id}
-                  omen={hero.omens.includes(chosen.id)}
-                />
+                <ItemGlyph id={chosen.id} omen={chosen.cardType === 'omen'} />
                 <div>
                   <small>
-                    {hero.omens.includes(chosen.id)
+                    {chosen.cardType === 'omen'
                       ? '预兆'
                       : chosen.use
                         ? '消耗品'
@@ -190,9 +211,9 @@ export default function HeroInventory({
         <span className="inventory-empty">尚未持有物品或预兆</span>
       )}
       {cards.map((card) => (
-        <details className="carried-card" key={card.id}>
+        <details className="carried-card" key={card.instanceId}>
           <summary>
-            {hero.omens.includes(card.id) ? '◈ ' : '◇ '}
+            {card.cardType === 'omen' ? '◈ ' : '◇ '}
             {card.title}
           </summary>
           {content(card)}

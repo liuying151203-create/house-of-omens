@@ -93,7 +93,10 @@ test('disabling animation reveals totals with an explicit pause before automatic
   const html = render([0, 1, 2], false);
   assert.doesNotMatch(html, /is-rolling/);
   assert.equal((html.match(/class="side-total"/g) || []).length, 2);
-  assert.match(html, /点数已揭晓，稍后自动结算/);
+  assert.doesNotMatch(
+    html,
+    /点数已揭晓，稍后自动结算|检定已自动结算|骰子已停稳/,
+  );
 });
 
 test('unrolled groups show waiting dice and do not announce settlement', () => {

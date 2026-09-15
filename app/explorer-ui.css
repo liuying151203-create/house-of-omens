@@ -1446,3 +1446,155 @@
     --hud-tools-columns: 2;
   }
 }
+
+/* The same tracks appear in the roster, inspector and current explorer HUD. */
+.attribute-tracks.traits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+}
+.attribute-tracks .trait-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 0;
+}
+.attribute-tracks .trait-caption {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+.attribute-tracks .trait-caption strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  color: #f2e3c1;
+}
+.attribute-tracks .trait-track {
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  width: 100%;
+}
+.attribute-tracks .trait-track > span {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: #040a0f75;
+  color: #a7b8bf;
+  font-size: 12px;
+}
+.attribute-tracks .trait-might {
+  --track-color: #cb8d78;
+}
+.attribute-tracks .trait-speed {
+  --track-color: #abc08a;
+}
+.attribute-tracks .trait-sanity {
+  --track-color: #a59cc8;
+}
+.attribute-tracks .trait-knowledge {
+  --track-color: #87b7c8;
+}
+.attribute-tracks .trait-track > .trait-current {
+  color: #10181f;
+  background: var(--track-color);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--track-color);
+}
+.attribute-tracks .trait-track > .trait-start {
+  border-bottom: 2px solid var(--track-color);
+}
+.attribute-tracks .trait-start:after {
+  display: none;
+}
+
+.attribute-tracks .trait-health {
+  --track-color: #d394a1;
+}
+.attribute-tracks .trait-health .trait-caption {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.attribute-tracks .trait-row:not(:has(.trait-track)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.attribute-tracks .trait-row:not(:has(.trait-track)) .trait-caption {
+  justify-content: flex-start;
+  gap: 12px;
+}
+.party-rail .party-member {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 8px;
+}
+.party-rail .member-summary {
+  display: contents;
+}
+.party-rail .member-summary > strong {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.party-rail .attribute-tracks,
+.party-rail .member-status {
+  grid-column: 1 / -1;
+}
+.party-rail .attribute-tracks .trait-row {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 4px;
+}
+.party-rail .attribute-tracks .trait-caption {
+  font-size: 12px;
+}
+.party-rail .attribute-tracks .trait-caption strong {
+  font-size: 13px;
+}
+.party-rail .attribute-tracks .trait-track {
+  gap: 2px;
+}
+.party-rail .attribute-tracks .trait-track > span {
+  font-size: 10px;
+  height: 18px;
+}
+.party-rail .attribute-tracks .trait-row:not(:has(.trait-track)) {
+  grid-template-columns: 1fr;
+}
+.roll-outcomes {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 16px;
+  padding: 12px;
+  border: 1px solid #adbdad40;
+  border-radius: 7px;
+  background: #0f1b22;
+}
+.roll-outcomes > div {
+  display: grid;
+  grid-template-columns: minmax(75px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+.roll-outcomes dt {
+  color: #dec994;
+  font-size: 13px;
+  font-weight: 600;
+}
+.roll-outcomes dd {
+  color: #c6d3d5;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}

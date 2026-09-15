@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 const root = process.cwd();
-const out = path.resolve(root, 'outputs/山屋惊魂-demo.html');
+const out = path.resolve(root, 'outputs/预兆之屋-demo.html');
 await fs.mkdir(path.dirname(out), { recursive: true });
 const cssDir = path.resolve('dist/server/_next/static/css');
 const styles = await fs.readdir(cssDir);
@@ -32,9 +32,16 @@ const result = await build({
   alias: { '@': root },
   logLevel: 'warning',
 });
-const js = result.outputFiles[0].text
+let js = result.outputFiles[0].text
   .replaceAll('./rooms.png', rooms)
   .replaceAll('</script', '<\\/script');
+for (const file of await fs.readdir('public/art/portraits')) {
+  if (!file.endsWith('.png')) continue;
+  const data =
+    'data:image/png;base64,' +
+    (await fs.readFile('public/art/portraits/' + file)).toString('base64');
+  js = js.replaceAll('/art/portraits/' + file, data);
+}
 await fs.writeFile(
   out + '.tmp',
   `<!doctype html><html lang="zh-CN" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>预兆之屋 · 四个午夜故事</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,

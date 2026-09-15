@@ -231,7 +231,7 @@ export function createRoomService({
 }
 const serverPort = (host) => Number(String(host).split(':').at(-1)) || 4173;
 export function createDemoServer({
-  file = new URL('../outputs/山屋惊魂-demo.html', import.meta.url),
+  file = new URL('../outputs/预兆之屋-demo.html', import.meta.url),
   service = createRoomService(),
 } = {}) {
   return http.createServer(async (req, res) => {

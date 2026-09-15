@@ -150,7 +150,7 @@ p {
   inset: 0;
   background-image:
     linear-gradient(90deg, #101517 4%, #101517d6 25%, #10151726 62%, #10151700),
-    linear-gradient(0deg, #101517, transparent 35%), url('/manor.png');
+    linear-gradient(0deg, #101517, transparent 35%);
   background-size: cover;
   background-position: 50% 46%;
 }

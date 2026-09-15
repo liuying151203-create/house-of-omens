@@ -1,3 +1,4 @@
+import art from '../lib/item-art.json';
 import {
   Coffee,
   BriefcaseMedical,
@@ -39,6 +40,22 @@ const glyphs = {
   eye: Eye,
 };
 export default function ItemGlyph({ id, omen = false, size = 26 }) {
+  if (art[id])
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 512 512"
+        fill="currentColor"
+        stroke="none"
+        aria-hidden="true"
+        className="item-art"
+      >
+        {art[id].paths.map((d, i) => (
+          <path key={i} d={d} />
+        ))}
+      </svg>
+    );
   const Icon = glyphs[id] || (omen ? Eye : Package);
   return <Icon size={size} aria-hidden="true" />;
 }

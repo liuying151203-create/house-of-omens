@@ -173,6 +173,10 @@ test('one event click starts dice but effects wait for animation settlement, pre
     const action = { type: 'continueCard', requestId: pending(game).uid };
     const next = act(game, action);
     assert.equal(pending(next).kind, 'diceRequest');
+    assert.deepEqual(pending(next).outcomes, [
+      { range: `${card.threshold}+ 点`, effect: card.success.text },
+      { range: `低于 ${card.threshold} 点`, effect: card.failure.text },
+    ]);
     assert(pending(next).rolls.every((r) => r.dice));
     assert.deepEqual(next.heroes, game.heroes);
     assert.deepEqual(

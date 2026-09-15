@@ -41,6 +41,28 @@ const render = (Component, props) =>
 const start = () =>
   act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
 
+test('wolf personal and roster readouts share health tracks and show effective moonlight strength without human traits', () => {
+  const game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });
+  const wolf = game.heroes.find((h) => h.traitor);
+  const enemy = game.enemies.find((e) => e.heroId === wolf.id);
+  const room = {
+    hostId: 'host',
+    you: 'wolf',
+    seats: game.heroes.map((h) => (h.id === wolf.id ? 'wolf' : 'host')),
+  };
+  const personal = render(Personal, {
+    game,
+    net: { room },
+    send() {},
+    changes: [],
+  });
+  assert.match(personal, new RegExp(`生命当前${enemy.hp}/${enemy.maxHp}`));
+  assert.doesNotMatch(personal, /理智当前|知识当前|力量当前/);
+  const roster = render(Roster, { game, net: { room }, changes: [] });
+  assert.match(roster, /trait-health/);
+  assert.doesNotMatch(roster, /理智当前|知识当前/);
+});
+
 test('inventory slots retain distinct item names and accessible controls without opening all descriptions', () => {
   const game = start();
   game.heroes[0].items = ['coffee', 'bandage'];
@@ -104,21 +126,20 @@ test('a LAN wolf player cannot see good explorer inventory in either the belt or
 test('personal controls preserve a full-track request and disable ending another LAN player turn', () => {
   const game = start();
   const room = { hostId: 'host', you: 'guest', seats: ['host', 'guest', null] };
-  let renderedHero;
-  const Traits = ({ hero, compact }) => {
-    renderedHero = hero.id;
-    assert.equal(compact, false);
-    return createElement('div', null, 'full tracks');
-  };
   const html = render(Personal, {
     game,
     net: { room },
     send() {},
-    Traits,
     changes: [],
     onActions() {},
   });
-  assert.equal(renderedHero, 1);
+  assert.equal((html.match(/class="trait-track"/g) || []).length, 4);
+  assert.match(
+    html,
+    new RegExp(
+      `力量当前${game.heroes[1].tracks.might[game.heroes[1].stats.might]}`,
+    ),
+  );
   assert.match(html, /等待队友行动/);
   assert.doesNotMatch(html, /亮格 · 当前|下划线 · 起始/);
   assert.match(html, /class="finish-turn" disabled=""/);

@@ -1,6 +1,7 @@
 'use client';
+import EnemyGlyph from './enemy-glyph';
 import { useEffect, useMemo, useState } from 'react';
-import { enemyMark, locationLabel } from '../lib/game-view.mjs';
+import { locationLabel } from '../lib/game-view.mjs';
 
 export function useEnemyMotion(game, epoch) {
   const pending = game?.queue[0];
@@ -71,7 +72,7 @@ export default function EnemyMotion({ game, playback }) {
       aria-live="polite"
       aria-label="敌人移动过程"
     >
-      <span className="enemy-motion-symbol">{enemyMark(step)}</span>
+      <span className="enemy-motion-symbol">{<EnemyGlyph enemy={step} />}</span>
       <div>
         <small>全队行动结束 · 敌人回合</small>
         <strong>

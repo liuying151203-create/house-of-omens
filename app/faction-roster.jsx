@@ -1,3 +1,5 @@
+import EnemyGlyph from './enemy-glyph';
+import AttributeTracks from './attribute-tracks';
 import HeroStatusBadges from './hero-status-badges';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -7,11 +9,10 @@ import ExplorerEmblem from './explorer-emblem';
 import {
   rosterGroups,
   locationLabel,
-  enemyMark,
   canInspectHero,
 } from '../lib/game-view.mjs';
 import { statusOf } from '../lib/werewolf.mjs';
-import { TRAITS, TRAIT_KEYS, FLOORS } from '../lib/game-data.mjs';
+import { FLOORS } from '../lib/game-data.mjs';
 
 export default function FactionRoster({
   game,
@@ -19,7 +20,6 @@ export default function FactionRoster({
   net,
   waiting,
   pending,
-  Traits,
   changes,
   open = true,
 }) {
@@ -107,24 +107,10 @@ export default function FactionRoster({
                     <small>{floorName(h.pos)}</small>
                   </strong>
                   {publicStats && (
-                    <span className="member-stats">
-                      {TRAIT_KEYS.map((k) => (
-                        <span
-                          key={k}
-                          title={TRAITS[k]}
-                          className={
-                            changes.some(
-                              (c) => c.heroId === h.id && c.trait === k,
-                            )
-                              ? 'member-stat-changed'
-                              : ''
-                          }
-                        >
-                          {TRAITS[k][0]}
-                          <b>{h.tracks[k][h.stats[k]]}</b>
-                        </span>
-                      ))}
-                    </span>
+                    <AttributeTracks
+                      hero={h}
+                      changes={changes.filter((c) => c.heroId === h.id)}
+                    />
                   )}
                   <span
                     className={
@@ -154,19 +140,11 @@ export default function FactionRoster({
                 )
               }
             >
-              <span className="enemy-emblem">{enemyMark(e)}</span>
+              <span className="enemy-emblem">{<EnemyGlyph enemy={e} />}</span>
               <span className="member-summary">
                 <strong>{e.name}</strong>
-                <span className="monster-health">
-                  <span
-                    style={{
-                      width: `${Math.max(0, Math.min(100, (e.hp / e.maxHp) * 100))}%`,
-                    }}
-                  />
-                </span>
-                <span className="member-status">
-                  {e.hp}/{e.maxHp} 生命 · {floorName(e.pos)}
-                </span>
+                <AttributeTracks enemy={e} />
+                <span className="member-status">{floorName(e.pos)}</span>
               </span>
             </button>
           ))}
@@ -211,7 +189,7 @@ export default function FactionRoster({
                   {person.role} · {status(person)}
                 </span>
                 {visible ? (
-                  <Traits
+                  <AttributeTracks
                     hero={person}
                     compact={false}
                     changes={changes.filter((c) => c.heroId === person.id)}
@@ -243,20 +221,7 @@ export default function FactionRoster({
               </>
             ) : (
               <>
-                <div className="inspector-enemy-stats">
-                  <span>
-                    生命
-                    <b>
-                      {enemy.hp}/{enemy.maxHp}
-                    </b>
-                  </span>
-                  <span>
-                    力量<b>{enemy.might}</b>
-                  </span>
-                  <span>
-                    移动<b>{enemy.speed}</b>
-                  </span>
-                </div>
+                <AttributeTracks enemy={enemy} />
                 <p className="private-info">
                   <LockKeyhole size={14} />
                   {enemy.explorerName

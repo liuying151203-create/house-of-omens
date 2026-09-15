@@ -1,4 +1,7 @@
 'use client';
+import EnemyGlyph from './enemy-glyph';
+import Traits from './attribute-tracks';
+import LobbyScreen from './lobby-screen';
 import {
   useState,
   useLayoutEffect,
@@ -16,7 +19,6 @@ import {
   Bell,
   Eye,
   Waves,
-  Footprints,
   Compass,
   DoorOpen,
   Volume2,
@@ -26,7 +28,6 @@ import {
   RotateCw,
   Check,
   Sparkles,
-  Zap,
   Skull,
   Ghost,
   Save,
@@ -52,14 +53,11 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   SCENARIOS,
   FLOORS,
-  HEROES,
   ROOM_DECK,
   TRAITS,
-  TRAIT_KEYS,
   DIRS,
   createInteractiveGame as createGame,
   act,
@@ -70,7 +68,6 @@ import {
   roomPlacementOptions,
   roomAt,
   doorsOf,
-  traitValue,
   validSave,
 } from '@/lib/game-engine.mjs';
 import Workshop from './workshop';
@@ -89,9 +86,7 @@ import FactionRoster from './faction-roster';
 import AttributeFeedback, { useAttributeChanges } from './attribute-feedback';
 import {
   hauntCardRule,
-  gameModeLabel,
   publicEnemies,
-  enemyMark,
   canInspectHero,
 } from '../lib/game-view.mjs';
 import { moonlit, windowsOf, statusOf } from '../lib/werewolf.mjs';
@@ -100,7 +95,7 @@ import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
 import DamagePlanner from './damage-planner';
 import { useNetwork, NetworkLobby } from './network';
-import PlaytestControls, { PlaytestPresetPicker } from './playtest-controls';
+import PlaytestControls from './playtest-controls';
 import {
   createHauntPlaytest,
   saveKeyFor,
@@ -230,47 +225,6 @@ function Dice({ dice, label, presented = false }) {
     </div>
   );
 }
-function Traits({ hero, compact = false, changes = [] }) {
-  return (
-    <div className={'traits-grid ' + (compact ? 'compact-traits' : '')}>
-      {TRAIT_KEYS.map((k) => (
-        <div
-          className={
-            'trait-row trait-' +
-            k +
-            (changes.some((c) => c.trait === k) ? ' trait-changed' : '')
-          }
-          key={k}
-        >
-          <div className="trait-caption">
-            <span>{TRAITS[k]}</span>
-            <strong>{traitValue(hero, k)}</strong>
-          </div>
-          {!compact && (
-            <div
-              className="trait-track"
-              aria-label={`${TRAITS[k]}当前${traitValue(hero, k)}，位于第${hero.stats[k]}格`}
-            >
-              {hero.tracks[k].map((n, i) => (
-                <span
-                  key={i}
-                  title={`第${i}格：${i === 0 ? '死亡' : n}${i === hero.stats[k] ? ' · 当前' : ''}${i === hero.start[k] ? ' · 起始' : ''}`}
-                  aria-current={i === hero.stats[k] ? 'step' : undefined}
-                  className={
-                    (i === hero.stats[k] ? 'trait-current ' : '') +
-                    (i === hero.start[k] ? 'trait-start' : '')
-                  }
-                >
-                  {i === 0 ? <Skull size={10} /> : n}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 function Prompt({
   game,
   send,
@@ -369,13 +323,13 @@ function Prompt({
               c?.title || p.title
             )}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={p.rollReceipt ? 'sr-only' : undefined}>
             {c
               ? c.story
               : p.kind === 'placement'
                 ? `${FLOORS.find((f) => f.id === p.floor).name} · 来自「${roomAt(game, p.from).name}」的${DIRS[p.dir].name}侧门。请选择朝向，然后放置。`
                 : p.rollReceipt
-                  ? '骰子已停稳，检定结果已自动生效。'
+                  ? p.title
                   : p.text}
           </DialogDescription>
           {tile && (
@@ -487,10 +441,6 @@ function Prompt({
           )}
           {p.rollReceipt && (
             <output className="inline-roll-result">
-              <strong>
-                <Check size={16} />
-                检定已自动结算
-              </strong>
               <p>{p.rollReceipt.text || p.text}</p>
             </output>
           )}
@@ -619,7 +569,7 @@ function FloorPeople({ game, f }) {
             title={e.name + ' · ' + f.name}
             aria-label={e.name + '位于' + f.name}
           >
-            {enemyMark(e)}
+            {<EnemyGlyph enemy={e} />}
           </span>
         ))}
     </fieldset>
@@ -946,7 +896,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                       : '0px',
                   }}
                 >
-                  {enemyMark(step)}
+                  {<EnemyGlyph enemy={step} />}
                 </span>
               );
             })()}
@@ -1020,11 +970,7 @@ function Board({ game, send, zoom, setZoom, locked = false, enemyMotion }) {
                         key={e.id}
                         title={e.name + ' ' + e.hp + '/' + e.maxHp}
                       >
-                        {['alpha', 'wolf'].includes(e.kind) ? (
-                          '🐺'
-                        ) : (
-                          <Ghost size={13} />
-                        )}
+                        <EnemyGlyph enemy={e} size={16} />
                       </span>
                     ))}
                   </span>
@@ -1470,13 +1416,13 @@ export default function Home() {
           <button
             className="brand"
             onClick={() => (game ? setConfirm('menu') : null)}
-            aria-label="山屋惊魂主菜单"
+            aria-label="预兆之屋主菜单"
           >
             <span className="brand-seal">
               <Flame size={20} />
             </span>
             <span>
-              山屋惊魂<small>THE HOUSE REMEMBERS</small>
+              预兆之屋<small>HOUSE OF OMENS</small>
             </span>
           </button>
           <div className="top-center">
@@ -1494,12 +1440,7 @@ export default function Home() {
                     : '作祟阶段'}
                 <span className="divider" />第 {game.round} 回合
               </>
-            ) : (
-              <>
-                <span className="tiny-star">✦</span> 三层宅邸，无数条未知的路{' '}
-                <span className="tiny-star">✦</span>
-              </>
-            )}
+            ) : null}
           </div>
           {game?.playtest?.mode === 'haunt' && (
             <button
@@ -1513,7 +1454,7 @@ export default function Home() {
               <span>测试</span>
             </button>
           )}
-          {game && (
+          {
             <button
               className="icon-button settings-toggle"
               aria-label="设置与菜单"
@@ -1522,8 +1463,8 @@ export default function Home() {
             >
               <Settings2 size={19} />
             </button>
-          )}
-          <div className="top-actions" hidden={!!game && panel !== 'settings'}>
+          }
+          <div className="top-actions" hidden={panel !== 'settings'}>
             {game?.playtest?.mode === 'haunt' && !net.session && (
               <button
                 className="secondary-button top-text-button"
@@ -1600,234 +1541,32 @@ export default function Home() {
             onClose={() => setView('game')}
           />
         ) : !game ? (
-          <>
-            <section className="lobby-stage">
-              <div className="manor-art" aria-hidden="true" />
-              <div className="lobby-copy">
-                <div className="eyebrow">
-                  <span /> A NIGHT AT THE HOUSE ON THE HILL
-                </div>
-                <h1>
-                  有些门，
-                  <br />
-                  不该被推开。
-                </h1>
-                <p className="lead">
-                  一栋逐间拼起、不断揭露秘密的老宅。
-                  <br />
-                  当预兆降临，你熟悉的一切都将改变。
-                </p>
-                <div className="lobby-meta">
-                  <span>
-                    <Layers size={16} />
-                    三层随机宅邸
-                  </span>
-                  <span>
-                    <Footprints size={16} />
-                    3—6人探险队
-                  </span>
-                  <span>
-                    <Clock size={16} />
-                    20—35分钟
-                  </span>
-                </div>
-              </div>
-              <div className="location-stamp">
-                <Compass size={26} />
-                <span>
-                  黑松岭 · 无名宅邸<small>午夜前，请不要相信钟声。</small>
-                </span>
-              </div>
-            </section>
-            <section className="scenario-section">
-              <div className="section-line">
-                <div>
-                  <span className="eyebrow">THE HOUSE CHOOSES</span>
-                  <h2>先探索，再揭晓今晚的故事</h2>
-                </div>
-                <span className="muted">抽取房间 · 旋转拼接 · 翻开命运</span>
-              </div>
-              <button
-                className="gold-button"
-                onClick={() => setChoice('mystery')}
-              >
-                未知的夜晚 ·{' '}
-                {choice === 'mystery' ? '已选择组合触发' : '恢复组合触发'}
-              </button>
-              <p className="muted">
-                预兆与发现它的房间共同决定剧本。已有四个故事等待揭晓。
-              </p>
-              <details className="scenario-testing">
-                <summary>
-                  定向试玩（测试入口） ·{' '}
-                  {choice === 'mystery' ? '未指定剧本' : sc.title}
-                </summary>
-                <div className="scenario-grid">
-                  {SCENARIOS.filter((s) => s.id !== 'mystery').map((s, i) => {
-                    const I = iconMap[s.id];
-                    return (
-                      <button
-                        key={s.id}
-                        className={
-                          'scenario-card ' + (choice === s.id ? 'selected' : '')
-                        }
-                        onClick={() => setChoice(s.id)}
-                        aria-pressed={choice === s.id}
-                        aria-label={
-                          (s.id === 'werewolf' ? '狼人剧本 · ' : '') + s.title
-                        }
-                        style={{ '--scenario-color': s.color }}
-                      >
-                        <div
-                          className="scenario-art"
-                          style={atlas([5, 3, 8, 7][i])}
-                        />
-                        <div className="scenario-shade" />
-                        <span className="chapter-no">{s.number}</span>
-                        <I className="chapter-icon" size={27} />
-                        <div className="scenario-copy">
-                          <span className="scenario-type">{s.type}</span>
-                          <h3>{s.title}</h3>
-                          <p>{s.intro}</p>
-                          <div className="chapter-footer">
-                            <span>{s.difficulty}难度</span>
-                            <span>
-                              {choice === s.id ? (
-                                <>
-                                  <Check size={14} />
-                                  已选择
-                                </>
-                              ) : (
-                                <>
-                                  选择故事
-                                  <ArrowRight size={15} />
-                                </>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="quick-playtest">
-                  <div>
-                    <strong>跳过探索，直接测试作祟</strong>
-                    <p>
-                      三层相通的小地图，首位人物携带吊坠、咖啡和绷带。只需确认一次作祟说明即可行动，使用独立测试存档。
-                    </p>
-                  </div>
-                  {choice !== 'mystery' && (
-                    <PlaytestPresetPicker
-                      scenario={choice}
-                      value={playtestFocus}
-                      onChange={setPlaytestFocus}
-                    />
-                  )}
-                  <button
-                    className="gold-button"
-                    disabled={choice === 'mystery'}
-                    onClick={() =>
-                      setGame(
-                        createHauntPlaytest(
-                          choice,
-                          Date.now(),
-                          count,
-                          choice === 'werewolf' ? playtestFocus : 'basic',
-                        ),
-                      )
-                    }
-                  >
-                    <Zap size={18} />
-                    {choice === 'mystery'
-                      ? '先选择上方剧本'
-                      : '直接进入作祟 · ' + sc.title}
-                  </button>
-                  {savedPlaytest && (
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        setChoice(savedPlaytest.scenario);
-                        setGame(savedPlaytest);
-                      }}
-                    >
-                      继续测试局 · {gameModeLabel(savedPlaytest)}
-                    </button>
-                  )}
-                </div>
-              </details>
-              <div className="team-setup">
-                <div>
-                  <span className="eyebrow">YOUR EXPLORERS</span>
-                  <h3>探险队人数</h3>
-                  <small>由你一人指挥全队；默认3人，敌人强度随人数调整。</small>
-                </div>
-                <RadioGroup
-                  value={String(count)}
-                  onValueChange={(v) => setCount(Number(v))}
-                  className="count-options"
-                  aria-label="探险队人数"
-                >
-                  {[3, 4, 5, 6].map((n) => (
-                    <label
-                      className={count === n ? 'count-selected' : ''}
-                      key={n}
-                    >
-                      <RadioGroupItem value={String(n)} />
-                      <span>{n}人</span>
-                    </label>
-                  ))}
-                </RadioGroup>
-                <div className="team-preview">
-                  {HEROES.slice(0, count).map((h) => (
-                    <span key={h.name} style={{ color: h.color }}>
-                      {h.name}
-                      <small>{h.role}</small>
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="start-row">
-                <span className="disclaimer">
-                  原创房间与卡牌 · 原创剧本 · 非官方试玩作品
-                </span>
-                <div className="start-buttons">
-                  {saved && (
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        setChoice(
-                          saved.automaticHaunt ? 'mystery' : saved.scenario,
-                        );
-                        setGame(saved);
-                      }}
-                    >
-                      <RotateCcw size={16} />
-                      继续旧局 · {gameModeLabel(saved)}
-                    </button>
-                  )}
-                  <button
-                    className="gold-button"
-                    onClick={() =>
-                      setGame(createGame(choice, Date.now(), count))
-                    }
-                  >
-                    新开一局 ·{' '}
-                    {gameModeLabel({
-                      scenario: choice,
-                      automaticHaunt: choice === 'mystery',
-                      phase: 'explore',
-                    })}
-                    <ArrowRight size={19} />
-                  </button>
-                </div>
-              </div>
-            </section>
-            <footer className="lobby-footer">
-              <span>每次探索，宅邸都会有所不同。</span>
-              <span>新规则使用独立存档 · 旧版进度仍保留在浏览器</span>
-            </footer>
-          </>
+          <LobbyScreen
+            count={count}
+            setCount={setCount}
+            choice={choice}
+            setChoice={setChoice}
+            saved={saved}
+            savedPlaytest={savedPlaytest}
+            playtestFocus={playtestFocus}
+            setPlaytestFocus={setPlaytestFocus}
+            onStart={() => setGame(createGame(choice, Date.now(), count))}
+            onContinue={(save) => {
+              setChoice(save.automaticHaunt ? 'mystery' : save.scenario);
+              setGame(save);
+            }}
+            onTest={() =>
+              setGame(
+                createHauntPlaytest(
+                  choice,
+                  Date.now(),
+                  count,
+                  choice === 'werewolf' ? playtestFocus : 'basic',
+                ),
+              )
+            }
+            onNetwork={() => setView('network')}
+          />
         ) : (
           <>
             {net.session && (
@@ -2254,7 +1993,6 @@ export default function Home() {
                       />
                     ))}
                     <output className="inline-roll-result">
-                      <strong>检定已自动结算</strong>
                       <p>{game.result.reason}</p>
                     </output>
                   </div>

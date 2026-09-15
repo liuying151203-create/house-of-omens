@@ -1,4 +1,5 @@
 import { cardCureBonus } from '../lib/card-rules.mjs';
+import EnemyGlyph from './enemy-glyph';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
 export default function WerewolfPanel({
   game,
@@ -74,7 +75,9 @@ export default function WerewolfPanel({
         <summary>狼群状态与追猎</summary>
         {game.enemies.map((e) => (
           <div className="wolf-enemy" key={e.id}>
-            <strong>🐺 {e.name}</strong>
+            <strong>
+              <EnemyGlyph enemy={e} size={16} /> {e.name}
+            </strong>
             <span>
               {e.hp}/{e.maxHp} 生命 · 力量 {wolfMight(game, e)} · 移动 {e.speed}
             </span>

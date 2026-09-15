@@ -1,3 +1,4 @@
+import AttributeTracks from './attribute-tracks';
 import HeroStatusBadges from './hero-status-badges';
 import { Check, Footprints, Package } from 'lucide-react';
 import {
@@ -16,7 +17,6 @@ export default function PersonalPanel({
   send,
   waiting,
   moving,
-  Traits,
   changes,
   commands,
 }) {
@@ -81,20 +81,16 @@ export default function PersonalPanel({
             </span>
           </header>
           {inspectable ? (
-            <Traits
+            <AttributeTracks
               hero={hero}
               compact={false}
               changes={changes.filter((c) => c.heroId === hero.id)}
             />
           ) : (
             enemy && (
-              <div className="monster-readout">
-                <b>
-                  生命 {enemy.hp}/{enemy.maxHp}
-                </b>
-                <span>力量 {wolfMight(game, enemy)}</span>
-                <span>移动 {enemy.speed}</span>
-              </div>
+              <AttributeTracks
+                enemy={{ ...enemy, might: wolfMight(game, enemy) }}
+              />
             )
           )}
           <footer>

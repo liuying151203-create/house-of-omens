@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { rollOwner } from '@/lib/roll-ownership.mjs';
+import { rollOutcomes } from '@/lib/roll-outcomes.mjs';
 const ROLL_ANIMATION_MS = 1500,
   RESULT_HOLD_MS = 1400;
 function EmojiDice({ dice, count, motion, onSettled }) {
@@ -79,6 +80,8 @@ export default function DiceRequest({
   const p = game.queue[0],
     room = net?.room,
     [settled, setSettled] = useState([]);
+  const outcomes =
+    p.outcomes || rollOutcomes(game, p.resumeAction, p.resumeQueue?.[0]);
   const mine = (r) => !room || rollOwner(room, r) === room.you;
   const available = p.rolls.filter((r) => !r.dice && mine(r)),
     automatic = available.filter((r) => autoRoll || r.computer);
@@ -133,7 +136,19 @@ export default function DiceRequest({
           {p.rolls.length > 1 ? '双方检定' : '属性检定'}
         </span>
         <DialogTitle>{p.title}</DialogTitle>
-        <DialogDescription>{p.text || '投掷后揭晓点数。'}</DialogDescription>
+        <DialogDescription className={p.text ? '' : 'sr-only'}>
+          {p.text || p.title}
+        </DialogDescription>
+        {outcomes.length > 0 && (
+          <dl className="roll-outcomes" aria-label="点数与效果">
+            {outcomes.map((row) => (
+              <div key={row.range}>
+                <dt>{row.range}</dt>
+                <dd>{row.effect}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         <div className="roll-sides">
           {p.rolls.map((r, i) => {
             const own = mine(r),
@@ -148,7 +163,9 @@ export default function DiceRequest({
               >
                 <div className="roll-side-heading">
                   <strong>{r.label || '属性骰'}</strong>
-                  <span>{r.count} 枚</span>
+                  <span>
+                    {r.count} 枚{r.bonus ? ` · 加值 +${r.bonus}` : ''}
+                  </span>
                 </div>
                 <small>
                   {r.computer
@@ -209,13 +226,9 @@ export default function DiceRequest({
             );
           })}
         </div>
-        {finished && (
+        {finished && !ready && (
           <output className="dice-auto-status" aria-live="polite">
-            {!ready
-              ? '等待骰子停稳'
-              : confirmer
-                ? '点数已揭晓，稍后自动结算…'
-                : '正在同步检定结果…'}
+            等待骰子停稳
           </output>
         )}
         {testTools}

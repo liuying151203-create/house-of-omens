@@ -5,7 +5,8 @@ import ItemGlyph from './item-glyph';
 import { resolveCard } from '../lib/card-rules.mjs';
 import { hauntCardRule, canInspectHero } from '../lib/game-view.mjs';
 import { TRAITS } from '../lib/game-data.mjs';
-import { itemInstances, itemInstanceUsed } from '../lib/item-instances.mjs';
+import { itemInstances } from '../lib/item-instances.mjs';
+import { itemActionViews } from '../lib/content/item-actions.mjs';
 
 export default function HeroInventory({
   game,
@@ -46,72 +47,58 @@ export default function HeroInventory({
   if (!canInspectHero(game, hero, room))
     return <p className="private-info">物品与原人物能力未公开或已停用。</p>;
   const cards = [
-    ...itemInstances(hero).map((instance) => ({
-      ...resolveCard(game, 'item', instance.definitionId, hero.id),
-      cardType: 'item',
-      instanceId: instance.instanceId,
-    })),
-    ...hero.omens.map((id, index) => ({
-      ...resolveCard(game, 'omen', id, hero.id),
-      cardType: 'omen',
-      instanceId: `omen:${hero.id}:${id}:${index}`,
-    })),
-  ];
-  const used = (card) =>
-    card.cardType === 'item' && itemInstanceUsed(hero, card);
-  const content = (card) => (
-    <div className="carried-card-content">
-      <p>{card.effect}</p>
-      {hauntCardRule(card, game) && (
-        <div className="haunt-card-rule">
-          <strong>☾ 作祟能力</strong>
-          <p>{hauntCardRule(card, game)}</p>
-        </div>
-      )}
-      {send && card.use && (
-        <div className="item-use-options">
-          {card.use === 'movement' ? (
-            <button
-              disabled={disabled || hero.stopped || used(card)}
-              onClick={() =>
-                send({
-                  type: 'useItem',
-                  id: card.id,
-                  instanceId: card.instanceId,
-                })
-              }
-            >
-              {hero.stopped ? '下回合可饮用' : '饮用 · 移动 +' + card.useAmount}
-            </button>
-          ) : (
-            (card.use === 'healPhysical'
-              ? ['might', 'speed']
-              : ['sanity', 'knowledge']
-            ).map((trait) => (
+      ...itemInstances(hero).map((instance) => ({
+        ...resolveCard(game, 'item', instance.definitionId, hero.id),
+        cardType: 'item',
+        instanceId: instance.instanceId,
+      })),
+      ...hero.omens.map((id, index) => ({
+        ...resolveCard(game, 'omen', id, hero.id),
+        cardType: 'omen',
+        instanceId: `omen:${hero.id}:${id}:${index}`,
+      })),
+    ],
+    itemActions = itemActionViews(game, hero, TRAITS);
+  const content = (card) => {
+    const abilities = itemActions.filter(
+      (action) => action.instanceId === card.instanceId,
+    );
+    return (
+      <div className="carried-card-content">
+        <p>{card.effect}</p>
+        {hauntCardRule(card, game) && (
+          <div className="haunt-card-rule">
+            <strong>☾ 作祟能力</strong>
+            <p>{hauntCardRule(card, game)}</p>
+          </div>
+        )}
+        {send && abilities.length > 0 && (
+          <div className="item-use-options">
+            {abilities.map((ability) => (
               <button
-                key={trait}
-                disabled={
-                  disabled ||
-                  used(card) ||
-                  hero.stats[trait] >= hero.start[trait]
+                key={ability.id}
+                disabled={disabled || !ability.available}
+                title={
+                  ability.available ? ability.detail : ability.unavailableReason
                 }
                 onClick={() =>
                   send({
                     type: 'useItem',
-                    id: card.id,
-                    instanceId: card.instanceId,
-                    trait,
+                    actionId: ability.id,
+                    id: ability.cardId,
+                    instanceId: ability.instanceId,
+                    ...(ability.trait ? { trait: ability.trait } : {}),
                   })
                 }
               >
-                恢复{TRAITS[trait]}
+                {ability.label}
               </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   if (slots) {
     const chosen = cards.find((card) => selected?.key === card.instanceId);
     return (

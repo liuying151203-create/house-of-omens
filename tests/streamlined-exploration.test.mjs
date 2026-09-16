@@ -44,6 +44,69 @@ test('first frontier click only previews; second draws exactly one room without 
   assert.deepEqual(act(game, second.action), game);
 });
 
+test('discovery entry reactions restore their room workflow before drawing its card', () => {
+  let game = start();
+  game = act(game, { type: 'move', pos: actions(game).move[0] });
+  const hero = game.heroes[game.active],
+    frontier = actions(game).explore[0];
+  game.ruleTriggers = [
+    {
+      id: 'test-discovery-entry-reaction',
+      sourceId: 'scenario:test-discovery-entry-reaction',
+      when: 'BeforeRoomEnter',
+      condition: { heroId: hero.id, enterKind: 'discover', discovered: true },
+      effects: [
+        {
+          op: 'reaction.request',
+          params: {
+            heroId: hero.id,
+            title: '发现房间反应',
+            options: [
+              {
+                id: 'mark',
+                label: '记录',
+                effects: [
+                  {
+                    op: 'status.add',
+                    params: {
+                      heroId: hero.id,
+                      status: { id: 'discovery-entry-reacted' },
+                    },
+                  },
+                ],
+              },
+              { id: 'skip', label: '跳过', effects: [] },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+  game = act(game, { type: 'explore', ...frontier });
+  const tileId = pending(game).tileId;
+  game = act(game, { type: 'place' });
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.flow.definitionId,
+    'room.entry',
+  );
+  assert.equal(game.heroes[hero.id].pos, tileId);
+  assert.equal(game.queue.filter((entry) => entry.kind === 'card').length, 0);
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert(
+    game.heroes[hero.id].statuses.some(
+      (status) => status.id === 'discovery-entry-reacted',
+    ),
+  );
+  assert(game.queue.filter((entry) => entry.kind === 'card').length <= 1);
+});
+
 test('changing floor, actor, or game progress invalidates a previous exploration confirmation', () => {
   const game = start();
   const frontier = actions(game).explore[0];

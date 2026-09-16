@@ -883,3 +883,223 @@ test('round end, round start and first turn reactions resume in order', () => {
     ['round-ending-reacted', 'round-starting-reacted', 'turn-starting-reacted'],
   );
 });
+
+function lifecycleReaction(when, heroId, statusId) {
+  return {
+    id: `test-${statusId}`,
+    sourceId: `scenario:test-${statusId}`,
+    when,
+    effects: [
+      {
+        op: 'reaction.request',
+        params: {
+          heroId,
+          title: statusId,
+          options: [
+            {
+              id: 'mark',
+              label: '记录',
+              effects: [
+                {
+                  op: 'status.add',
+                  params: { heroId, status: { id: statusId } },
+                },
+              ],
+            },
+            { id: 'skip', label: '跳过', effects: [] },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+test('HauntStarted reactions resume from a standalone timing workflow', () => {
+  const game = createInteractiveGame('werewolf', 419, 3),
+    heroId = game.active;
+  game.queue = [];
+  game.ruleTriggers = [
+    lifecycleReaction('HauntStarted', heroId, 'haunt-started-reacted'),
+  ];
+  triggerHaunt(game);
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.flow.definitionId,
+    'trigger.timing',
+  );
+  assert(game.queue.some((entry) => entry.kind === 'haunt'));
+
+  const restored = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert(
+    restored.heroes[heroId].statuses.some(
+      (status) => status.id === 'haunt-started-reacted',
+    ),
+  );
+  assert.equal(
+    restored.queue.find((entry) => entry.kind === 'haunt').triggers.length,
+    1,
+  );
+});
+
+test('RoundStatusTick reactions finish before the enemy phase and do not tick twice', () => {
+  let game = createHauntPlaytest('werewolf', 420, 3);
+  game.queue = [];
+  const heroId = game.active,
+    elapsed = game.elapsed;
+  game.ruleTriggers = [
+    lifecycleReaction('RoundStatusTick', heroId, 'round-status-reacted'),
+  ];
+  game = act(game, { type: 'endRound', round: game.round });
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(game.elapsed, elapsed + 1);
+  assert(!game.events.some((event) => event.type === 'MovementQueued'));
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert.equal(game.elapsed, elapsed + 1);
+  assert(
+    game.heroes[heroId].statuses.some(
+      (status) => status.id === 'round-status-reacted',
+    ),
+  );
+});
+
+test('expired status reactions resume before the enemy phase', () => {
+  let game = createHauntPlaytest('werewolf', 421, 3);
+  game.queue = [];
+  const heroId = game.active;
+  game.heroes[heroId].statuses.push({
+    id: 'immunity',
+    instanceId: 'expiring-reaction-immunity',
+    until: game.elapsed + 1,
+  });
+  game.ruleTriggers = [
+    lifecycleReaction('StatusExpired', heroId, 'expiration-reacted'),
+  ];
+  game = act(game, { type: 'endRound', round: game.round });
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.event.when,
+    'StatusExpired',
+  );
+  assert(
+    !game.heroes[heroId].statuses.some((status) => status.id === 'immunity'),
+  );
+  assert(!game.events.some((event) => event.type === 'MovementQueued'));
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert(
+    game.heroes[heroId].statuses.some(
+      (status) => status.id === 'expiration-reacted',
+    ),
+  );
+});
+
+test('status expiration remains deferred when an earlier round reaction pauses', () => {
+  let game = createHauntPlaytest('werewolf', 423, 3);
+  game.queue = [];
+  const heroId = game.active;
+  game.heroes[heroId].statuses.push({
+    id: 'immunity',
+    instanceId: 'deferred-expiration-immunity',
+    until: game.elapsed + 1,
+  });
+  game.ruleTriggers = [
+    {
+      ...lifecycleReaction(
+        'RoundStatusTick',
+        heroId,
+        'early-round-status-reacted',
+      ),
+      priority: 30,
+    },
+    lifecycleReaction('StatusExpired', heroId, 'deferred-expiration-reacted'),
+  ];
+  game = act(game, { type: 'endRound', round: game.round });
+  let reaction = pending(game);
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.event.when,
+    'RoundStatusTick',
+  );
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.event.when,
+    'StatusExpired',
+  );
+  assert(
+    !game.heroes[heroId].statuses.some((status) => status.id === 'immunity'),
+  );
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert.deepEqual(
+    game.heroes[heroId].statuses
+      .filter((status) => status.id.endsWith('reacted'))
+      .map((status) => status.id),
+    ['early-round-status-reacted', 'deferred-expiration-reacted'],
+  );
+});
+
+test('EnemyTurnStarting reactions restore before movement planning', () => {
+  let game = createHauntPlaytest('werewolf', 422, 3);
+  game.queue = [];
+  const heroId = game.active,
+    enemy = game.enemies.find((entry) => entry.bornAt !== game.elapsed + 1),
+    enemyId = enemy?.id || game.enemies[0].id,
+    origin = game.enemies.find((entry) => entry.id === enemyId).pos;
+  game.enemies.forEach((entry) => {
+    if (entry.id === enemyId) entry.bornAt = -1;
+    else entry.bornAt = game.elapsed + 1;
+  });
+  game.ruleTriggers = [
+    {
+      ...lifecycleReaction('EnemyTurnStarting', heroId, 'enemy-start-reacted'),
+      condition: { enemyId },
+    },
+  ];
+  game = act(game, { type: 'endRound', round: game.round });
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(game.enemies.find((entry) => entry.id === enemyId).pos, origin);
+  assert(!game.events.some((event) => event.type === 'MovementQueued'));
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert(
+    game.heroes[heroId].statuses.some(
+      (status) => status.id === 'enemy-start-reacted',
+    ),
+  );
+  assert(
+    game.events.some(
+      (event) => event.type === 'MovementQueued' && event.entityId === enemyId,
+    ),
+  );
+});

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createSimulationGame,
-  createInteractiveGame,
+  createGame,
   act,
   triggerHaunt,
   actions,
@@ -368,7 +368,7 @@ test('LAN accepts new game modes, owns wolf orders and opposed dice by the conve
 
 function play(seed, count, interactive = false) {
   let s = interactive
-    ? createInteractiveGame('werewolf', seed, count)
+    ? createGame('werewolf', seed, count)
     : createSimulationGame('werewolf', seed, count);
   for (let step = 0; step < 1600 && s.phase !== 'over'; step++) {
     if (pending(s)) {

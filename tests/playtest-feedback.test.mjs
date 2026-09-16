@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createInteractiveGame,
+  createGame,
   createSimulationGame,
   triggerHaunt,
   drawCard,
@@ -21,7 +21,7 @@ import {
 import { createRoomService } from '../scripts/room-server.mjs';
 
 function lastOmen(scenario) {
-  const game = createInteractiveGame(scenario, 72, 3);
+  const game = createGame(scenario, 72, 3);
   game.queue = [];
   // Make this the actual last omen: the scenario test must not depend on room-shuffle RNG.
   game.omens = OMENS.length - 1;

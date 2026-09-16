@@ -4,15 +4,10 @@ import {
   automaticRequestCommand,
   drivePendingRequests,
 } from '../lib/automatic-driver.mjs';
-import {
-  act,
-  createInteractiveGame,
-  drawCard,
-  pending,
-} from '../lib/game-engine.mjs';
+import { act, createGame, drawCard, pending } from '../lib/game-engine.mjs';
 
 test('automatic request commands use the same explicit workflow actions as the UI', () => {
-  let game = createInteractiveGame('mirror', 1201, 3);
+  let game = createGame('mirror', 1201, 3);
   game.queue = [];
   game.decks.event = ['cipher'];
   drawCard(game, 'event', game.heroes[game.active]);
@@ -29,7 +24,7 @@ test('automatic request commands use the same explicit workflow actions as the U
 });
 
 test('the automatic driver settles a serialized workflow without direct state edits', () => {
-  let game = createInteractiveGame('mirror', 1202, 3);
+  let game = createGame('mirror', 1202, 3);
   game.queue = [];
   game.decks.item = ['bandage'];
   drawCard(game, 'item', game.heroes[game.active]);

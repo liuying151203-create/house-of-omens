@@ -10,7 +10,7 @@ import {
   readCheckpoint,
 } from '../lib/playtest.mjs';
 import {
-  createInteractiveGame,
+  createGame,
   act,
   actions,
   living,
@@ -98,13 +98,13 @@ test('checkpoints preserve pending rolls exactly and refuse other fixtures, norm
     createHauntPlaytest('werewolf', 23, 3, 'treatment'),
     createHauntPlaytest('werewolf', 23, 4, 'conversion'),
     createHauntPlaytest('bells', 23, 4),
-    createInteractiveGame('werewolf', 23, 4),
+    createGame('werewolf', 23, 4),
   ])
     assert.equal(readCheckpoint(raw, other), null);
   for (const malformed of [null, '{', '{}', '{"version":99}'])
     assert.equal(readCheckpoint(malformed, game), null);
   assert.throws(
-    () => makeCheckpoint(createInteractiveGame('werewolf', 23, 4)),
+    () => makeCheckpoint(createGame('werewolf', 23, 4)),
     /快速测试/,
   );
 });
@@ -237,17 +237,14 @@ test('reset reproduces the same fixture and saves stay separate from normal play
   const saved = JSON.parse(JSON.stringify(played));
   assert(validSave(saved));
   assert.equal(saveKeyFor(saved), PLAYTEST_SAVE_KEY);
-  assert.equal(
-    saveKeyFor(createInteractiveGame('werewolf', 1234, 6)),
-    NORMAL_SAVE_KEY,
-  );
+  assert.equal(saveKeyFor(createGame('werewolf', 1234, 6)), NORMAL_SAVE_KEY);
   assert.notEqual(PLAYTEST_SAVE_KEY, NORMAL_SAVE_KEY);
   assert.deepEqual(
     createHauntPlaytest(saved.scenario, saved.playtest.seed, saved.count),
     initial,
   );
   assert.match(gameModeLabel(saved), /作祟快速测试/);
-  const normal = createInteractiveGame('werewolf', 1234, 6);
+  const normal = createGame('werewolf', 1234, 6);
   assert.equal(normal.phase, 'explore');
   assert.equal(normal.rooms.length, 5);
   assert.equal(normal.heroes[0].items.length, 0);

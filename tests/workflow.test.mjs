@@ -6,13 +6,7 @@ import {
   supplyChoice,
   supplyRolls,
 } from '../lib/engine/workflow.mjs';
-import {
-  act,
-  createGame,
-  createInteractiveGame,
-  drawCard,
-  pending,
-} from '../lib/game-engine.mjs';
+import { act, createGame, drawCard, pending } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 
 test('the default game factory enters the resumable Workflow path', () => {
@@ -105,7 +99,7 @@ test('workflow effects can suspend for a nested request and resume at the next s
 });
 
 test('interactive event checks resume from saved workflow without probe replay', () => {
-  let game = createInteractiveGame('mirror', 42, 3);
+  let game = createGame('mirror', 42, 3);
   game.queue = [];
   game.decks.event = ['cipher'];
   drawCard(game, 'event', game.heroes[0]);
@@ -280,7 +274,7 @@ test('interactive opposed combat stores a workflow instead of a replay action', 
 });
 
 test('haunt and fall dice use restorable workflows without replay actions', () => {
-  let haunt = createInteractiveGame('mirror', 93, 3);
+  let haunt = createGame('mirror', 93, 3);
   haunt.queue = [
     {
       uid: 90,
@@ -300,7 +294,7 @@ test('haunt and fall dice use restorable workflows without replay actions', () =
   });
   assert.equal(pending(haunt).kind, 'hauntResult');
 
-  let fall = createInteractiveGame('mirror', 94, 3);
+  let fall = createGame('mirror', 94, 3);
   fall.queue = [
     {
       uid: 91,

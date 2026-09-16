@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   act,
   actions,
-  createInteractiveGame,
+  createGame,
   drawCard,
   pending,
   EVENTS,
@@ -14,8 +14,7 @@ import { preserveMapScroll } from '../lib/map-camera.mjs';
 import { roomBadges } from '../lib/room-badges.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
 
-const start = () =>
-  act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
+const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 function cardGame(type, id) {
   const game = start();
   game.decks[type] = [id];

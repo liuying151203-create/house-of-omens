@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   act,
-  createInteractiveGame,
+  createGame,
   triggerHaunt,
   pending,
   living,
@@ -12,7 +12,7 @@ import {
 } from '../lib/game-engine.mjs';
 
 function start(haunt = false, count = 3) {
-  const game = createInteractiveGame('werewolf', 23, count);
+  const game = createGame('werewolf', 23, count);
   game.queue = [];
   if (haunt) {
     triggerHaunt(game);

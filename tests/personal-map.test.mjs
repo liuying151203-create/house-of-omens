@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mapScrollTarget } from '../lib/map-camera.mjs';
 import { personalHero, canInspectHero } from '../lib/game-view.mjs';
-import { createInteractiveGame } from '../lib/game-engine.mjs';
+import { createGame } from '../lib/game-engine.mjs';
 
 test('map camera centers the requested room with a full viewport of drag space at both edges', () => {
   for (const [width, height] of [
@@ -49,7 +49,7 @@ test('map camera centers the requested room with a full viewport of drag space a
 });
 
 test('personal HUD follows the chosen solo explorer but stays with the local player during LAN turns', () => {
-  const game = createInteractiveGame('werewolf', 88, 4);
+  const game = createGame('werewolf', 88, 4);
   assert.equal(personalHero(game, null).id, 0);
   game.active = 2;
   assert.equal(personalHero(game, null).id, 2);
@@ -68,7 +68,7 @@ test('personal HUD follows the chosen solo explorer but stays with the local pla
 });
 
 test('converted and fallen local explorers remain identifiable without revealing another faction inventory', () => {
-  const game = createInteractiveGame('werewolf', 88, 4);
+  const game = createGame('werewolf', 88, 4);
   const room = {
     hostId: 'host',
     you: 'guest',

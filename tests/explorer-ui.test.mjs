@@ -7,7 +7,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   act,
-  createInteractiveGame,
+  createGame,
   updateRoomRule,
   updateTraitRule,
 } from '../lib/game-engine.mjs';
@@ -44,8 +44,7 @@ const { Inventory, Roster, Personal, Commands, Supply, MapPawn } = await import(
 );
 const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
-const start = () =>
-  act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
+const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 
 test('map explorer tokens are buttons for the matching status sheet', () => {
   const hero = start().heroes[0];

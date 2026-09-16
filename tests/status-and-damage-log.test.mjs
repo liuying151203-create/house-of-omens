@@ -1,18 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  act,
-  createInteractiveGame,
-  drawCard,
-  pending,
-} from '../lib/game-engine.mjs';
+import { act, createGame, drawCard, pending } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { updateCardRule } from '../lib/card-rules.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
 import { cure, infect } from '../lib/werewolf.mjs';
 
-const start = () =>
-  act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
+const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 const hit = (uid, amount = 2) => ({
   uid,
   kind: 'damage',

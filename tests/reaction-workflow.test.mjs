@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   act,
-  createInteractiveGame,
+  createGame,
   executeRuleEffects,
   pending,
   validSave,
@@ -11,7 +11,7 @@ import { createRoomService } from '../scripts/room-server.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 
 function gameWithReaction() {
-  const game = createInteractiveGame('werewolf', 1001, 3),
+  const game = createGame('werewolf', 1001, 3),
     hero = game.heroes[0];
   game.queue = [];
   hero.stats.might--;
@@ -85,7 +85,7 @@ test('declarative reactions pause, restore and apply only the selected effects',
 });
 
 test('multi-player reactions follow seat order and resume after every responder acts or skips', () => {
-  let game = createInteractiveGame('mirror', 1002, 3);
+  let game = createGame('mirror', 1002, 3);
   game.queue = [];
   game.heroes[0].moves = 1;
   executeRuleEffects(game, [

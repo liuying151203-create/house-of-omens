@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   act,
   actions,
-  createInteractiveGame,
+  createGame,
   drawCard,
   EVENTS,
 } from '../lib/game-engine.mjs';
@@ -11,7 +11,7 @@ import { updateCardRule } from '../lib/card-rules.mjs';
 import { CONTENT_ACTION_DEFINITIONS } from '../lib/content/actions.mjs';
 
 test('event dice previews use current card overrides and survive saving the request', () => {
-  let s = createInteractiveGame('werewolf', 23, 3);
+  let s = createGame('werewolf', 23, 3);
   s.queue = [];
   const card = EVENTS.find((c) => c.trait);
   s = updateCardRule(s, {
@@ -46,7 +46,7 @@ test('elevator preview covers every total and preserves the four-point exception
 });
 
 test('combat previews distinguish attack wins, ties and counterattacks', () => {
-  const s = createInteractiveGame('werewolf');
+  const s = createGame('werewolf');
   s.queue = [];
   s.phase = 'haunt';
   s.enemies = [

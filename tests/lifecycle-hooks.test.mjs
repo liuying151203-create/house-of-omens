@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   act,
   createSimulationGame,
-  createInteractiveGame,
+  createGame,
   drawCard,
   pending,
   traitValue,
@@ -43,7 +43,7 @@ test('card gain hooks expose the acquired definition and instance to effects', (
 });
 
 test('a BeforeCardGain reaction can cancel a card after serialized resume', () => {
-  let game = createInteractiveGame('mirror', 414, 3);
+  let game = createGame('mirror', 414, 3);
   game.queue = [];
   game.decks.item = ['bandage'];
   const hero = game.heroes[game.active];
@@ -118,7 +118,7 @@ test('a BeforeCardGain reaction can cancel a card after serialized resume', () =
 });
 
 test('an AfterCardGain reaction resumes without granting the item twice', () => {
-  let game = createInteractiveGame('mirror', 415, 3);
+  let game = createGame('mirror', 415, 3);
   game.queue = [];
   game.decks.item = ['bandage'];
   const hero = game.heroes[game.active];
@@ -181,7 +181,7 @@ test('an AfterCardGain reaction resumes without granting the item twice', () => 
 });
 
 test('check lifecycle hooks can change dice before rolling and observe the committed result', () => {
-  let game = createInteractiveGame('mirror', 407, 3);
+  let game = createGame('mirror', 407, 3);
   game.queue = [];
   game.decks.event = ['cipher'];
   const hero = game.heroes[game.active],
@@ -231,7 +231,7 @@ test('check lifecycle hooks can change dice before rolling and observe the commi
 });
 
 test('an AfterRoll reaction suspends and resumes the original check workflow', () => {
-  let game = createInteractiveGame('mirror', 408, 3);
+  let game = createGame('mirror', 408, 3);
   game.queue = [];
   game.decks.event = ['cipher'];
   const hero = game.heroes[game.active];
@@ -325,7 +325,7 @@ test('an AfterRoll reaction suspends and resumes the original check workflow', (
 });
 
 test('a BeforeCheck reaction resumes with its adjusted serialized dice request', () => {
-  let game = createInteractiveGame('mirror', 409, 3);
+  let game = createGame('mirror', 409, 3);
   game.queue = [];
   game.decks.event = ['cipher'];
   const hero = game.heroes[game.active],
@@ -414,7 +414,7 @@ test('room entry hooks distinguish before and after timing and travel context', 
 });
 
 test('room entry reactions suspend and resume their parent movement workflow', () => {
-  let game = createInteractiveGame('mirror', 412, 3);
+  let game = createGame('mirror', 412, 3);
   const hero = game.heroes[game.active],
     startingMoves = hero.moves;
   game.queue = [];
@@ -479,7 +479,7 @@ test('room entry reactions suspend and resume their parent movement workflow', (
 });
 
 test('after-room reactions also survive a serialized movement continuation', () => {
-  let game = createInteractiveGame('mirror', 413, 3);
+  let game = createGame('mirror', 413, 3);
   const hero = game.heroes[game.active];
   game.queue = [];
   game.ruleTriggers = [
@@ -617,7 +617,7 @@ test('death hooks can react to or explicitly replace a fatal trait change', () =
 });
 
 test('a non-damage death reaction restores from its standalone workflow', () => {
-  let game = createInteractiveGame('mirror', 416, 3);
+  let game = createGame('mirror', 416, 3);
   const hero = game.heroes[game.active];
   game.queue = [];
   game.phase = 'haunt';
@@ -743,7 +743,7 @@ test('turn, round, haunt and status lifecycle timings execute declarative effect
 });
 
 test('TurnEnding reactions resume before committing the hero transition', () => {
-  let game = createInteractiveGame('mirror', 417, 3);
+  let game = createGame('mirror', 417, 3);
   game.queue = [];
   const hero = game.heroes[game.active];
   game.ruleTriggers = [
@@ -834,7 +834,7 @@ test('round end, round start and first turn reactions resume in order', () => {
       },
     ],
   });
-  let game = createInteractiveGame('mirror', 418, 3);
+  let game = createGame('mirror', 418, 3);
   game.queue = [];
   game.ruleTriggers = [
     reactionTrigger('RoundEnding', 'round-ending-reacted'),
@@ -915,7 +915,7 @@ function lifecycleReaction(when, heroId, statusId) {
 }
 
 test('HauntStarted reactions resume from a standalone timing workflow', () => {
-  const game = createInteractiveGame('werewolf', 419, 3),
+  const game = createGame('werewolf', 419, 3),
     heroId = game.active;
   game.queue = [];
   game.ruleTriggers = [

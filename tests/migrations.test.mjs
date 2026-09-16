@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createGame,
-  createInteractiveGame,
   createSimulationGame,
   restoreGameSave,
   validSave,
@@ -76,7 +75,7 @@ test('playtest checkpoints accept migrated version two games', () => {
 test('execution mode is explicit and version three browser saves migrate to Workflow mode', () => {
   const game = createGame('mirror', 806, 3),
     simulation = createSimulationGame('mirror', 806, 3),
-    interactive = createInteractiveGame('mirror', 806, 3),
+    interactive = createGame('mirror', 806, 3),
     legacy = structuredClone(interactive);
 
   assert.equal(game.executionMode, 'workflow');

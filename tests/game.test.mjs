@@ -4,7 +4,7 @@ import {
   ROOM_DECK,
   TRAIT_KEYS,
   createSimulationGame,
-  createInteractiveGame,
+  createGame,
   act,
   actions,
   pending,
@@ -24,7 +24,7 @@ import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 const start = (id = 'bells', seed = 1, count = 3, interactive = false) =>
   act(
     interactive
-      ? createInteractiveGame(id, seed, count)
+      ? createGame(id, seed, count)
       : createSimulationGame(id, seed, count),
     { type: 'advance' },
   );

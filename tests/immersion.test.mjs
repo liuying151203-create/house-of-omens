@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createInteractiveGame,
+  createGame,
   act,
   drawCard,
   pending,
@@ -10,8 +10,7 @@ import {
 } from '../lib/game-engine.mjs';
 import { suggestDamage } from '../lib/damage-plan.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
-const start = () =>
-  act(createInteractiveGame('mirror', 28, 3), { type: 'advance' });
+const start = () => act(createGame('mirror', 28, 3), { type: 'advance' });
 const contested = () => {
   const s = start();
   s.phase = 'haunt';

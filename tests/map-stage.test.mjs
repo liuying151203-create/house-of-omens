@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   act,
-  createInteractiveGame,
+  createGame,
   drawCard,
   pending,
   OMENS,
@@ -23,8 +23,7 @@ import {
 import { hauntCardRule } from '../lib/game-view.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
 
-const start = () =>
-  act(createInteractiveGame('werewolf', 83, 3), { type: 'advance' });
+const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 const haunt = () => {
   const game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });
   living(game).forEach((h) => {

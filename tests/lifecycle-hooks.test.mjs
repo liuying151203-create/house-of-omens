@@ -741,3 +741,145 @@ test('turn, round, haunt and status lifecycle timings execute declarative effect
     ),
   );
 });
+
+test('TurnEnding reactions resume before committing the hero transition', () => {
+  let game = createInteractiveGame('mirror', 417, 3);
+  game.queue = [];
+  const hero = game.heroes[game.active];
+  game.ruleTriggers = [
+    {
+      id: 'test-turn-ending-reaction',
+      sourceId: 'scenario:test-turn-ending-reaction',
+      when: 'TurnEnding',
+      condition: { heroId: hero.id },
+      effects: [
+        {
+          op: 'reaction.request',
+          params: {
+            heroId: hero.id,
+            title: '行动结束反应',
+            options: [
+              {
+                id: 'mark',
+                label: '记录',
+                effects: [
+                  {
+                    op: 'status.add',
+                    params: {
+                      heroId: hero.id,
+                      status: { id: 'turn-ending-reacted' },
+                    },
+                  },
+                ],
+              },
+              { id: 'skip', label: '跳过', effects: [] },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+  game = act(game, {
+    type: 'endHero',
+    actorId: hero.id,
+    round: game.round,
+  });
+  const reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(game.heroes[hero.id].ended, false);
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.flow.definitionId,
+    'turn.transition',
+  );
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert.equal(game.heroes[hero.id].ended, true);
+  assert.notEqual(game.active, hero.id);
+  assert(
+    game.heroes[hero.id].statuses.some(
+      (status) => status.id === 'turn-ending-reacted',
+    ),
+  );
+});
+
+test('round end, round start and first turn reactions resume in order', () => {
+  const reactionTrigger = (when, id) => ({
+    id: `test-${id}`,
+    sourceId: `scenario:test-${id}`,
+    when,
+    effects: [
+      {
+        op: 'reaction.request',
+        params: {
+          heroId: 0,
+          title: id,
+          options: [
+            {
+              id: 'mark',
+              label: '记录',
+              effects: [
+                {
+                  op: 'status.add',
+                  params: { heroId: 0, status: { id } },
+                },
+              ],
+            },
+            { id: 'skip', label: '跳过', effects: [] },
+          ],
+        },
+      },
+    ],
+  });
+  let game = createInteractiveGame('mirror', 418, 3);
+  game.queue = [];
+  game.ruleTriggers = [
+    reactionTrigger('RoundEnding', 'round-ending-reacted'),
+    reactionTrigger('RoundStarting', 'round-starting-reacted'),
+    reactionTrigger('TurnStarting', 'turn-starting-reacted'),
+  ];
+  game = act(game, { type: 'endRound', round: game.round });
+  let reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(game.round, 1);
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  assert.equal(game.round, 2);
+  while (pending(game) && pending(game).kind !== 'choiceRequest')
+    game = act(game, { type: 'advance' });
+  reaction = pending(game);
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.event.when,
+    'RoundStarting',
+  );
+
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+  reaction = pending(game);
+  assert.equal(reaction.kind, 'choiceRequest');
+  assert.equal(
+    reaction.workflow.locals.reaction.resume.event.when,
+    'TurnStarting',
+  );
+  game = act(JSON.parse(JSON.stringify(game)), {
+    type: 'resolveChoice',
+    requestId: reaction.uid,
+    choice: 'mark',
+  });
+
+  assert.equal(game.round, 2);
+  assert.deepEqual(
+    game.heroes[0].statuses.map((status) => status.id),
+    ['round-ending-reacted', 'round-starting-reacted', 'turn-starting-reacted'],
+  );
+});

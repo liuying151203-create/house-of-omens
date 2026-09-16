@@ -8,6 +8,7 @@ import {
   validSave,
 } from '../lib/game-engine.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
+import { createHauntPlaytest } from '../lib/playtest.mjs';
 
 function gameWithReaction() {
   const game = createInteractiveGame('werewolf', 1001, 3),
@@ -187,6 +188,70 @@ test('network projections hide reaction internals and only the owning seat may a
     },
   });
   assert.equal(pending(resolved.game), null);
+});
+
+test('the responsible LAN seat owns a required trigger-order choice', () => {
+  const gameFactory = () => {
+      let game = createHauntPlaytest('werewolf', 1003, 3);
+      game.queue = [];
+      game.enemies.forEach((enemy) => {
+        enemy.bornAt = game.elapsed + 1;
+      });
+      game.ruleTriggers = ['左侧效果', '右侧效果'].map((label, index) => ({
+        id: `network-order-${index}`,
+        sourceId: `network-source-${index}`,
+        sourceLabel: label,
+        when: 'RoundStatusTick',
+        priority: 3,
+        playerOrder: true,
+        orderHeroId: 1,
+        effects: [
+          {
+            op: 'status.add',
+            params: { heroId: 1, status: { id: `network-order-${index}` } },
+          },
+        ],
+      }));
+      game = act(game, { type: 'endRound', round: game.round });
+      return game;
+    },
+    service = createRoomService({ gameFactory }),
+    host = service.create({ count: 3, scenario: 'werewolf' }),
+    guest = service.join({ code: host.code }),
+    started = service.update(host.code, host.key, {
+      type: 'start',
+      revision: guest.revision,
+    }),
+    hostRequest = pending(started.game),
+    guestView = service.read(host.code, guest.key),
+    guestRequest = pending(guestView.game);
+  assert.equal(hostRequest.kind, 'privateRequest');
+  assert.equal(hostRequest.private, true);
+  assert.equal(guestRequest.heroId, 1);
+  assert.equal(guestRequest.options.length, 2);
+  assert.throws(
+    () =>
+      service.update(host.code, host.key, {
+        type: 'action',
+        revision: started.revision,
+        action: {
+          type: 'resolveChoice',
+          requestId: guestRequest.uid,
+          choice: guestRequest.options[1].value,
+        },
+      }),
+    /当前角色/,
+  );
+  const resolved = service.update(host.code, guest.key, {
+    type: 'action',
+    revision: started.revision,
+    action: {
+      type: 'resolveChoice',
+      requestId: guestRequest.uid,
+      choice: guestRequest.options[1].value,
+    },
+  });
+  assert.equal(resolved.game.heroes[1].statuses[0].id, 'network-order-1');
 });
 
 test('the LAN host can apply the declared skip only after the authoritative deadline', () => {

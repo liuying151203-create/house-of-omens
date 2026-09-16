@@ -1103,3 +1103,59 @@ test('EnemyTurnStarting reactions restore before movement planning', () => {
     ),
   );
 });
+
+test('same-priority player effects use a saved choice to determine their full order', () => {
+  let game = createHauntPlaytest('werewolf', 424, 3);
+  game.queue = [];
+  const heroId = game.active;
+  game.enemies.forEach((enemy) => {
+    enemy.bornAt = game.elapsed + 1;
+  });
+  game.ruleTriggers = [
+    ['first-source', 'first-effect'],
+    ['second-source', 'second-effect'],
+    ['third-source', 'third-effect'],
+  ].map(([sourceId, statusId]) => ({
+    id: statusId,
+    sourceId,
+    sourceLabel: statusId,
+    when: 'RoundStatusTick',
+    priority: 7,
+    playerOrder: true,
+    orderHeroId: heroId,
+    effects: [
+      {
+        op: 'status.add',
+        params: { heroId, status: { id: statusId } },
+      },
+    ],
+  }));
+  game = act(game, { type: 'endRound', round: game.round });
+  let request = pending(game);
+  assert.equal(request.kind, 'choiceRequest');
+  assert.equal(request.title, '决定效果顺序');
+  assert.equal(
+    request.options.some((option) => option.value === 'skip'),
+    false,
+  );
+  const choose = (label) => {
+    request = pending(game);
+    const option = request.options.find((entry) => entry.label === label);
+    game = act(JSON.parse(JSON.stringify(game)), {
+      type: 'resolveChoice',
+      requestId: request.uid,
+      choice: option.value,
+    });
+  };
+  choose('third-effect');
+  assert.deepEqual(
+    game.heroes[heroId].statuses.map((status) => status.id),
+    ['third-effect'],
+  );
+  choose('second-effect');
+  assert.deepEqual(
+    game.heroes[heroId].statuses.map((status) => status.id),
+    ['third-effect', 'second-effect', 'first-effect'],
+  );
+  assert.equal(game.elapsed, 1);
+});

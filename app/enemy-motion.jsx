@@ -5,7 +5,24 @@ import { locationLabel } from '../lib/game-view.mjs';
 
 export function useEnemyMotion(game, epoch) {
   const pending = game?.queue[0];
-  const signature = JSON.stringify(pending?.enemyMovements || []);
+  const flowId = pending?.workflow?.flowId,
+    movementEvents = (game?.events || [])
+      .filter(
+        (event) => event.type === 'MovementQueued' && event.flowId === flowId,
+      )
+      .map((event) => ({
+        enemyId: event.enemyId || event.entityId,
+        name: event.name,
+        kind: event.kind,
+        heroId: event.heroId,
+        path: event.path,
+        targetId: event.targetId,
+        targetName: event.targetName,
+        attacks: event.attacks,
+      }));
+  const signature = JSON.stringify(
+    movementEvents.length ? movementEvents : pending?.enemyMovements || [],
+  );
   const routes = useMemo(() => JSON.parse(signature), [signature]);
   const frames = useMemo(
     () =>

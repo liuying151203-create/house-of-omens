@@ -11,7 +11,8 @@ export function useNetwork(setGame) {
     [busy, setBusy] = useState(false),
     [connected, setConnected] = useState(false);
   const sequence = useRef(-1),
-    sessionRef = useRef(null);
+    sessionRef = useRef(null),
+    commandSerial = useRef(0);
   const accept = useCallback(
     (next) => {
       setConnected(true);
@@ -19,19 +20,26 @@ export function useNetwork(setGame) {
       sequence.current = next.revision;
       setRoom(next);
       if (next.game)
-        setGame((prev) => ({
-          ...next.game,
-          viewFloor:
-            prev &&
-            (!next.game.queue[0]?.enemyMovements ||
-              prev.queue[0]?.uid === next.game.queue[0]?.uid) &&
-            prev.active === next.game.active &&
-            prev.round === next.game.round &&
-            prev.heroes[prev.active]?.pos ===
-              next.game.heroes[next.game.active]?.pos
-              ? prev.viewFloor
-              : next.game.viewFloor,
-        }));
+        setGame((prev) => {
+          const latestMovement = next.game.events?.findLast(
+              (event) => event.type === 'MovementQueued',
+            ),
+            previousMovement = prev?.events?.findLast(
+              (event) => event.type === 'MovementQueued',
+            );
+          return {
+            ...next.game,
+            viewFloor:
+              prev &&
+              latestMovement?.id === previousMovement?.id &&
+              prev.active === next.game.active &&
+              prev.round === next.game.round &&
+              prev.heroes[prev.active]?.pos ===
+                next.game.heroes[next.game.active]?.pos
+                ? prev.viewFloor
+                : next.game.viewFloor,
+          };
+        });
     },
     [setGame],
   );
@@ -124,9 +132,12 @@ export function useNetwork(setGame) {
     setBusy(true);
     try {
       const expected = sessionRef.current;
+      const commandId =
+        globalThis.crypto?.randomUUID?.() ||
+        `${Date.now().toString(36)}-${(++commandSerial.current).toString(36)}`;
       const r = await request(
         '/api/rooms/' + session.code,
-        { ...data, revision: room.revision },
+        { ...data, revision: room.revision, commandId },
         session.key,
       );
       if (sessionRef.current === expected) {

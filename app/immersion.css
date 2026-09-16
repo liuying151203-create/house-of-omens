@@ -333,6 +333,24 @@
     inset 2px 2px 0 #fff9,
     0 7px 7px #0005;
 }
+.reaction-options {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 420px);
+  margin-inline: auto;
+}
+.reaction-options > button {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-height: 48px;
+  text-align: left;
+}
+.reaction-options small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .emoji-die.waiting-die {
   background: linear-gradient(145deg, #35493b, #18281e);
   color: #a99770;
@@ -933,6 +951,18 @@
 }
 .attribute-loss {
   color: #ffc1ac;
+}
+.rule-event-gain {
+  color: #b5e6c2;
+}
+.rule-event-loss {
+  color: #ffc1ac;
+}
+.rule-event-item {
+  color: #efd99b;
+}
+.rule-event-neutral {
+  color: #d1d9d4;
 }
 .trait-changed {
   background: #baa26926;

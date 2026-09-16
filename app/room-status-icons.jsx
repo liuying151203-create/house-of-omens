@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { roomBadges } from '../lib/room-badges.mjs';
+import { roomRuleView } from '../lib/rule-views.mjs';
 
 export default function RoomStatusIcons({ game, room }) {
   const [tooltip, setTooltip] = useState(null);
@@ -22,6 +23,7 @@ export default function RoomStatusIcons({ game, room }) {
     };
   }, []);
   const badges = roomBadges(game, room);
+  const roomView = roomRuleView(game, room, game.active);
   if (!badges.length) return null;
   const hideSoon = () => {
     hideTimer.current = setTimeout(() => setTooltip(null), 150);
@@ -78,7 +80,7 @@ export default function RoomStatusIcons({ game, room }) {
             <strong>
               {tooltip.icon} {tooltip.label}
             </strong>
-            <small>{room.name}</small>
+            <small>{roomView.name}</small>
             <p>{tooltip.description}</p>
           </div>,
           document.body,

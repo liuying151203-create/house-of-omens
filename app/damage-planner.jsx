@@ -2,15 +2,19 @@
 import { useState } from 'react';
 import { Minus, Plus, Check } from 'lucide-react';
 import { suggestDamage } from '@/lib/damage-plan.mjs';
-import { TRAITS, traitValue } from '@/lib/game-engine.mjs';
+import { traitRuleView } from '@/lib/rule-views.mjs';
 export default function DamagePlanner({ game, p, send }) {
   const keys =
-      p.damageType === 'physical'
+      p.traits ||
+      (p.damageType === 'physical'
         ? ['might', 'speed']
-        : ['sanity', 'knowledge'],
-    h = game.heroes[p.heroId];
+        : ['sanity', 'knowledge']),
+    h = game.heroes[p.heroId],
+    views = Object.fromEntries(
+      keys.map((key) => [key, traitRuleView(game, h, key)]),
+    );
   const [allocation, setAllocation] = useState(() =>
-    suggestDamage(h, p.damageType, p.remaining, game.phase),
+    suggestDamage(h, p.damageType, p.remaining, game.phase, game, keys),
   );
   const left = p.remaining - keys.reduce((n, k) => n + allocation[k], 0),
     minimum = game.phase === 'explore' ? 1 : 0,
@@ -22,7 +26,9 @@ export default function DamagePlanner({ game, p, send }) {
       </div>
 
       {keys.map((k) => {
-        const after = Math.max(minimum, h.stats[k] - allocation[k]);
+        const view = views[k],
+          after = Math.max(minimum, view.current - allocation[k]),
+          other = keys.find((key) => key !== k);
         return (
           <div
             className={
@@ -31,28 +37,26 @@ export default function DamagePlanner({ game, p, send }) {
             key={k}
           >
             <div className="damage-plan-heading">
-              <strong>{TRAITS[k]}</strong>
+              <strong>{view.label}</strong>
               <span>
-                {traitValue(h, k)} →{' '}
-                <b>{after === 0 ? '☠' : h.tracks[k][after]}</b>
+                {view.value} → <b>{after === 0 ? '☠' : view.track[after]}</b>
               </span>
               <small>下降 {allocation[k]} 格</small>
             </div>
             <div className="damage-plan-controls">
               <button
                 className="icon-button damage-minus"
-                aria-label={'增加' + TRAITS[k] + '承受的伤害'}
+                aria-label={'增加' + view.label + '承受的伤害'}
                 title="增加此项伤害；分满时从另一项转移一点"
-                disabled={
-                  left === 0 && allocation[keys.find((n) => n !== k)] === 0
-                }
+                disabled={left === 0 && (!other || allocation[other] === 0)}
                 onClick={() =>
                   setAllocation((v) => {
-                    const other = keys.find((n) => n !== k);
                     return {
                       ...v,
                       [k]: v[k] + 1,
-                      [other]: v[other] - (left === 0 ? 1 : 0),
+                      ...(other
+                        ? { [other]: v[other] - (left === 0 ? 1 : 0) }
+                        : {}),
                     };
                   })
                 }
@@ -60,18 +64,18 @@ export default function DamagePlanner({ game, p, send }) {
                 <Minus size={18} />
               </button>
               <div className="damage-preview-track">
-                {h.tracks[k].map((n, i) => (
+                {view.track.map((n, i) => (
                   <span
                     key={i}
                     className={
-                      (i === h.stats[k] ? 'before ' : '') +
+                      (i === view.current ? 'before ' : '') +
                       (i === after ? 'after ' : '') +
-                      (i >= after && i < h.stats[k] ? 'lost' : '')
+                      (i >= after && i < view.current ? 'lost' : '')
                     }
                     title={
                       i === after
                         ? '预计位置'
-                        : i === h.stats[k]
+                        : i === view.current
                           ? '当前位置'
                           : undefined
                     }
@@ -82,7 +86,7 @@ export default function DamagePlanner({ game, p, send }) {
               </div>
               <button
                 className="icon-button damage-plus"
-                aria-label={'撤回一点' + TRAITS[k] + '伤害'}
+                aria-label={'撤回一点' + view.label + '伤害'}
                 disabled={allocation[k] === 0}
                 onClick={() => setAllocation((v) => ({ ...v, [k]: v[k] - 1 }))}
               >
@@ -90,15 +94,15 @@ export default function DamagePlanner({ game, p, send }) {
               </button>
             </div>
             <div className="damage-consequence">
-              {after === h.stats[k]
+              {after === view.current
                 ? '不受影响'
                 : after === 0
                   ? '致命伤害'
-                  : traitValue(h, k) === h.tracks[k][after]
+                  : view.value === view.track[after]
                     ? '位置下降，当前能力数值不变'
                     : k === 'speed'
-                      ? `下回合基础移动力 ${traitValue(h, k)} → ${h.tracks[k][after]}`
-                      : `${TRAITS[k]}检定骰数 ${traitValue(h, k)} → ${h.tracks[k][after]}`}
+                      ? `下回合基础移动力 ${view.value} → ${view.track[after]}`
+                      : `${view.label}检定骰数 ${view.value} → ${view.track[after]}`}
             </div>
           </div>
         );

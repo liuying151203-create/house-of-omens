@@ -1,7 +1,7 @@
 import EnemyGlyph from './enemy-glyph';
 import AttributeTracks from './attribute-tracks';
 import HeroStatusBadges from './hero-status-badges';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Footprints, LockKeyhole, MapPin, ArrowRight } from 'lucide-react';
 import HeroInventory from './hero-inventory';
@@ -28,14 +28,17 @@ export default function FactionRoster({
   const [localInspected, setLocalInspected] = useState(null);
   const inspected =
     controlledInspected === undefined ? localInspected : controlledInspected;
-  const setInspected = onInspectedChange || setLocalInspected;
+  const setInspected = useCallback(
+    (value) => (onInspectedChange || setLocalInspected)(value),
+    [onInspectedChange],
+  );
   useEffect(() => {
     const close = (e) => {
       if (e.key === 'Escape') setInspected(null);
     };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
-  }, []);
+  }, [setInspected]);
   const groups = rosterGroups(game);
   const person = groups
     .flatMap((g) => g.heroes)
@@ -113,6 +116,7 @@ export default function FactionRoster({
                   </strong>
                   {publicStats && (
                     <AttributeTracks
+                      game={game}
                       hero={h}
                       changes={changes.filter((c) => c.heroId === h.id)}
                     />
@@ -195,6 +199,7 @@ export default function FactionRoster({
                 </span>
                 {visible ? (
                   <AttributeTracks
+                    game={game}
                     hero={person}
                     compact={false}
                     changes={changes.filter((c) => c.heroId === person.id)}

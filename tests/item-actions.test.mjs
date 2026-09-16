@@ -1,13 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { act, actions, createGame, TRAITS } from '../lib/game-engine.mjs';
+import {
+  act,
+  actions,
+  createSimulationGame,
+  TRAITS,
+} from '../lib/game-engine.mjs';
 import {
   itemActionViews,
   selectItemAction,
 } from '../lib/content/item-actions.mjs';
 import { addItemInstance } from '../lib/item-instances.mjs';
+import { updateCardRule } from '../lib/card-rules.mjs';
 
-const start = () => act(createGame('bells', 151, 3), { type: 'advance' });
+const start = () =>
+  act(createSimulationGame('bells', 151, 3), { type: 'advance' });
 
 test('item action views share availability, targets and effects with execution', () => {
   let game = start();
@@ -28,7 +35,9 @@ test('item action views share availability, targets and effects with execution',
   ]);
   assert.deepEqual(JSON.parse(JSON.stringify(views)), views);
   assert.deepEqual(
-    actions(game).itemAbilities.map((action) => action.id),
+    actions(game)
+      .itemAbilities.filter((action) => action.handler === 'item.use')
+      .map((action) => action.id),
     [might.id],
   );
   assert.equal(
@@ -71,4 +80,31 @@ test('stopped movement items remain visible but cannot execute', () => {
     }),
     game,
   );
+});
+
+test('runtime card charges persist per instance and disable only the depleted copy', () => {
+  let game = updateCardRule(start(), {
+    id: 'test-medkit-charges',
+    cardType: 'item',
+    cardId: 'medkit',
+    patch: { consumable: false, charges: 2 },
+  });
+  const hero = game.heroes[0];
+  hero.stats.might--;
+  addItemInstance(hero, 'medkit', 'item-charged-medkit');
+  const use = () =>
+    itemActionViews(game, game.heroes[0], TRAITS).find(
+      (action) => action.trait === 'might',
+    );
+  game = act(game, use().command);
+  assert.equal(game.heroes[0].itemInstances[0].state.charges, 1);
+  game = act(game, { type: 'advance' });
+  game.heroes[0].stats.might--;
+  game.heroes[0].usedItemInstances = [];
+  game = act(game, use().command);
+  assert.equal(game.heroes[0].itemInstances[0].state.charges, 0);
+  game.heroes[0].stats.might--;
+  game.heroes[0].usedItemInstances = [];
+  assert.equal(use().available, false);
+  assert.match(use().unavailableReason, /耗尽/);
 });

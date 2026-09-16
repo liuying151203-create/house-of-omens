@@ -125,10 +125,9 @@ test('engine and LAN reject exploration with a wrong floor, room or coordinate w
         }),
       /当前不能/,
     );
-    assert.deepEqual(
-      api.read(host.code, host.key).game.decks.rooms,
-      game.decks.rooms,
-    );
+    const projectedDeck = api.read(host.code, host.key).game.decks.rooms;
+    assert.equal(projectedDeck.length, game.decks.rooms.length);
+    assert(projectedDeck.every((card) => card === null));
   }
   const result = api.update(host.code, host.key, {
     type: 'action',

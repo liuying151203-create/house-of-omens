@@ -58,9 +58,8 @@ import {
   SCENARIOS,
   FLOORS,
   ROOM_DECK,
-  TRAITS,
   DIRS,
-  createInteractiveGame as createGame,
+  createGame,
   act,
   actions,
   living,
@@ -69,7 +68,7 @@ import {
   roomPlacementOptions,
   roomAt,
   doorsOf,
-  validSave,
+  restoreGameSave,
 } from '@/lib/game-engine.mjs';
 import Workshop from './workshop';
 import PersonalPanel from './personal-panel';
@@ -91,6 +90,8 @@ import {
   canInspectHero,
 } from '../lib/game-view.mjs';
 import { moonlit, windowsOf } from '../lib/werewolf.mjs';
+import { roomRuleView, traitRuleView } from '../lib/rule-views.mjs';
+import { eventJournalEntries } from '../lib/event-journal.mjs';
 import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
@@ -278,6 +279,8 @@ function Prompt({
     check: '目标检定',
     roundStart: '新回合 · 全队准备',
     damageResult: '伤害结算',
+    choiceRequest: '等待你的决定',
+    privateRequest: '等待其他玩家',
   };
   return (
     <Dialog open={true} onOpenChange={() => {}}>
@@ -378,7 +381,11 @@ function Prompt({
                 c.trait ? (
                   <>
                     <strong>
-                      {TRAITS[c.trait]}检定 · 目标 {c.threshold}+
+                      {
+                        traitRuleView(game, game.heroes[p.heroId], c.trait)
+                          .label
+                      }
+                      检定 · 目标 {c.threshold}+
                     </strong>
                     <p>成功：{c.success.text}</p>
                     <p>失败：{c.failure.text}</p>
@@ -474,6 +481,26 @@ function Prompt({
           {p.kind === 'damage' && (
             <DamagePlanner key={p.uid} game={game} p={p} send={send} />
           )}
+          {p.kind === 'choiceRequest' && (
+            <div className="reaction-options">
+              {p.options.map((option) => (
+                <button
+                  className="secondary-button"
+                  key={option.value}
+                  onClick={() =>
+                    send({
+                      type: 'resolveChoice',
+                      requestId: p.uid,
+                      choice: option.value,
+                    })
+                  }
+                >
+                  <strong>{option.label}</strong>
+                  {option.detail && <small>{option.detail}</small>}
+                </button>
+              ))}
+            </div>
+          )}
           {p.kind === 'haunt' && (
             <>
               <div className="haunt-objective">
@@ -493,7 +520,7 @@ function Prompt({
               </p>
             </>
           )}
-          {p.kind !== 'damage' && (
+          {!['damage', 'choiceRequest'].includes(p.kind) && (
             <button
               className="gold-button"
               onClick={() =>
@@ -721,11 +748,8 @@ function Board({
     <>
       <div className="map-navigation">
         <div className="map-camera-dock">
-          <div
-            className="map-camera-tools"
-            role="group"
-            aria-label="地图视角工具"
-          >
+          <fieldset className="map-camera-tools">
+            <legend className="sr-only">地图视角工具</legend>
             <button
               className="secondary-button"
               aria-label="回到人物"
@@ -780,7 +804,7 @@ function Board({
             >
               <Plus size={16} />
             </button>
-          </div>
+          </fieldset>
         </div>
         <Tabs
           value={String(floor)}
@@ -914,7 +938,8 @@ function Board({
               enemies = publicEnemies(game).filter(
                 (e) => e.pos === r.id && e.id !== enemyMotion?.frame?.enemyId,
               ),
-              here = hero.pos === r.id;
+              here = hero.pos === r.id,
+              roomView = roomRuleView(game, r, hero.id);
             return (
               <div
                 className={
@@ -939,13 +964,13 @@ function Board({
                     'modular-room ' +
                     (here ? 'current ' : '') +
                     (legal.move.includes(r.id) ? 'reachable ' : '') +
-                    (r.target ? 'quest-room ' : '') +
-                    (moonlit(game, r) ? 'moonlit-room' : '')
+                    (roomView.target ? 'quest-room ' : '') +
+                    (moonlit(game, roomView) ? 'moonlit-room' : '')
                   }
-                  title={`${r.name}${moonlit(game, r) ? ' · 月光：狼人力量 +1，可封窗解除' : r.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
-                  aria-label={`${r.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
+                  title={`${roomView.name}${moonlit(game, roomView) ? ' · 月光：狼人力量 +1，可封窗解除' : roomView.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
+                  aria-label={`${roomView.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
                 >
-                  <TileFace tile={r} />
+                  <TileFace tile={roomView} />
                 </button>
                 <span className="room-tokens">
                   {occupants.map((h) => (
@@ -1247,6 +1272,10 @@ export default function Home() {
     return () => window.removeEventListener('keydown', close);
   }, []);
   const net = useNetwork(setGame);
+  const netRef = useRef(net);
+  useEffect(() => {
+    netRef.current = net;
+  }, [net]);
   const attributeFeedback = useAttributeChanges(game);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1279,10 +1308,8 @@ export default function Home() {
     storageError = rawSave === 'unavailable';
   const saved = useMemo(() => {
     try {
-      const s = JSON.parse(rawSave);
-      return validSave(s) && s.phase !== 'over'
-        ? { ...s, rollMode: 'interactive' }
-        : null;
+      const s = restoreGameSave(JSON.parse(rawSave));
+      return s && s.phase !== 'over' ? s : null;
     } catch {
       return null;
     }
@@ -1295,10 +1322,8 @@ export default function Home() {
   );
   const savedPlaytest = useMemo(() => {
     try {
-      const s = JSON.parse(rawPlaytestSave);
-      return validSave(s) && s.playtest?.mode === 'haunt' && s.phase !== 'over'
-        ? s
-        : null;
+      const s = restoreGameSave(JSON.parse(rawPlaytestSave));
+      return s && s.playtest?.mode === 'haunt' && s.phase !== 'over' ? s : null;
     } catch {
       return null;
     }
@@ -1403,6 +1428,25 @@ export default function Home() {
       ? net.room.you !== net.room.hostId
       : (net.room.seats[p?.heroId ?? game?.active] || net.room.hostId) !==
         net.room.you);
+  useEffect(() => {
+    if (!net.session || !p?.canResolveTimeout || !Number.isFinite(p.deadlineAt))
+      return;
+    const timer = setTimeout(
+      () =>
+        void netRef.current.update({
+          type: 'action',
+          action: { type: 'timeoutChoice', requestId: p.uid },
+        }),
+      Math.max(0, p.deadlineAt - Date.now()) + 50,
+    );
+    return () => clearTimeout(timer);
+  }, [
+    net.session,
+    net.room?.revision,
+    p?.uid,
+    p?.deadlineAt,
+    p?.canResolveTimeout,
+  ]);
   return (
     <MotionContext.Provider value={diceMotion}>
       <main
@@ -1593,6 +1637,9 @@ export default function Home() {
                 ...attributeFeedback,
                 changes: attributeFeedback.changes.filter((c) =>
                   canInspectHero(game, game.heroes[c.heroId], net.room),
+                ),
+                notices: attributeFeedback.notices.filter((notice) =>
+                  canInspectHero(game, game.heroes[notice.heroId], net.room),
                 ),
               }}
             />
@@ -1914,18 +1961,33 @@ export default function Home() {
                     <div className="mini-heading">
                       <span>
                         <BookOpen size={15} />
-                        探索手记
+                        最近结算
                       </span>
                       <span>最新</span>
                     </div>
                     <div className="journal-entries">
-                      {game.logs.map((l, i) => (
+                      {eventJournalEntries(game).map((l, i) => (
                         <div
                           className={
                             'journal-entry ' + (i === 0 ? 'latest' : '')
                           }
                           key={l.id}
                         >
+                          <span className="journal-dot" />
+                          <small>第{l.round}回合</small>
+                          <p>{l.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mini-heading">
+                      <span>
+                        <BookOpen size={15} />
+                        宅邸手记
+                      </span>
+                    </div>
+                    <div className="journal-entries">
+                      {game.logs.map((l) => (
+                        <div className="journal-entry" key={l.id}>
                           <span className="journal-dot" />
                           <small>第{l.round}回合</small>
                           <p>{l.text}</p>

@@ -5,7 +5,7 @@ import {
   createDemoServer,
 } from '../scripts/room-server.mjs';
 import {
-  createGame,
+  createSimulationGame,
   act,
   drawCard,
   pending,
@@ -15,7 +15,8 @@ import {
   OMENS,
 } from '../lib/game-engine.mjs';
 import { CATALOG, validateDraft } from '../lib/catalog.mjs';
-const start = () => act(createGame('mirror', 27, 3), { type: 'advance' });
+const start = () =>
+  act(createSimulationGame('mirror', 27, 3), { type: 'advance' });
 test('impossible haunt rolls are skipped visibly without consuming RNG; viable rolls remain', () => {
   for (const n of [0, 1, 2]) {
     let s = start();
@@ -186,6 +187,39 @@ test('two clients serialize actions, reject stale writes, and recover exactly th
   assert.equal(r.game.active, 2);
   execute(host.key, { type: 'endHero' });
   assert.equal(pending(r.game).kind, 'roundStart');
+});
+test('command ids make a retried network action apply exactly once', () => {
+  const { api, host, guest } = setup();
+  let room = api.update(host.code, host.key, {
+    type: 'start',
+    revision: guest.revision,
+  });
+  room = api.update(host.code, host.key, {
+    type: 'action',
+    action: { type: 'advance' },
+    revision: room.revision,
+  });
+  const revision = room.revision,
+    movesBefore = room.game.heroes[0].moves,
+    command = {
+      type: 'action',
+      action: { type: 'move', pos: 'foyer' },
+      revision,
+      commandId: 'test-command-0001',
+    },
+    first = api.update(host.code, host.key, command),
+    retried = api.update(host.code, host.key, command);
+  assert.deepEqual(retried, first);
+  assert.equal(api.read(host.code, host.key).revision, first.revision);
+  assert.equal(first.game.heroes[0].moves, movesBefore - 1);
+  assert.throws(
+    () =>
+      api.update(host.code, host.key, {
+        ...command,
+        action: { type: 'endHero' },
+      }),
+    /不能用于不同动作/,
+  );
 });
 test('HTTP room API supports separate clients and denies cross-origin mutation', async () => {
   const server = createDemoServer();

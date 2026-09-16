@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createGame,
+  createSimulationGame,
   createInteractiveGame,
   act,
   triggerHaunt,
@@ -31,7 +31,7 @@ test('alpha moon regeneration, thick hide and large-party attacks follow the dec
   const room = s.rooms.find((r) => r.id === 'entrance');
   room.windows = [1];
   s.enemies[0].hp -= 4;
-  s.rollMode = 'interactive';
+  s.executionMode = 'workflow';
   s = act(s, { type: 'endRound' });
   assert.equal(
     pending(s).rolls.length,
@@ -49,9 +49,10 @@ test('alpha moon regeneration, thick hide and large-party attacks follow the dec
   assert.equal(s.enemies[0].hp, s.enemies[0].maxHp - 2);
   s = settle(s);
   const before = s.enemies[0].hp;
-  s.rollMode = undefined;
-  s._rollReplay = [Array(8).fill(2), [0]];
-  s = act(s, { type: 'attack', id: s.enemies[0].id });
+  s = resolveWithDice(s, { type: 'attack', id: s.enemies[0].id }, [
+    Array(8).fill(2),
+    [0],
+  ]);
   assert.equal(
     s.enemies[0].hp,
     before - 2,
@@ -80,8 +81,25 @@ function settle(s) {
   assert(!pending(s), 'queue must finish');
   return s;
 }
+
+function resolveWithDice(s, action, dice) {
+  s.executionMode = 'workflow';
+  s = act(s, action);
+  const request = pending(s);
+  assert.equal(request.kind, 'diceRequest');
+  assert.equal(request.rolls.length, dice.length);
+  request.rolls.forEach((roll, index) => {
+    const faces = dice[index];
+    assert(faces.length > 0);
+    roll.dice = Array.from(
+      { length: roll.count },
+      (_, face) => faces[face] ?? faces.at(-1),
+    );
+  });
+  return act(s, { type: 'resolveDice', requestId: request.uid });
+}
 const start = (n = 3, seed = 23) => {
-  const s = createGame('werewolf', seed, n);
+  const s = createSimulationGame('werewolf', seed, n);
   s.queue = [];
   triggerHaunt(s);
   return settle(s);
@@ -91,7 +109,7 @@ test('combination uses both omen and discovery room; ordinary games keep the sto
   assert.equal(chooseHaunt('locket', { tags: ['memory'] }), 'mirror');
   assert.equal(chooseHaunt('key', { tags: ['ritual'] }), 'flood');
   assert.equal(chooseHaunt('bell', { tags: ['ritual'] }), 'bells');
-  let s = createGame('mystery', 23);
+  let s = createSimulationGame('mystery', 23);
   s.queue = [];
   s.decks.omen = ['locket'];
   s.heroes[0].pos = 'upper';
@@ -154,7 +172,14 @@ test('infection grants three full action rounds, never refreshes and converts wi
   assert(!infect(s, h));
   for (const turns of [2, 1]) {
     s = settle(act(s, { type: 'endRound' }));
+    const statusEvent = s.events.findLast(
+      (event) => event.type === 'StatusChanged',
+    );
     assert.equal(statusOf(s.heroes[0], 'infection').turns, turns);
+    assert.deepEqual(
+      [statusEvent.statusLabel, statusEvent.field, statusEvent.after],
+      ['狼毒感染', 'turns', turns],
+    );
     assert(!s.heroes[0].traitor);
   }
   const before = structuredClone(s.heroes[1].stats);
@@ -164,11 +189,20 @@ test('infection grants three full action rounds, never refreshes and converts wi
   assert.equal(s.enemies.length, 2);
   assert.deepEqual(s.heroes[1].stats, before);
   assert.equal(s.enemies.find((e) => e.heroId === 0).hp, 3);
+  assert(
+    s.events.some(
+      (event) =>
+        event.type === 'StatusRemoved' &&
+        event.heroId === h.id &&
+        event.statusId === 'infection' &&
+        event.reason === 'factionChange',
+    ),
+  );
   assert(!actions(s).attack.includes('wolf-0') || s.active !== 0);
 });
 test('silver locket cure is atomic across interactive dice and grants exactly two protected enemy phases', () => {
   let s = start();
-  s.rollMode = 'interactive';
+  s.executionMode = 'workflow';
   infect(s, s.heroes[0]);
   s.heroes[0].omens.push('locket');
   s = act(s, { type: 'cure', heroId: 0 });
@@ -180,6 +214,16 @@ test('silver locket cure is atomic across interactive dice and grants exactly tw
   s = settle(saved);
   assert(!statusOf(s.heroes[0], 'infection'));
   assert(statusOf(s.heroes[0], 'immunity'));
+  assert.deepEqual(
+    s.events
+      .filter((event) => ['StatusRemoved', 'StatusAdded'].includes(event.type))
+      .slice(-2)
+      .map((event) => [event.type, event.statusId, event.statusLabel]),
+    [
+      ['StatusRemoved', 'infection', '狼毒感染'],
+      ['StatusAdded', 'immunity', '净血保护'],
+    ],
+  );
   assert(!infect(s, s.heroes[0]));
   s.elapsed = 1;
   assert(!infect(s, s.heroes[0]));
@@ -191,10 +235,8 @@ test('silver locket cure is atomic across interactive dice and grants exactly tw
 test('failed treatment accumulates assistance, cannot treat distant people or spend two interactions', () => {
   let s = start();
   infect(s, s.heroes[0]);
-  s._rollReplay = [[0, 0, 0]];
-  s = act(s, { type: 'cure', heroId: 0 });
+  s = resolveWithDice(s, { type: 'cure', heroId: 0 }, [[0, 0, 0]]);
   assert.equal(statusOf(s.heroes[0], 'infection').attempts, 1);
-  delete s._rollReplay;
   s = settle(s);
   assert.deepEqual(act(s, { type: 'cure', heroId: 0 }), s);
   s.heroes[0].interacted = false;
@@ -202,9 +244,9 @@ test('failed treatment accumulates assistance, cannot treat distant people or sp
   infect(s, s.heroes[1]);
   assert.deepEqual(act(s, { type: 'cure', heroId: 1 }), s);
 });
-test('bite infection only commits after both combat dice groups; replay survives restore', () => {
+test('bite infection only commits after both combat dice groups; workflow survives restore', () => {
   let s = start();
-  s.rollMode = 'interactive';
+  s.executionMode = 'workflow';
   s = act(s, { type: 'endRound' });
   assert.equal(pending(s).kind, 'diceRequest');
   assert(!statusOf(s.heroes[0], 'infection'));
@@ -225,15 +267,18 @@ test('all wolves defeated wins; killing alpha alone does not; last good conversi
     hp: 3,
   });
   s.enemies[0].hp = 1;
-  s._rollReplay = [Array(8).fill(2), [0]];
-  s = act(s, { type: 'attack', id: s.enemies[0].id });
-  delete s._rollReplay;
+  s = resolveWithDice(s, { type: 'attack', id: s.enemies[0].id }, [
+    Array(8).fill(2),
+    [0],
+  ]);
   assert.equal(s.phase, 'haunt');
   assert.equal(s.enemies.length, 1);
   s = settle(s);
   s.heroes[0].attacked = false;
-  s._rollReplay = [Array(8).fill(2), [0]];
-  s = act(s, { type: 'attack', id: 'extra' });
+  s = resolveWithDice(s, { type: 'attack', id: 'extra' }, [
+    Array(8).fill(2),
+    [0],
+  ]);
   assert.equal(s.result.winnerFaction, 'heroes');
   s = start();
   s.enemies[0].pos = 'basement';
@@ -270,7 +315,7 @@ test('LAN accepts new game modes, owns wolf orders and opposed dice by the conve
   const service = createRoomService({
     gameFactory: () => {
       const s = start();
-      s.rollMode = 'interactive';
+      s.executionMode = 'workflow';
       return s;
     },
   });
@@ -321,7 +366,7 @@ test('LAN accepts new game modes, owns wolf orders and opposed dice by the conve
 function play(seed, count, interactive = false) {
   let s = interactive
     ? createInteractiveGame('werewolf', seed, count)
-    : createGame('werewolf', seed, count);
+    : createSimulationGame('werewolf', seed, count);
   for (let step = 0; step < 1600 && s.phase !== 'over'; step++) {
     if (pending(s)) {
       s = settle(s);

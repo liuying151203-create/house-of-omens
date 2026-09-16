@@ -4,44 +4,45 @@ import {
   Flag,
   HeartPulse,
   PanelTopClose,
+  Package,
   Tent,
 } from 'lucide-react';
 import {
   actions,
+  factionActions,
   roomAt,
-  ENTRANCE,
   FLOORS,
-  TRAITS,
-  TRAIT_KEYS,
 } from '../lib/game-engine.mjs';
-import { moonlit, statusOf } from '../lib/werewolf.mjs';
-import { cureBonus } from '../lib/modifiers.mjs';
 import { publicEnemies } from '../lib/game-view.mjs';
 
-const targets = {
-  moonSeal: '净化月印',
-  moonRitual: '入口解咒',
-  seal: '封印祭坛',
-  mirror: '调查古镜',
-  fuse: '拾取保险丝',
-  generator: '修复发电机',
-};
 export default function ExplorerActions({ game, send, net, waiting, moving }) {
-  const hero = game.heroes[game.active],
-    room = roomAt(game, hero.pos),
-    legal = actions(game);
+  const hero = game.heroes[game.active];
   const busy =
     !!game.queue.length || net.busy || moving || game.phase === 'over';
   const disabled = busy || waiting || hero.dead || hero.traitor || hero.ended;
+  const legal =
+    hero.privateStats || !hero.stats || !hero.tracks
+      ? { abilities: [], stairs: [], rest: false }
+      : actions(game);
   const buttons = [];
-  const actionIcons = { vertical: ArrowUpDown };
-  for (const ability of legal.abilities)
+  const actionIcons = {
+    vertical: ArrowUpDown,
+    board: PanelTopClose,
+    heal: HeartPulse,
+    attack: Swords,
+    goal: Flag,
+    item: Package,
+    rest: Tent,
+  };
+  for (const ability of legal.abilities.filter(
+    (entry) => entry.handler !== 'hero.rest',
+  ))
     buttons.push({
       id: 'ability-' + ability.id,
       Icon: actionIcons[ability.icon] || Flag,
       label: ability.label,
       detail: ability.detail,
-      action: { type: ability.id },
+      action: ability.command || { type: ability.id },
     });
   for (const id of legal.stairs)
     buttons.push({
@@ -51,65 +52,16 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
       detail: legal.moveCost + ' 移动',
       action: { type: 'move', pos: id },
     });
-  if (legal.interact)
-    buttons.push({
-      id: 'interact',
-      Icon: Flag,
-      label:
-        room.id === ENTRANCE && game.powered
-          ? '一起逃生'
-          : targets[room.target] || '房间互动',
-      detail: '消耗本轮互动',
-      action: { type: 'interact' },
-    });
-  for (const id of legal.attack) {
-    const enemy = game.enemies.find((e) => e.id === id);
-    buttons.push({
-      id: 'attack-' + id,
-      Icon: Swords,
-      label: '攻击' + enemy.name,
-      detail: `${enemy.hp}/${enemy.maxHp} 生命`,
-      action: { type: 'attack', id },
-    });
-  }
-  if (
-    game.scenario === 'werewolf' &&
-    game.phase === 'haunt' &&
-    !hero.interacted &&
-    !hero.ended &&
-    !hero.dead &&
-    !hero.traitor
-  ) {
-    if (moonlit(game, room))
-      buttons.push({
-        id: 'board',
-        Icon: PanelTopClose,
-        label: '封住窗户',
-        detail: '消耗本轮互动',
-        action: { type: 'boardWindow' },
-      });
-    for (const target of game.heroes.filter(
-      (h) =>
-        !h.dead && !h.traitor && h.pos === hero.pos && statusOf(h, 'infection'),
-    )) {
-      const bonus = cureBonus(game, hero, target);
-      buttons.push({
-        id: 'cure-' + target.id,
-        Icon: HeartPulse,
-        label: '治疗' + target.name,
-        detail: `知识 3+${bonus ? ' · 加值 +' + bonus : ''} · 消耗互动`,
-        action: { type: 'cure', heroId: target.id },
-      });
-    }
-  }
   if (legal.rest)
-    for (const trait of TRAIT_KEYS.filter((k) => hero.stats[k] < hero.start[k]))
+    for (const ability of legal.abilities.filter(
+      (entry) => entry.handler === 'hero.rest',
+    ))
       buttons.push({
-        id: 'rest-' + trait,
+        id: 'rest-' + ability.trait,
         Icon: Tent,
-        label: TRAITS[trait] + ' +1',
-        detail: '随后停止移动',
-        action: { type: 'rest', trait },
+        label: ability.label,
+        detail: ability.detail,
+        action: ability.command,
       });
   const wolves =
     net.session && game.scenario === 'werewolf'
@@ -180,13 +132,11 @@ export default function ExplorerActions({ game, send, net, waiting, moving }) {
             <option value="" disabled>
               自动追猎最近好人
             </option>
-            {game.heroes
-              .filter((h) => !h.dead && !h.traitor)
-              .map((h) => (
-                <option value={h.id} key={h.id}>
-                  {h.name}
-                </option>
-              ))}
+            {factionActions(game, wolf.heroId).map((order) => (
+              <option value={order.targetId} key={order.id}>
+                {order.targetLabel}
+              </option>
+            ))}
           </select>
         </label>
       ))}

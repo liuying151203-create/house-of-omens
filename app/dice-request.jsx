@@ -8,11 +8,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { rollOwner } from '@/lib/roll-ownership.mjs';
-import { rollOutcomes } from '@/lib/roll-outcomes.mjs';
 const ROLL_ANIMATION_MS = 1500,
   RESULT_HOLD_MS = 1400;
-function EmojiDice({ dice, count, motion, onSettled }) {
-  const signature = dice?.join(',') ?? null,
+function EmojiDice({ dice, count, rollEventId, motion, onSettled }) {
+  const signature = dice
+      ? `${rollEventId || 'legacy'}:${dice.join(',')}`
+      : null,
     [shown, setShown] = useState(null);
   const callback = useRef(onSettled);
   useEffect(() => {
@@ -80,8 +81,7 @@ export default function DiceRequest({
   const p = game.queue[0],
     room = net?.room,
     [settled, setSettled] = useState([]);
-  const outcomes =
-    p.outcomes || rollOutcomes(game, p.resumeAction, p.resumeQueue?.[0]);
+  const outcomes = p.outcomes || [];
   const mine = (r) => !room || rollOwner(room, r) === room.you;
   const available = p.rolls.filter((r) => !r.dice && mine(r)),
     automatic = available.filter((r) => autoRoll || r.computer);
@@ -152,7 +152,11 @@ export default function DiceRequest({
         <div className="roll-sides">
           {p.rolls.map((r, i) => {
             const own = mine(r),
-              done = r.dice && (!motion || settled.includes(r.id));
+              rollEvent = game.events?.find(
+                (event) => event.id === r.rollEventId,
+              ),
+              displayedDice = rollEvent?.dice || r.dice,
+              done = displayedDice && (!motion || settled.includes(r.id));
             const owner = room?.players.find(
               (player) => player.id === rollOwner(room, r),
             );
@@ -177,14 +181,15 @@ export default function DiceRequest({
                 </small>
                 <div className="dice-with-action">
                   <EmojiDice
-                    dice={r.dice}
+                    dice={displayedDice}
                     count={r.count}
+                    rollEventId={r.rollEventId}
                     motion={motion}
                     onSettled={() =>
                       setSettled((v) => (v.includes(r.id) ? v : [...v, r.id]))
                     }
                   />
-                  {!r.dice && (
+                  {!displayedDice && (
                     <button
                       className="roll-small-button"
                       disabled={!own || r.computer || net?.busy}
@@ -211,12 +216,13 @@ export default function DiceRequest({
                   <div className="side-total">
                     点数{' '}
                     <strong>
-                      {r.dice.reduce((a, b) => a + b, 0) + (r.bonus || 0)}
+                      {displayedDice.reduce((a, b) => a + b, 0) +
+                        (r.bonus || 0)}
                     </strong>
                     {r.bonus > 0 && <small>含加值 +{r.bonus}</small>}
                     <Check size={17} />
                   </div>
-                ) : r.dice ? (
+                ) : displayedDice ? (
                   <span className="roll-wait">骰子翻滚中…</span>
                 ) : null}
                 {i < p.rolls.length - 1 && (

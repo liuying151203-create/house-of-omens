@@ -4,11 +4,14 @@ import http from 'node:http';
 import os from 'node:os';
 import fs from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
+import { projectGameForPlayer } from '../lib/engine/projection.mjs';
 import {
   act,
-  createInteractiveGame,
+  createGame,
   pending,
   living,
+  supportsCommand,
+  commandHeroId,
 } from '../lib/game-engine.mjs';
 const token = () => randomBytes(24).toString('hex');
 const fail = (status, message) => {
@@ -17,12 +20,13 @@ const fail = (status, message) => {
   throw e;
 };
 export function createRoomService({
-  gameFactory = createInteractiveGame,
+  gameFactory = createGame,
+  now = Date.now,
 } = {}) {
   const rooms = new Map();
   function cleanup() {
     for (const [code, r] of rooms)
-      if (Date.now() - r.updated > 24 * 60 * 60 * 1000) rooms.delete(code);
+      if (now() - r.updated > 24 * 60 * 60 * 1000) rooms.delete(code);
   }
   function find(code, key) {
     cleanup();
@@ -33,6 +37,13 @@ export function createRoomService({
     return { r, player };
   }
   function snapshot(r, p) {
+    const game = projectGameForPlayer(r.game, r, p.id),
+      request = game && pending(game),
+      deadlineAt = request && r.requestDeadlines.get(request.uid);
+    if (request && deadlineAt !== undefined) {
+      request.deadlineAt = deadlineAt;
+      if (p.id === r.hostId) request.canResolveTimeout = true;
+    }
     return {
       code: r.code,
       revision: r.revision,
@@ -42,12 +53,43 @@ export function createRoomService({
       seats: r.seats,
       count: r.count,
       scenario: r.scenario,
-      game: r.game,
+      game,
     };
+  }
+  function syncRequestDeadline(r) {
+    const request = r.game && pending(r.game),
+      timed =
+        request?.kind === 'choiceRequest' &&
+        Number.isFinite(request.timeoutMs) &&
+        request.timeoutChoice !== undefined;
+    for (const requestId of r.requestDeadlines.keys())
+      if (!timed || requestId !== request.uid)
+        r.requestDeadlines.delete(requestId);
+    if (timed && !r.requestDeadlines.has(request.uid))
+      r.requestDeadlines.set(request.uid, now() + request.timeoutMs);
+  }
+  function settleExpiredChoice(r) {
+    const request = r.game && pending(r.game),
+      deadline = request && r.requestDeadlines.get(request.uid);
+    if (
+      request?.kind !== 'choiceRequest' ||
+      request.timeoutChoice === undefined ||
+      deadline === undefined ||
+      now() < deadline
+    )
+      return false;
+    r.game = act(r.game, {
+      type: 'resolveChoice',
+      requestId: request.uid,
+      choice: request.timeoutChoice,
+    });
+    syncRequestDeadline(r);
+    bump(r);
+    return true;
   }
   function bump(r) {
     r.revision++;
-    r.updated = Date.now();
+    r.updated = now();
   }
   const api = {
     create(data) {
@@ -78,8 +120,10 @@ export function createRoomService({
           players: [p],
           seats: Array(count).fill(null),
           game: null,
+          commands: new Map(),
+          requestDeadlines: new Map(),
           revision: 1,
-          updated: Date.now(),
+          updated: now(),
         };
       r.seats[0] = p.id;
       rooms.set(code, r);
@@ -104,10 +148,35 @@ export function createRoomService({
     },
     read(code, key) {
       const { r, player } = find(code, key);
+      settleExpiredChoice(r);
       return snapshot(r, player);
     },
     update(code, key, data) {
       const { r, player } = find(code, key);
+      if (
+        data.commandId !== undefined &&
+        (typeof data.commandId !== 'string' ||
+          data.commandId.length < 8 ||
+          data.commandId.length > 96)
+      )
+        fail(400, '操作编号无效。');
+      const commandKey = data.commandId
+          ? `${player.id}:${data.commandId}`
+          : null,
+        fingerprint = commandKey
+          ? JSON.stringify({
+              ...data,
+              revision: undefined,
+              commandId: undefined,
+            })
+          : null,
+        previous = commandKey ? r.commands.get(commandKey) : null;
+      if (previous) {
+        if (previous.fingerprint !== fingerprint)
+          fail(409, '同一操作编号不能用于不同动作。');
+        return structuredClone(previous.response);
+      }
+      if (data.action?.type !== 'timeoutChoice') settleExpiredChoice(r);
       if (data.revision !== r.revision)
         fail(409, '另一位玩家刚刚操作过，已刷新对局，请重试。');
       if (data.type === 'seat') {
@@ -139,57 +208,40 @@ export function createRoomService({
           data.hauntPlaytest === true
             ? createHauntPlaytest(
                 r.scenario,
-                Date.now(),
+                now(),
                 r.count,
                 data.playtestFocus ?? 'basic',
               )
-            : gameFactory(r.scenario, Date.now(), r.count);
+            : gameFactory(r.scenario, now(), r.count);
       } else if (data.type === 'action') {
         if (!r.game) fail(409, '对局尚未开始。');
-        const a = data.action;
-        if (
-          !a ||
-          ![
-            'select',
-            'endHero',
-            'endRound',
-            'explore',
-            'move',
-            'rotate',
-            'place',
-            'advance',
-            'continueCard',
-            'continueRoom',
-            'roomDestination',
-            'useElevator',
-            'stayElevator',
-            'jumpDown',
-            'findReturnStairs',
-            'resolveDice',
-            'allocate',
-            'allocateDamage',
-            'rollDice',
-            'rollAll',
-            'useItem',
-            'rest',
-            'attack',
-            'interact',
-            'boardWindow',
-            'cure',
-            'wolfOrder',
-          ].includes(a.type)
-        )
-          fail(400, '不支持的操作。');
+        let a = data.action;
+        if (!supportsCommand(r.game, a)) fail(400, '不支持的操作。');
+        let timedOut = false;
+        if (a.type === 'timeoutChoice') {
+          const request = pending(r.game),
+            deadline = request && r.requestDeadlines.get(request.uid);
+          if (player.id !== r.hostId) fail(403, '等待房主处理超时选择。');
+          if (
+            request?.kind !== 'choiceRequest' ||
+            request.uid !== a.requestId ||
+            request.timeoutChoice === undefined ||
+            deadline === undefined
+          )
+            fail(409, '当前没有可超时跳过的选择。');
+          if (now() < deadline) fail(409, '选择仍在等待时间内。');
+          a = {
+            type: 'resolveChoice',
+            requestId: request.uid,
+            choice: request.timeoutChoice,
+          };
+          timedOut = true;
+        }
         const activeOwner = r.seats[r.game.active] || r.hostId;
         if (a.type === 'select' && activeOwner !== player.id)
           fail(403, '请等当前玩家结束行动后再切换角色。');
         const p = pending(r.game),
-          heroId =
-            a.type === 'wolfOrder'
-              ? a.heroId
-              : a.type === 'select'
-                ? a.id
-                : (p?.heroId ?? r.game.active),
+          heroId = commandHeroId(r.game, a),
           owner = r.seats[heroId] || r.hostId;
         const global =
           p &&
@@ -212,7 +264,8 @@ export function createRoomService({
             fail(403, '只能投掷由你负责的骰子。');
         } else if (a.type === 'endRound' || global) {
           if (player.id !== r.hostId) fail(403, '等待房主确认。');
-        } else if (owner !== player.id) fail(403, '请等待当前角色的玩家操作。');
+        } else if (!timedOut && owner !== player.id)
+          fail(403, '请等待当前角色的玩家操作。');
         if (
           a.type === 'select' &&
           !living(r.game).some((h) => h.id === a.id && !h.ended)
@@ -223,8 +276,18 @@ export function createRoomService({
           fail(400, '当前不能执行这个动作。');
         r.game = next;
       } else fail(400, '未知操作。');
+      syncRequestDeadline(r);
       bump(r);
-      return snapshot(r, player);
+      const response = snapshot(r, player);
+      if (commandKey) {
+        r.commands.set(commandKey, {
+          fingerprint,
+          response: structuredClone(response),
+        });
+        while (r.commands.size > 256)
+          r.commands.delete(r.commands.keys().next().value);
+      }
+      return response;
     },
   };
   return api;

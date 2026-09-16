@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ROOM_DECK,
   TRAIT_KEYS,
-  createGame,
+  createSimulationGame,
   act,
   actions,
   pending,
@@ -20,7 +20,7 @@ import {
   validSave,
 } from '../lib/game-engine.mjs';
 const start = (id = 'bells', seed = 1, count = 3) =>
-  act(createGame(id, seed, count), { type: 'advance' });
+  act(createSimulationGame(id, seed, count), { type: 'advance' });
 function resolve(s) {
   for (let i = 0; pending(s) && i < 100; i++) {
     const p = pending(s);
@@ -57,7 +57,7 @@ export function autoPlay(
 ) {
   let s = start(id, seed, count),
     steps = 0;
-  if (interactive) s.rollMode = 'interactive';
+  if (interactive) s.executionMode = 'workflow';
   while (s.phase !== 'over' && steps++ < 2500) {
     if (pending(s)) {
       s = resolve(s);
@@ -175,10 +175,13 @@ test('3–6 distinct heroes have four real tracks and speed-based movement', () 
     }
     assert(validSave(s));
   }
-  assert.deepEqual(createGame('bells', 5), createGame('bells', 5));
+  assert.deepEqual(
+    createSimulationGame('bells', 5),
+    createSimulationGame('bells', 5),
+  );
   assert.notDeepEqual(
-    createGame('bells', 5).decks.rooms,
-    createGame('bells', 6).decks.rooms,
+    createSimulationGame('bells', 5).decks.rooms,
+    createSimulationGame('bells', 6).decks.rooms,
   );
 });
 test('exploration draws a tile, offers entry-matching rotations, then places only once', () => {

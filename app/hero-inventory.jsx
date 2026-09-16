@@ -6,7 +6,10 @@ import { resolveCard } from '../lib/card-rules.mjs';
 import { hauntCardRule, canInspectHero } from '../lib/game-view.mjs';
 import { TRAITS } from '../lib/game-data.mjs';
 import { itemInstances } from '../lib/item-instances.mjs';
-import { itemActionViews } from '../lib/content/item-actions.mjs';
+import {
+  itemActionViews,
+  itemManagementActionViews,
+} from '../lib/content/item-actions.mjs';
 
 export default function HeroInventory({
   game,
@@ -58,7 +61,10 @@ export default function HeroInventory({
         instanceId: `omen:${hero.id}:${id}:${index}`,
       })),
     ],
-    itemActions = itemActionViews(game, hero, TRAITS);
+    itemActions = [
+      ...itemActionViews(game, hero, TRAITS),
+      ...itemManagementActionViews(game, hero),
+    ];
   const content = (card) => {
     const abilities = itemActions.filter(
       (action) => action.instanceId === card.instanceId,
@@ -82,16 +88,13 @@ export default function HeroInventory({
                   ability.available ? ability.detail : ability.unavailableReason
                 }
                 onClick={() =>
-                  send({
-                    type: 'useItem',
-                    actionId: ability.id,
-                    id: ability.cardId,
-                    instanceId: ability.instanceId,
-                    ...(ability.trait ? { trait: ability.trait } : {}),
-                  })
+                  send(ability.command || { type: ability.commandType })
                 }
               >
                 {ability.label}
+                {ability.charges !== null && ability.charges !== undefined
+                  ? ` · ${ability.charges}/${ability.maxCharges}`
+                  : ''}
               </button>
             ))}
           </div>

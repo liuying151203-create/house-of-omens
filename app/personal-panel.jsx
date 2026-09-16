@@ -82,6 +82,7 @@ export default function PersonalPanel({
           </header>
           {inspectable ? (
             <AttributeTracks
+              game={game}
               hero={hero}
               compact={false}
               changes={changes.filter((c) => c.heroId === hero.id)}

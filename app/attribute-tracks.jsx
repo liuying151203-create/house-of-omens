@@ -1,9 +1,11 @@
 import { Skull } from 'lucide-react';
 import { TRAITS, TRAIT_KEYS } from '../lib/game-data.mjs';
+import { traitRuleView } from '../lib/rule-views.mjs';
 
 export default function AttributeTracks({
   hero,
   enemy,
+  game,
   changes = [],
   compact = false,
 }) {
@@ -29,14 +31,30 @@ export default function AttributeTracks({
             value: enemy[key],
           })),
       ]
-    : TRAIT_KEYS.map((key) => ({
-        key,
-        name: TRAITS[key],
-        value: hero.tracks[key][hero.stats[key]],
-        current: hero.stats[key],
-        start: hero.start[key],
-        track: hero.tracks[key],
-      }));
+    : TRAIT_KEYS.map((key) =>
+        game
+          ? traitRuleView(game, hero, key)
+          : {
+              key,
+              label: TRAITS[key],
+              exists: true,
+              hidden: false,
+              changeable: true,
+              value: hero.tracks[key][hero.stats[key]],
+              current: hero.stats[key],
+              start: hero.start[key],
+              track: hero.tracks[key],
+            },
+      )
+        .filter((view) => view.exists && !view.hidden)
+        .map((view) => ({
+          key: view.key,
+          name: view.label,
+          value: view.value,
+          current: view.current,
+          start: view.start,
+          track: view.changeable ? view.track : null,
+        }));
   return (
     <span
       className={

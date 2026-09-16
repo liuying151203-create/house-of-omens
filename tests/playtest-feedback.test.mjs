@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createInteractiveGame,
-  createGame,
+  createSimulationGame,
   triggerHaunt,
   drawCard,
   act,
@@ -89,7 +89,7 @@ test('locket exposes only its ordinary effect until the matching haunt is reveal
   const card = OMENS.find((c) => c.id === 'locket');
   assert(!card.effect.includes('治疗'));
   assert.equal(hauntCardRule(card, null), null);
-  assert.equal(hauntCardRule(card, createGame('werewolf', 1)), null);
+  assert.equal(hauntCardRule(card, createSimulationGame('werewolf', 1)), null);
   assert.equal(
     hauntCardRule(card, { scenario: 'mirror', phase: 'haunt' }),
     null,
@@ -108,7 +108,7 @@ test('locket exposes only its ordinary effect until the matching haunt is reveal
 });
 
 test('trait feedback detects track steps even with equal values and excludes converted attributes', () => {
-  const before = createGame('werewolf', 1);
+  const before = createSimulationGame('werewolf', 1);
   before.heroes[0].tracks.sanity[4] = before.heroes[0].tracks.sanity[3];
   before.heroes[0].stats.sanity = 3;
   const after = structuredClone(before);
@@ -123,7 +123,7 @@ test('trait feedback detects track steps even with equal values and excludes con
 });
 
 test('faction roster replaces a converted explorer with one wolf at the live monster location', () => {
-  const s = createGame('werewolf', 23, 4);
+  const s = createSimulationGame('werewolf', 23, 4);
   s.queue = [];
   triggerHaunt(s);
   const alpha = s.enemies[0];
@@ -142,7 +142,7 @@ test('faction roster replaces a converted explorer with one wolf at the live mon
 });
 
 test('unrevealed mirror has no roster position or stats; keeper is represented once', () => {
-  const s = createGame('mirror', 23);
+  const s = createSimulationGame('mirror', 23);
   s.queue = [];
   triggerHaunt(s);
   s.enemies.push({
@@ -158,7 +158,7 @@ test('unrevealed mirror has no roster position or stats; keeper is represented o
   assert(!publicEnemies(s).some((e) => e.hidden));
   s.mirrorFound = true;
   assert(!rosterGroups(s).find((g) => g.id === 'monsters').unknown);
-  const bells = createGame('bells', 1);
+  const bells = createSimulationGame('bells', 1);
   triggerHaunt(bells);
   const traitors = rosterGroups(bells).find((g) => g.id === 'traitors');
   assert.equal(traitors.heroes.length, 0);
@@ -166,7 +166,7 @@ test('unrevealed mirror has no roster position or stats; keeper is represented o
 });
 
 test('opposing faction cannot inspect hero tracks or inventory; host can inspect delegated heroes', () => {
-  const game = createGame('werewolf', 23);
+  const game = createSimulationGame('werewolf', 23);
   triggerHaunt(game);
   const wolf = game.heroes.find((h) => h.traitor);
   const seats = game.heroes.map((h) => (h.traitor ? 'guest' : 'host'));
@@ -190,7 +190,7 @@ test('opposing faction cannot inspect hero tracks or inventory; host can inspect
 });
 
 test('coffee never consumes itself or resumes movement when stopped; grants two usable moves next round', () => {
-  let s = createGame('werewolf', 1);
+  let s = createSimulationGame('werewolf', 1);
   s.queue = [];
   s.heroes[0].items = ['coffee'];
   s.heroes[0].stopped = true;
@@ -211,7 +211,7 @@ test('coffee never consumes itself or resumes movement when stopped; grants two 
 
 test('keeper movement and death update the converted explorer for both new and older saves', () => {
   for (const legacy of [false, true]) {
-    let s = createGame('bells', 1);
+    let s = createSimulationGame('bells', 1);
     triggerHaunt(s);
     s.queue = [];
     if (legacy) delete s.enemies[0].heroId;
@@ -223,8 +223,12 @@ test('keeper movement and death update the converted explorer for both new and o
     assert.equal(s.round, 2);
     s.heroes[s.active].pos = 'stairs';
     s.enemies[0].hp = 1;
-    s._rollReplay = [[2, 2, 2, 2], [0]];
+    s.executionMode = 'workflow';
     s = act(s, { type: 'attack', id: 'keeper' });
+    const request = pending(s);
+    request.rolls[0].dice = Array(request.rolls[0].count).fill(2);
+    request.rolls[1].dice = Array(request.rolls[1].count).fill(0);
+    s = act(s, { type: 'resolveDice', requestId: request.uid });
     assert(s.heroes.find((h) => h.traitor).dead);
     assert(!rosterGroups(s).some((g) => g.id === 'traitors'));
     assert.equal(rosterGroups(s).find((g) => g.id === 'dead').heroes.length, 1);

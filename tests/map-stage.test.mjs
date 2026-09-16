@@ -244,7 +244,12 @@ test('enemy presentation follows connected doors, preserves the origin until res
   assert.equal(p.kind, 'diceRequest');
   assert.deepEqual(game.enemies, before);
   assert.deepEqual(JSON.parse(JSON.stringify(game)), game);
-  const movement = p.enemyMovements[0];
+  const movement = game.events.findLast(
+    (event) =>
+      event.type === 'MovementQueued' &&
+      event.flowId === p.workflow.flowId &&
+      event.enemyId === before[0].id,
+  );
   assert.equal(movement.path[0], before[0].pos);
   assert(movement.path.length > 1);
   assert(movement.path.length <= before[0].speed + 1);
@@ -256,7 +261,7 @@ test('enemy presentation follows connected doors, preserves the origin until res
     assert.equal(roll.roomId, game.heroes[roll.targetId].pos);
   game = settle(game);
   assert.equal(game.enemies[0].pos, movement.path.at(-1));
-  assert(game.queue.every((p) => !p.enemyMovements));
+  assert(game.queue.every((entry) => !entry.enemyMovements));
 });
 
 test('wolves cannot attack across disconnected doors or beyond their movement budget', () => {
@@ -272,7 +277,14 @@ test('wolves cannot attack across disconnected doors or beyond their movement bu
     game = act(game, { type: 'endRound' });
     assert.notEqual(pending(game).kind, 'diceRequest');
     assert(game.queue.every((p) => p.kind !== 'damage'));
-    assert(pending(game).enemyMovements.every((move) => !move.attacks));
+    const flowId = pending(game).workflow.flowId;
+    assert(
+      game.events
+        .filter(
+          (event) => event.type === 'MovementQueued' && event.flowId === flowId,
+        )
+        .every((move) => !move.attacks),
+    );
     assert.deepEqual(
       game.heroes.map((h) => h.stats),
       stats,

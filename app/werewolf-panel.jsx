@@ -1,6 +1,8 @@
 import { cureBonus } from '../lib/modifiers.mjs';
 import EnemyGlyph from './enemy-glyph';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
+import { roomRuleView } from '../lib/rule-views.mjs';
+import { factionActions } from '../lib/game-engine.mjs';
 export default function WerewolfPanel({
   game,
   send,
@@ -10,7 +12,11 @@ export default function WerewolfPanel({
 }) {
   if (game.scenario !== 'werewolf' || game.phase !== 'haunt') return null;
   const h = game.heroes[game.active],
-    room = game.rooms.find((r) => r.id === h.pos);
+    room = roomRuleView(
+      game,
+      game.rooms.find((r) => r.id === h.pos),
+      h.id,
+    );
   const disabled =
     !!game.queue.length ||
     h.ended ||
@@ -20,8 +26,14 @@ export default function WerewolfPanel({
     waiting ||
     net.busy;
   const infected = game.heroes.filter(
-    (x) => !x.dead && !x.traitor && statusOf(x, 'infection'),
-  );
+      (x) => !x.dead && !x.traitor && statusOf(x, 'infection'),
+    ),
+    ordersByHero = new Map(
+      game.enemies.map((enemy) => [
+        enemy.heroId,
+        factionActions(game, enemy.heroId),
+      ]),
+    );
   return (
     <section className="wolf-panel" aria-label="血月与狼毒">
       <div className="wolf-heading">
@@ -82,7 +94,13 @@ export default function WerewolfPanel({
               {e.hp}/{e.maxHp} 生命 · 力量 {wolfMight(game, e)} · 移动 {e.speed}
             </span>
             <small>
-              {game.rooms.find((r) => r.id === e.pos)?.name}
+              {
+                roomRuleView(
+                  game,
+                  game.rooms.find((r) => r.id === e.pos),
+                  game.active,
+                ).name
+              }
               {moonlit(
                 game,
                 game.rooms.find((r) => r.id === e.pos),
@@ -111,13 +129,11 @@ export default function WerewolfPanel({
                     <option value="" disabled>
                       自动追猎最近好人
                     </option>
-                    {game.heroes
-                      .filter((x) => !x.dead && !x.traitor)
-                      .map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
+                    {(ordersByHero.get(e.heroId) || []).map((order) => (
+                      <option key={order.id} value={order.targetId}>
+                        {order.targetLabel}
+                      </option>
+                    ))}
                   </select>
                 </label>
               )}

@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   act,
+  actions,
   createInteractiveGame,
   drawCard,
   EVENTS,
 } from '../lib/game-engine.mjs';
 import { updateCardRule } from '../lib/card-rules.mjs';
-import { rollOutcomes } from '../lib/roll-outcomes.mjs';
+import { CONTENT_ACTION_DEFINITIONS } from '../lib/content/actions.mjs';
 
 test('event dice previews use current card overrides and survive saving the request', () => {
   let s = createInteractiveGame('werewolf', 23, 3);
@@ -33,8 +34,9 @@ test('event dice previews use current card overrides and survive saving the requ
 });
 
 test('elevator preview covers every total and preserves the four-point exception', () => {
-  const s = createInteractiveGame('werewolf');
-  const rows = rollOutcomes(s, { type: 'useElevator' });
+  const rows = CONTENT_ACTION_DEFINITIONS.find(
+    (action) => action.id === 'useElevator',
+  ).outcomes;
   assert.deepEqual(
     rows.slice(0, 5).map((r) => r.range),
     ['0 点', '1 点', '2 点', '3 点', '4 点'],
@@ -45,8 +47,21 @@ test('elevator preview covers every total and preserves the four-point exception
 
 test('combat previews distinguish attack wins, ties and counterattacks', () => {
   const s = createInteractiveGame('werewolf');
-  s.enemies = [{ id: 'alpha', kind: 'alpha', pos: 'entrance' }];
-  const rows = rollOutcomes(s, { type: 'attack', id: 'alpha' });
+  s.queue = [];
+  s.phase = 'haunt';
+  s.enemies = [
+    {
+      id: 'alpha',
+      name: '狼王',
+      kind: 'alpha',
+      pos: 'entrance',
+      hp: 5,
+      maxHp: 5,
+    },
+  ];
+  const rows = actions(s).abilities.find(
+    (action) => action.command?.type === 'attack',
+  ).outcomes;
   assert.equal(rows.length, 3);
   assert.match(rows[0].effect, /最多 3 点/);
   assert.match(rows[1].effect, /不受伤/);

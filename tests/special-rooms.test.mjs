@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createGame,
+  createSimulationGame,
   act,
   actions,
   roomAt,
@@ -18,7 +18,7 @@ import {
 import { createRoomService } from '../scripts/room-server.mjs';
 
 function fixture(id, interactive = false) {
-  const s = createGame('werewolf', 18, 3);
+  const s = createSimulationGame('werewolf', 18, 3);
   s.queue = [];
   s.heroes[0].pos = 'foyer';
   const tile = structuredClone(ROOM_DECK.find((r) => r.id === id));
@@ -31,7 +31,7 @@ function fixture(id, interactive = false) {
     roomBonus: [],
   });
   s.decks.rooms = s.decks.rooms.filter((r) => r !== id);
-  if (interactive) s.rollMode = 'interactive';
+  if (interactive) s.executionMode = 'workflow';
   return s;
 }
 function enterAndUse(s, id) {
@@ -56,6 +56,8 @@ test('entering or passing through the elevator never rolls until the explorer ch
   s = act(s, { type: 'move', pos: 'mystic-elevator' });
   s = act(s, { type: 'useElevator' });
   assert.equal(s.queue[0].kind, 'diceRequest');
+  assert.equal(s.queue[0].workflow.definitionId, 'room.elevator');
+  assert.equal(s.queue[0].resumeAction, undefined);
 });
 
 test('rotating a shared landing cell switches between both legal door anchors and survives restore', () => {
@@ -157,7 +159,9 @@ test('four offers every floor or an explicit unchanged original landing, includi
   let s = fixture('mystic-elevator', true);
   s = resolvedRoll(enterAndUse(s, 'mystic-elevator'), [[2, 2]]);
   assert.deepEqual(
-    [...new Set(s.queue[0].destinations.map((d) => d.floor))].sort(),
+    [...new Set(s.queue[0].destinations.map((d) => d.floor))].sort(
+      (a, b) => a - b,
+    ),
     [-1, 0, 1],
   );
   const rooms = structuredClone(s.rooms),
@@ -380,7 +384,7 @@ test('special travel is reproducible in direct and interactive games and survive
       direct.seed = seed;
       const interactive = {
         ...structuredClone(direct),
-        rollMode: 'interactive',
+        executionMode: 'workflow',
       };
       const a = finish(enterAndUse(direct, id));
       const pending = enterAndUse(interactive, id);
@@ -439,9 +443,9 @@ test('destination selection validates options and LAN rejects other players movi
 
 test('both special rooms are discoverable from the normal shuffled deck and resolve through placement', () => {
   for (const id of ['mystic-elevator', 'collapsed-room']) {
-    let s = createGame('werewolf', 8, 3);
+    let s = createSimulationGame('werewolf', 8, 3);
     s.queue = [];
-    s.rollMode = 'interactive';
+    s.executionMode = 'workflow';
     s.heroes[0].pos = 'foyer';
     s.decks.rooms = [id, ...s.decks.rooms.filter((r) => r !== id)];
     s = act(s, { type: 'explore', dir: 1 });
@@ -483,13 +487,13 @@ test('monsters traverse an established collapse shaft using a recorded route, ne
   assert(
     connections(s, 'basement', { monster: true }).includes('collapsed-room'),
   );
-  s.rollMode = 'interactive';
+  s.executionMode = 'workflow';
   s = act(s, { type: 'endRound' });
   assert.equal(s.queue[0].kind, 'diceRequest');
-  assert.deepEqual(s.queue[0].enemyMovements[0].path, [
-    'collapsed-room',
-    'basement',
-  ]);
+  assert.deepEqual(
+    s.events.findLast((event) => event.type === 'MovementQueued').path,
+    ['collapsed-room', 'basement'],
+  );
   assert.equal(s.enemies[0].pos, 'collapsed-room');
 });
 

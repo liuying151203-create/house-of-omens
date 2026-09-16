@@ -989,7 +989,9 @@
   gap: 4px;
   box-sizing: border-box;
   width: 100%;
+  min-inline-size: 0;
   min-height: 42px;
+  margin: 0;
   padding: 4px;
   border: 1px solid #b9ccc52b;
   border-radius: 10px;

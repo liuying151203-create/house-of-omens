@@ -135,10 +135,17 @@ test('preset selection is validated for direct and LAN starts and guests cannot 
   );
   const room = api.update(host.code, host.key, start);
   assert.equal(room.game.playtest.focus, 'conversion');
+  const playerViews = [host.key, guest.key].map(
+    (key) => api.read(host.code, key).game,
+  );
   assert.equal(
-    living(api.read(host.code, guest.key).game).filter(
-      (h) => statusOf(h, 'infection')?.turns === 1,
-    ).length,
+    Math.max(
+      ...playerViews.map(
+        (view) =>
+          living(view).filter((h) => statusOf(h, 'infection')?.turns === 1)
+            .length,
+      ),
+    ),
     1,
   );
   assert.throws(
@@ -158,7 +165,7 @@ test('all directed quick starts have connected floors, reachable objectives and 
         assert.equal(game.phase, 'haunt');
         assert.equal(game.scenario, scenario);
         assert.equal(game.automaticHaunt, false);
-        assert.equal(game.rollMode, 'interactive');
+        assert.equal(game.executionMode, 'workflow');
         assert.deepEqual(
           game.queue.map((p) => p.kind),
           ['haunt'],
@@ -267,7 +274,12 @@ test('only the LAN host can quick-start a directed room; ordinary starts still e
   });
   assert.equal(started.game.phase, 'haunt');
   assert.equal(started.game.playtest.mode, 'haunt');
-  assert.deepEqual(api.read(host.code, guest.key).game, started.game);
+  assert.deepEqual(api.read(host.code, host.key).game, started.game);
+  const guestView = api.read(host.code, guest.key).game;
+  assert(
+    guestView.heroes.some((hero) => hero.inventoryHidden),
+    'opposing inventories should be projected out of the guest snapshot',
+  );
   assert.throws(
     () =>
       api.update(host.code, host.key, {

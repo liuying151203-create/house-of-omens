@@ -5,7 +5,12 @@ import { writeFile, unlink, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { act, createInteractiveGame } from '../lib/game-engine.mjs';
+import {
+  act,
+  createInteractiveGame,
+  updateRoomRule,
+  updateTraitRule,
+} from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -71,6 +76,35 @@ test('wolf personal and roster readouts share health tracks and show effective m
   const roster = render(Roster, { game, net: { room }, changes: [] });
   assert.match(roster, /trait-health/);
   assert.doesNotMatch(roster, /理智当前|知识当前/);
+});
+
+test('personal tracks and room commands render the current effective rules', () => {
+  let game = start();
+  game = updateTraitRule(game, {
+    id: 'ui-speed-name',
+    sourceId: 'scenario',
+    heroId: game.active,
+    trait: 'speed',
+    patch: { label: '疾行' },
+  });
+  game = updateRoomRule(game, {
+    id: 'ui-room-target',
+    sourceId: 'scenario',
+    roomId: game.heroes[game.active].pos,
+    patch: { target: 'seal' },
+  });
+  game.phase = 'haunt';
+  const net = { room: null, busy: false },
+    personal = render(Personal, { game, net, send() {}, changes: [] }),
+    commands = render(Commands, {
+      game,
+      net,
+      send() {},
+      waiting: false,
+      moving: false,
+    });
+  assert.match(personal, /疾行/);
+  assert.match(commands, /封印祭坛/);
 });
 
 test('inventory slots retain distinct item names and accessible controls without opening all descriptions', () => {

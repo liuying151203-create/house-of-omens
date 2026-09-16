@@ -100,10 +100,11 @@ test('effective room targets provide their action and handler without a main-loo
     (entry) => entry.handler === 'scenario.bells.seal',
   );
   assert.deepEqual(ability.command, { type: 'interact' });
-  assert.deepEqual(ability.check, {
+  assert.deepEqual(ability.checkSpec, {
     trait: 'knowledge',
     checkKind: 'ritual',
     includeAll: true,
+    threshold: 3,
     bonus: 0,
   });
   let next = act(game, ability.command);
@@ -116,6 +117,24 @@ test('effective room targets provide their action and handler without a main-loo
   });
   assert.equal(next.heroes[next.active].interacted, true);
   assert.equal(next.rooms.find((room) => room.id === roomId).attempts, 1);
+});
+
+test('checked actions expose one serializable checkSpec for previews and resolution', () => {
+  const game = createHauntPlaytest('werewolf', 76, 3, 'treatment');
+  game.queue = [];
+  const cure = actions(game).abilities.find(
+    (action) => action.handler === 'scenario.werewolf.cure',
+  );
+  assert(cure);
+  assert.equal('check' in cure, false);
+  assert.deepEqual(cure.checkSpec, {
+    trait: 'knowledge',
+    checkKind: 'cure',
+    applyModifiers: false,
+    bonus: cure.bonus,
+    threshold: 3,
+  });
+  assert.doesNotThrow(() => JSON.stringify(cure));
 });
 
 test('rest actions share effective trait descriptions and registry execution', () => {

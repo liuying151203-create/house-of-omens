@@ -25,6 +25,7 @@ import {
 } from '../lib/werewolf.mjs';
 import { suggestDamage } from '../lib/damage-plan.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
+import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 
 test('alpha moon regeneration, thick hide and large-party attacks follow the declared limits', () => {
   let s = start(5);
@@ -63,7 +64,9 @@ test('alpha moon regeneration, thick hide and large-party attacks follow the dec
 function settle(s) {
   for (let i = 0; pending(s) && i < 150; i++) {
     const p = pending(s);
-    if (p.kind === 'damage')
+    if (s.executionMode === 'workflow')
+      s = act(s, automaticRequestCommand(s, p));
+    else if (p.kind === 'damage')
       s = act(s, {
         type: 'allocateDamage',
         allocation: suggestDamage(
@@ -475,10 +478,10 @@ test('seeded full games finish for 3–6 players; interactive and direct rules h
   for (const n of [3, 4, 5, 6]) {
     let wins = 0;
     for (let seed = 1; seed <= 16; seed++) {
-      const a = play(seed, n);
+      const a = play(seed, n, true);
       wins += Number(a.result.won);
       if (seed <= 4) {
-        const b = play(seed, n, true);
+        const b = play(seed, n, false);
         assert.deepEqual(b.result, a.result);
         assert.deepEqual(b.heroes, a.heroes);
         assert.deepEqual(b.enemies, a.enemies);

@@ -4,6 +4,7 @@ import {
   ROOM_DECK,
   TRAIT_KEYS,
   createSimulationGame,
+  createInteractiveGame,
   act,
   actions,
   pending,
@@ -19,10 +20,20 @@ import {
   drawCard,
   validSave,
 } from '../lib/game-engine.mjs';
-const start = (id = 'bells', seed = 1, count = 3) =>
-  act(createSimulationGame(id, seed, count), { type: 'advance' });
+import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
+const start = (id = 'bells', seed = 1, count = 3, interactive = false) =>
+  act(
+    interactive
+      ? createInteractiveGame(id, seed, count)
+      : createSimulationGame(id, seed, count),
+    { type: 'advance' },
+  );
 function resolve(s) {
   for (let i = 0; pending(s) && i < 100; i++) {
+    if (s.executionMode === 'workflow') {
+      s = act(s, automaticRequestCommand(s, pending(s)));
+      continue;
+    }
     const p = pending(s);
     if (p.kind === 'diceRequest') {
       s = p.rolls.some((r) => !r.dice)
@@ -31,15 +42,8 @@ function resolve(s) {
       continue;
     }
     if (p.kind === 'placement') s = act(s, { type: 'place' });
-    else if (p.kind === 'damage') {
-      const h = s.heroes[p.heroId],
-        keys =
-          p.damageType === 'physical'
-            ? ['might', 'speed']
-            : ['sanity', 'knowledge'];
-      keys.sort((a, b) => h.stats[b] - h.stats[a]);
-      s = act(s, { type: 'allocate', trait: keys[0] });
-    } else s = act(s, { type: 'advance' });
+    else if (p.kind === 'damage') s = act(s, automaticRequestCommand(s, p));
+    else s = act(s, { type: 'advance' });
   }
   return s;
 }
@@ -53,11 +57,10 @@ export function autoPlay(
   seed,
   count = 3,
   untilHaunt = false,
-  interactive = false,
+  interactive = true,
 ) {
-  let s = start(id, seed, count),
+  let s = start(id, seed, count, interactive),
     steps = 0;
-  if (interactive) s.executionMode = 'workflow';
   while (s.phase !== 'over' && steps++ < 2500) {
     if (pending(s)) {
       s = resolve(s);
@@ -448,7 +451,7 @@ test('interactive rolls complete full games across three scenarios without chang
   for (const id of ['bells', 'mirror', 'flood'])
     for (const count of [3, 6])
       for (let seed = 1; seed <= 6; seed++) {
-        const expected = autoPlay(id, seed, count),
+        const expected = autoPlay(id, seed, count, false, false),
           actual = autoPlay(id, seed, count, false, true);
         assert.equal(actual.phase, 'over', id + ' ' + seed);
         assert.equal(actual.result.won, expected.result.won);

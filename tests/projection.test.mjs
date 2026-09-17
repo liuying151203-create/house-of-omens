@@ -79,6 +79,16 @@ test('network projection hides deck order and opposing inventories by faction', 
       text: '秘密物品牌',
       visibility: { faction: 'heroes' },
     },
+    {
+      uid: 92,
+      kind: 'damage',
+      heroId: 0,
+      title: '分配肉体伤害',
+      text: '测试伤害',
+      damageType: 'physical',
+      remaining: 2,
+      traits: ['might', 'speed'],
+    },
   ];
   const good = projectGameForPlayer(game, room, 'good-a'),
     wolf = projectGameForPlayer(game, room, 'wolf-a');
@@ -132,6 +142,9 @@ test('network projection hides deck order and opposing inventories by faction', 
   assert.equal(good.queue[1].cardId, 'tools');
   assert.equal(wolf.queue[1].kind, 'privateRequest');
   assert.equal(wolf.queue[1].cardId, undefined);
+  assert.equal(good.queue[2].kind, 'damage');
+  assert.equal(wolf.queue[2].kind, 'privateRequest');
+  assert.equal(wolf.queue[2].damageType, undefined);
   assert.equal(game.heroes[0].items.length, 1);
   assert.notEqual(good, game);
 });

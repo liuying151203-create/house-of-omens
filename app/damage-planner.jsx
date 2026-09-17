@@ -10,12 +10,23 @@ export default function DamagePlanner({ game, p, send }) {
         ? ['might', 'speed']
         : ['sanity', 'knowledge']),
     h = game.heroes[p.heroId],
-    views = Object.fromEntries(
-      keys.map((key) => [key, traitRuleView(game, h, key)]),
-    );
+    privateStats = !h?.stats || !h?.tracks || !h?.start,
+    views = privateStats
+      ? {}
+      : Object.fromEntries(
+          keys.map((key) => [key, traitRuleView(game, h, key)]),
+        );
   const [allocation, setAllocation] = useState(() =>
-    suggestDamage(h, p.damageType, p.remaining, game.phase, game, keys),
+    privateStats
+      ? {}
+      : suggestDamage(h, p.damageType, p.remaining, game.phase, game, keys),
   );
+  if (privateStats)
+    return (
+      <p className="private-info">
+        伤害详情仅对负责此角色的玩家可见，请等待对方完成分配。
+      </p>
+    );
   const left = p.remaining - keys.reduce((n, k) => n + allocation[k], 0),
     minimum = game.phase === 'explore' ? 1 : 0,
     lethal = keys.some((k) => h.stats[k] - allocation[k] <= 0 && minimum === 0);

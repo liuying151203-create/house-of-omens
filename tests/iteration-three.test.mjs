@@ -112,30 +112,27 @@ function setup() {
     guest = api.join({ name: '朋友', code: host.code });
   return { api, host, guest };
 }
-test('room identities, occupied seats and authoritative start are enforced', () => {
+test('room identities, occupied seats can be swapped and authoritative start is enforced', () => {
   const { api, host, guest } = setup();
   assert(!JSON.stringify(guest.players).includes(host.key));
   assert.throws(() => api.read(host.code, 'bad'), /身份/);
-  assert.throws(
-    () =>
-      api.update(host.code, guest.key, {
-        type: 'seat',
-        seat: 0,
-        revision: guest.revision,
-      }),
-    /已有人/,
-  );
+  const swapped = api.update(host.code, guest.key, {
+    type: 'seat',
+    seat: 0,
+    revision: guest.revision,
+  });
+  assert.deepEqual(swapped.seats, [guest.you, host.you, null]);
   assert.throws(
     () =>
       api.update(host.code, guest.key, {
         type: 'start',
-        revision: guest.revision,
+        revision: swapped.revision,
       }),
     /房主/,
   );
   const started = api.update(host.code, host.key, {
     type: 'start',
-    revision: guest.revision,
+    revision: swapped.revision,
   });
   assert(started.game);
   assert.deepEqual(api.read(host.code, guest.key).game, started.game);

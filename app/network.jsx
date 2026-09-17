@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeftRight } from 'lucide-react';
 import { HEROES } from '@/lib/game-data.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
@@ -278,7 +279,9 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
             </button>
             <span>{r.players.length} 位玩家已加入</span>
           </div>
-          <p>点击空闲座位选择角色。未被选择的角色由房主控制。</p>
+          <p>
+            点击空闲角色可以改选；点击其他玩家的角色会与对方交换位置。未被选择的角色由房主代管。
+          </p>
           <div className="network-seats">
             {HEROES.slice(0, r.count).map((h, i) => {
               const owner = r.players.find((p) => p.id === r.seats[i]);
@@ -288,8 +291,15 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
                   className={
                     'network-seat ' + (owner?.id === r.you ? 'mine' : '')
                   }
-                  disabled={net.busy || (!!owner && owner.id !== r.you)}
+                  disabled={net.busy}
                   onClick={() => net.update({ type: 'seat', seat: i })}
+                  title={
+                    owner?.id === r.you
+                      ? `${h.name}由你控制`
+                      : owner
+                        ? `与${owner.name}交换角色`
+                        : `改选${h.name}`
+                  }
                 >
                   <span style={{ color: h.color }}>{h.mark}</span>
                   <strong>{h.name}</strong>
@@ -298,6 +308,12 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
                       ? owner.name + (owner.id === r.you ? ' · 你' : '')
                       : '空位 · 房主代管'}
                   </small>
+                  {owner && owner.id !== r.you && (
+                    <span className="seat-swap-hint">
+                      <ArrowLeftRight size={13} />
+                      交换
+                    </span>
+                  )}
                 </button>
               );
             })}

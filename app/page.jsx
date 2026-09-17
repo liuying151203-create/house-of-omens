@@ -88,6 +88,8 @@ import {
   hauntCardRule,
   publicEnemies,
   canInspectHero,
+  heroController,
+  isHeroMine,
 } from '../lib/game-view.mjs';
 import { moonlit, windowsOf } from '../lib/werewolf.mjs';
 import { roomRuleView, traitRuleView } from '../lib/rule-views.mjs';
@@ -563,7 +565,7 @@ function Prompt({
     </Dialog>
   );
 }
-function FloorPeople({ game, f, onInspect }) {
+function FloorPeople({ game, f, onInspect, room }) {
   return (
     <fieldset className="floor-party" aria-label={f.name + '的人物'}>
       {game.heroes
@@ -582,6 +584,8 @@ function FloorPeople({ game, f, onInspect }) {
               h.statuses?.find((status) => status.id === 'infection')?.turns
             }
             onInspect={onInspect}
+            mine={isHeroMine(room, h.id)}
+            playerName={heroController(room, h.id)?.name}
           />
         ))}
       {publicEnemies(game)
@@ -609,6 +613,7 @@ function Board({
   locked = false,
   enemyMotion,
   onInspect,
+  room,
 }) {
   const [snapped, setSnapped] = useState(false);
   const [explorationPreview, setExplorationPreview] = useState(null);
@@ -826,7 +831,13 @@ function Board({
           </TabsList>
           <div className="floor-occupants" aria-label="各楼层人物与敌人">
             {FLOORS.map((f) => (
-              <FloorPeople key={f.id} game={game} f={f} onInspect={onInspect} />
+              <FloorPeople
+                key={f.id}
+                game={game}
+                f={f}
+                onInspect={onInspect}
+                room={room}
+              />
             ))}
           </div>
           {FLOORS.map((f) => (
@@ -979,6 +990,8 @@ function Board({
                       hero={h}
                       active={h.id === game.active}
                       onInspect={onInspect}
+                      mine={isHeroMine(room, h.id)}
+                      playerName={heroController(room, h.id)?.name}
                     />
                   ))}
                   {enemies.map((e) => (
@@ -1422,6 +1435,14 @@ export default function Home() {
   const sc = SCENARIOS.find((s) => s.id === (game?.scenario || choice)),
     Icon = iconMap[sc.id],
     remaining = game ? living(game).filter((h) => !h.ended).length : 0;
+  const localPlayer = net.room?.players?.find(
+      (player) => player.id === net.room.you,
+    ),
+    localHeroNames = game
+      ? game.heroes
+          .filter((hero) => isHeroMine(net.room, hero.id))
+          .map((hero) => hero.name)
+      : [];
   const waiting =
     !!net.room?.game &&
     (p && p.heroId === undefined
@@ -1453,7 +1474,7 @@ export default function Home() {
         className={
           game
             ? 'app playing revision-two revision-three map-focus' +
-              (view === 'game' ? ' map-stage' : '')
+              (view !== 'workshop' ? ' map-stage' : '')
             : 'app lobby revision-two revision-three'
         }
       >
@@ -1487,6 +1508,37 @@ export default function Home() {
               </>
             ) : null}
           </div>
+          {game && net.session && (
+            <div
+              className="network-status"
+              title={`房间 ${net.room?.code || net.session.code} · ${net.connected ? '已同步' : '正在重连'}`}
+            >
+              <Users size={16} />
+              <span className="network-identity">
+                <b>{localPlayer?.name || '你'}</b>
+                <small>{localHeroNames.join('、') || '旁观中'}</small>
+              </span>
+              <span className="network-room">
+                {net.room?.code || net.session.code} ·{' '}
+                {net.connected ? '已同步' : '重连中'}
+              </span>
+              <span className="network-turn">
+                {waiting ? '等待队友' : '轮到你'}
+              </span>
+              <button
+                className="icon-button"
+                aria-label="离开联机"
+                title="离开联机"
+                onClick={() => {
+                  net.leave();
+                  setView('network');
+                }}
+              >
+                <DoorOpen size={16} />
+              </button>
+              {net.error && <output>{net.error}</output>}
+            </div>
+          )}
           {game?.playtest?.mode === 'haunt' && (
             <button
               className="top-test-toggle"
@@ -1614,24 +1666,6 @@ export default function Home() {
           />
         ) : (
           <>
-            {net.session && (
-              <div className="network-status">
-                <Users size={16} />
-                <strong>房间 {net.room?.code || net.session.code}</strong>
-                <span>{net.connected ? '已同步' : '正在重连…'}</span>
-                <span>{waiting ? '等待其他玩家操作' : '轮到你操作'}</span>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    net.leave();
-                    setView('network');
-                  }}
-                >
-                  离开联机
-                </button>
-                {net.error && <output>{net.error}</output>}
-              </div>
-            )}
             <AttributeFeedback
               feedback={{
                 ...attributeFeedback,
@@ -1774,6 +1808,7 @@ export default function Home() {
                     setInspected(id);
                     setPartyOpen(true);
                   }}
+                  room={net.room}
                 />
               </section>
               <div className="right-info-rail" aria-label="章节与探索记录">

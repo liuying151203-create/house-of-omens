@@ -55,6 +55,36 @@ test('map explorer tokens are buttons for the matching status sheet', () => {
   assert.match(html, /portraits/);
 });
 
+test('LAN explorer surfaces identify the local nickname and controlled pawn', () => {
+  const game = start();
+  const room = {
+    hostId: 'host',
+    you: 'guest',
+    players: [
+      { id: 'host', name: '阿宅' },
+      { id: 'guest', name: '夜猫' },
+    ],
+    seats: ['host', 'guest', null],
+  };
+  const roster = render(Roster, { game, net: { room }, changes: [] });
+  assert.match(roster, /夜猫 · 你/);
+  assert.match(roster, /member-mine/);
+  const personal = render(Personal, {
+    game,
+    net: { room },
+    send() {},
+    changes: [],
+  });
+  assert.match(personal, /你 · 夜猫/);
+  const pawn = render(MapPawn, {
+    hero: game.heroes[1],
+    mine: true,
+    playerName: '夜猫',
+  });
+  assert.match(pawn, /my-pawn/);
+  assert.match(pawn, /由夜猫（你）控制/);
+});
+
 test('wolf personal and roster readouts share health tracks and show effective moonlight strength without human traits', () => {
   const game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });
   const wolf = game.heroes.find((h) => h.traitor);

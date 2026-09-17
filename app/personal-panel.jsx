@@ -6,6 +6,7 @@ import {
   locationLabel,
   enemyHero,
   canInspectHero,
+  heroController,
 } from '../lib/game-view.mjs';
 import { wolfMight } from '../lib/werewolf.mjs';
 import HeroInventory from './hero-inventory';
@@ -40,6 +41,7 @@ export default function PersonalPanel({
     game.phase === 'over';
   const enemy = game.enemies.find((e) => enemyHero(game, e)?.id === hero.id);
   const inspectable = canInspectHero(game, hero, net.room);
+  const controller = heroController(net.room, hero.id);
   return (
     <div
       className="explorer-controls"
@@ -50,6 +52,12 @@ export default function PersonalPanel({
         <div className="explorer-identity">
           <ExplorerEmblem hero={hero} />
           <strong>{hero.name}</strong>
+          {controller && (
+            <span className="explorer-player-name">
+              {controller.id === net.room?.you ? '你' : controller.name}
+              {controller.id === net.room?.you && ` · ${controller.name}`}
+            </span>
+          )}
           <small>{hero.role}</small>
         </div>
         <div className="explorer-readout">

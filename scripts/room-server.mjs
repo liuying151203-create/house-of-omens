@@ -187,10 +187,18 @@ export function createRoomService({
           data.seat >= r.count
         )
           fail(400, '座位无效。');
-        if (r.seats[data.seat] && r.seats[data.seat] !== player.id)
-          fail(409, '这个角色已有人控制。');
-        r.seats = r.seats.map((x) => (x === player.id ? null : x));
-        r.seats[data.seat] = player.id;
+        const currentSeat = r.seats.indexOf(player.id),
+          targetOwner = r.seats[data.seat];
+        if (targetOwner === player.id) {
+          // Re-selecting your current explorer is harmless.
+        } else if (targetOwner) {
+          if (currentSeat < 0) fail(409, '请先选择一个空闲角色。');
+          r.seats[currentSeat] = targetOwner;
+          r.seats[data.seat] = player.id;
+        } else {
+          if (currentSeat >= 0) r.seats[currentSeat] = null;
+          r.seats[data.seat] = player.id;
+        }
       } else if (data.type === 'start') {
         if (player.id !== r.hostId) fail(403, '由房主开始游戏。');
         if (r.game) fail(409, '已经开局。');

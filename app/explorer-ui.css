@@ -1449,6 +1449,238 @@
   }
 }
 
+/* Network ownership remains legible on every game surface. */
+.network-seat .seat-swap-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid #b7a57355;
+  border-radius: 999px;
+  color: #d8c791;
+  font-size: 11px;
+}
+.network-seat:not(:disabled):hover .seat-swap-hint {
+  border-color: #ddc98099;
+  color: #f5e2a7;
+}
+.map-stage .topbar .network-status {
+  position: static;
+  inset: auto;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: min(470px, 48vw);
+  margin: 0 6px 0 auto;
+  padding: 4px 6px 4px 9px;
+  border: 1px solid #77a29150;
+  border-radius: 8px;
+  background: #183029b8;
+  box-shadow: none;
+  color: #c9ddd2;
+  font-size: 11px;
+}
+.map-stage .topbar .network-status > svg {
+  flex: 0 0 auto;
+}
+.network-identity {
+  display: grid;
+  min-width: 0;
+  line-height: 1.15;
+}
+.network-identity b,
+.network-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.network-identity b {
+  color: #f0dda6;
+  font-size: 12px;
+}
+.network-identity small {
+  color: #a9c3b8;
+  font-size: 10px;
+}
+.network-room,
+.network-turn {
+  white-space: nowrap;
+}
+.network-turn {
+  color: #e3d39f;
+}
+.map-stage .topbar .network-status > button {
+  flex: 0 0 auto;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+}
+.map-stage .topbar .network-status ~ .top-test-toggle,
+.map-stage .topbar .network-status ~ .settings-toggle {
+  margin-left: 0;
+}
+.map-stage .topbar .network-status > output {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  max-width: 340px;
+  padding: 7px 10px;
+  border: 1px solid #a6685988;
+  border-radius: 5px;
+  background: #482924f4;
+  color: #efb5a5;
+}
+.member-name {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.member-name > em,
+.inspector-owner,
+.explorer-player-name {
+  font-family: var(--sans);
+  font-size: 10px;
+  line-height: 1.2;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #9fb2b8;
+}
+.member-name > em.owner-mine,
+.explorer-player-name {
+  color: #efd78f;
+}
+.party-member.member-mine {
+  border-color: #d2b96c66;
+  box-shadow:
+    inset 3px 0 0 #d8be70,
+    0 4px 12px #0003;
+}
+.inspector-owner {
+  display: block;
+  margin-top: 4px;
+  color: #d8c98f;
+}
+.explorer-player-name {
+  display: inline-flex;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pawn,
+.floor-hero {
+  position: relative;
+}
+.pawn.my-pawn,
+.floor-hero.my-pawn {
+  box-shadow:
+    0 0 0 2px #10191e,
+    0 0 0 4px #f0d98d,
+    0 2px 10px #000b;
+}
+.my-pawn-mark {
+  position: absolute;
+  z-index: 3;
+  top: -9px;
+  right: -9px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid #f2de9c;
+  border-radius: 999px;
+  background: #3a3322;
+  color: #fff0bd;
+  font: 700 9px/1 var(--sans);
+  box-shadow: 0 2px 7px #000a;
+}
+
+/* Keep the HUD geometry continuous while browser zoom changes CSS breakpoints. */
+@media (min-width: 1201px) {
+  .explorer-controls {
+    max-width: min(834px, calc(100vw - 408px));
+  }
+  .map-stage .right-info-rail {
+    bottom: 190px;
+  }
+}
+@media (max-width: 1200px) and (min-width: 761px) {
+  .explorer-controls {
+    left: calc((100vw + 204px) / 2);
+    width: min(680px, calc(100vw - 240px));
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 68px;
+    gap: 8px 12px;
+  }
+  .explorer-vitals {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .explorer-satchel {
+    grid-column: 1;
+    width: 100%;
+    margin: 0;
+  }
+  .finish-turn {
+    grid-column: 2;
+    width: 64px;
+    height: 64px;
+    margin: 0 2px 4px;
+  }
+}
+@media (max-width: 760px) {
+  .map-stage .party-panel.floating-window {
+    width: calc(50vw - 18px);
+    min-width: 0;
+  }
+  .member-summary > strong {
+    min-width: 0;
+  }
+  .member-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .map-stage .topbar .network-status {
+    max-width: 155px;
+    gap: 5px;
+    margin-right: 3px;
+    padding-left: 6px;
+  }
+  .network-room,
+  .network-turn,
+  .map-stage .topbar .network-status > svg {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .map-stage .party-panel .attribute-tracks {
+    display: none;
+  }
+  .map-stage .party-panel.floating-window {
+    padding-right: 3px;
+  }
+  .party-member {
+    min-height: 58px;
+    gap: 6px;
+    padding: 6px;
+  }
+  .party-member .explorer-emblem.emblem-small {
+    width: 32px;
+    height: 40px;
+  }
+  .member-summary > strong > small {
+    display: none;
+  }
+}
+
 /* The same tracks appear in the roster, inspector and current explorer HUD. */
 .attribute-tracks.traits-grid {
   display: grid;

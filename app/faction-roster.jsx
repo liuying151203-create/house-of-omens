@@ -10,6 +10,8 @@ import {
   rosterGroups,
   locationLabel,
   canInspectHero,
+  heroController,
+  isHeroMine,
 } from '../lib/game-view.mjs';
 import { statusOf } from '../lib/werewolf.mjs';
 import { FLOORS } from '../lib/game-data.mjs';
@@ -90,13 +92,16 @@ export default function FactionRoster({
             </span>
           </h3>
           {group.heroes.map((h) => {
-            const publicStats = canInspectHero(game, h, net.room);
+            const publicStats = canInspectHero(game, h, net.room),
+              controller = heroController(net.room, h.id),
+              ownedByMe = isHeroMine(net.room, h.id);
             return (
               <button
                 key={'hero-' + h.id}
                 className={
                   'party-member ' +
                   (h.id === game.active ? 'member-active ' : '') +
+                  (ownedByMe ? 'member-mine ' : '') +
                   (h.dead ? 'member-fallen' : '')
                 }
                 style={{ '--explorer-color': h.color }}
@@ -111,7 +116,15 @@ export default function FactionRoster({
                 <ExplorerEmblem hero={h} small />
                 <span className="member-summary">
                   <strong>
-                    {h.name}
+                    <span className="member-name">
+                      {h.name}
+                      {controller && (
+                        <em className={ownedByMe ? 'owner-mine' : ''}>
+                          {controller.name}
+                          {ownedByMe ? ' · 你' : ''}
+                        </em>
+                      )}
+                    </span>
                     <small>{floorName(h.pos)}</small>
                   </strong>
                   {publicStats && (
@@ -179,7 +192,15 @@ export default function FactionRoster({
             aria-label={(person?.name || enemy.name) + '的详细资料'}
           >
             <header>
-              <strong>{person?.name || enemy.name}</strong>
+              <strong>
+                {person?.name || enemy.name}
+                {person && heroController(net.room, person.id) && (
+                  <small className="inspector-owner">
+                    {heroController(net.room, person.id).name}
+                    {isHeroMine(net.room, person.id) ? ' · 你控制' : ''}
+                  </small>
+                )}
+              </strong>
               <button
                 className="icon-button"
                 aria-label="关闭人物资料"

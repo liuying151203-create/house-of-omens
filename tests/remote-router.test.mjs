@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   RemoteRouteError,
   accessRemoteRoom,
+  connectRemoteRoom,
   createRemoteRoom,
   joinRemoteRoom,
 } from '../lib/network/remote-router.mjs';
@@ -61,6 +62,19 @@ test('remote routes map create, join, read and commands to one object per code',
     namespace.requests[2].request.headers.get('Authorization'),
     'Bearer secret',
   );
+
+  await connectRemoteRoom(
+    namespace,
+    new Request('https://omens.test/api/remote/rooms/abc123/socket', {
+      headers: { Upgrade: 'websocket' },
+    }),
+    'abc123',
+  );
+  assert.equal(namespace.requests[3].code, 'ABC123');
+  assert.equal(
+    new URL(namespace.requests[3].request.url).pathname,
+    '/api/remote/rooms/abc123/socket',
+  );
 });
 
 test('remote routes reject cross-origin mutation and malformed room codes', async () => {
@@ -81,6 +95,15 @@ test('remote routes reject cross-origin mutation and malformed room codes', asyn
     () =>
       joinRemoteRoom(namespace, post('/api/remote/join', { code: '../bad' })),
     (error) => error instanceof RemoteRouteError && error.status === 400,
+  );
+  await assert.rejects(
+    () =>
+      connectRemoteRoom(
+        namespace,
+        new Request('https://omens.test/api/remote/rooms/ABC123/socket'),
+        'ABC123',
+      ),
+    (error) => error instanceof RemoteRouteError && error.status === 426,
   );
   assert.equal(namespace.requests.length, 0);
 });

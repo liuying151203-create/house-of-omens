@@ -67,9 +67,9 @@
 
 ## 远程联机 · 开发中
 
-远程联机后端已完成 Durable Object + SQLite 阶段：每个六位房间码映射到一个 SQLite-backed Durable Object，支持公网 HTTP 建房、加入、权威命令、幂等重试、24 小时过期和 Worker 重启恢复。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要。
+远程联机已完成 Durable Object + SQLite 和 Hibernatable WebSocket 实时同步阶段：每个六位房间码映射到一个 SQLite-backed Durable Object，支持权威命令、按玩家投影广播、幂等重试、退避重连、HTTP 降级、24 小时过期和 Worker 重启恢复。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要，WebSocket attachment 也不保存原始令牌。
 
-当前玩家界面仍默认使用局域网联机；Hibernatable WebSocket、自动重连和远程大厅将在下一阶段接入。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，完成重启恢复和 SQLite 检查后自动关闭。
+当前玩家界面仍使用局域网大厅；远程模式选择、邀请链接和连接状态将在第四阶段接入。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，用两个独立 WebSocket 客户端验证实时同步、隐私投影、幂等和重启恢复，再检查 SQLite 后自动关闭。
 
 ## 四个剧本
 
@@ -97,7 +97,8 @@
 - `app/workshop.jsx`、`lib/catalog.mjs`：素材浏览与自定义草稿。
 - `app/network.jsx`、`scripts/room-server.mjs`：局域网房间与主机同步。
 - `lib/network/room-domain.mjs`：局域网与远程联机共用的房间权限、版本、幂等和投影内核。
-- `lib/network/game-room-do.mjs`、`app/api/remote`：Durable Object、SQLite 持久化与远程 HTTP 路由。
+- `lib/network/game-room-do.mjs`、`app/api/remote`：Durable Object、SQLite 持久化与远程 HTTP / WebSocket 路由。
+- `lib/network/network-protocol.mjs`、`remote-transport.mjs`：稳定消息外壳与浏览器远程传输适配器。
 - `lib/game-data.mjs`：人物、房间、卡牌和剧本数据。
 - `lib/game-engine.mjs`：独立的确定性游戏规则引擎。
 - `lib/card-rules.mjs`：按阶段、剧本和人物解析与修改当前局卡牌。

@@ -101,9 +101,9 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 - 24 小时过期时间写入房间记录并设置 Durable Object alarm。读取旧游戏快照时沿用现有 `CURRENT_GAME_VERSION` 迁移器，不与房间 schema 版本绑定。
 - `npm run test:remote` 会构建 Worker、启动真实 Wrangler、本地建房与并发操作、停止并重启 Worker、验证恢复和继续游戏、检查 SQLite 表，并确认原始令牌没有出现在持久化文件中。
 
-阶段二只提供可调用的远程 HTTP 后端，尚未切换大厅界面。阶段三完成 WebSocket 与客户端传输适配器后，再向玩家开放“远程房间”入口。
+阶段二只提供可调用的远程 HTTP 后端，不切换大厅界面。远程房间的玩家入口、邀请链接与状态展示统一在阶段四开放。
 
-### 阶段 3：Hibernatable WebSocket 实时同步
+### 阶段 3：Hibernatable WebSocket 实时同步（已完成）
 
 - 增加 `hello / ready / command / ack / snapshot / error` 协议。
 - 使用 `acceptWebSocket`、connection attachment 和按玩家投影广播。
@@ -111,6 +111,16 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 - Durable Object 被重新实例化后通过 `getWebSockets` 与 attachment 恢复在线连接，不依赖内存连接表。
 
 可测标准：两端动作实时可见；强制休眠/重启后连接或重连能恢复；重复发送、乱序响应和短时断网不会重复执行动作；私密状态不泄漏给其他座位。
+
+实际实现：
+
+- Worker 入口拦截 `/api/remote/rooms/:code/socket`，校验同源和 Upgrade 后将原始请求代理到对应的 `GameRoom`。
+- `GameRoom` 使用 `acceptWebSocket`、`getWebSockets`和序列化 attachment；attachment 仅保存连接 ID、玩家 ID、协议版本和最近确认 revision。
+- 首次连接使用 `hello / ready / snapshot`，操作使用 `command / ack / updated / error`；`ping / pong` 由 Hibernation 自动响应处理，不唤醒对象。
+- HTTP 与 WebSocket 命令使用同一房间队列、同一幂等回执和同一持久化事务；HTTP 降级命令也会通知在线 WebSocket。
+- 浏览器传输适配器对外提供 `create / join / read / command / subscribe / close`，实现指数退避、断线 HTTP 轮询、命令超时降级和乱序 revision 丢弃。
+- 房间广播遍历 `getWebSockets()` 并按 attachment 中的玩家 ID 单独执行投影，不共享房主快照。选择超时也会设置更早的 Durable Object alarm。
+- `npm run test:remote` 使用两个独立 WebSocket 客户端验证实时广播、重复命令、阵营私密投影、Worker 重启重连与继续游戏，并保留阶段二的 SQLite 和原始令牌检查。
 
 ### 阶段 4：远程大厅、可靠性与安全
 
@@ -131,7 +141,7 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 
 ## 5. 当前阶段提交范围
 
-本阶段不改变玩家界面，也不连接 Cloudflare 账号。现有 `npm run demo` 仍是可玩的局域网版本；后续阶段在同一房间内核上增加远程运行时，不复制游戏规则。
+本阶段不改变玩家大厅，也不连接 Cloudflare 账号。现有 `npm run demo` 仍是可玩的局域网版本；阶段四只需将已验证的远程传输适配器接入大厅，不复制游戏规则或房间状态逻辑。
 
 ## 6. 官方资料
 

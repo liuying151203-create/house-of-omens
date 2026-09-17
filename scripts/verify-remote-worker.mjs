@@ -3,7 +3,14 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rmdir,
+  stat,
+  unlink,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,11 +23,13 @@ const root = path.resolve(fileURLToPath(new URL('..', import.meta.url))),
     'cli.js',
   ),
   config = path.join(root, 'dist', 'server', 'wrangler.json'),
+  websocketProbe = path.join(root, 'scripts', 'remote-websocket-probe.mjs'),
   persistPath = path.join(
     root,
     '.wrangler',
     `remote-test-${process.pid}-${Date.now()}`,
-  );
+  ),
+  persistArgument = path.relative(root, persistPath);
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -35,7 +44,6 @@ function freePort() {
 }
 
 function launch(port) {
-  const output = [];
   const child = spawn(
     process.execPath,
     [
@@ -50,18 +58,17 @@ function launch(port) {
       '--port',
       String(port),
       '--persist-to',
-      persistPath,
+      persistArgument,
       '--local',
       '--show-interactive-dev-session=false',
     ],
-    { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] },
+    {
+      cwd: root,
+      stdio: 'ignore',
+      windowsHide: true,
+    },
   );
-  for (const stream of [child.stdout, child.stderr])
-    stream.on('data', (chunk) => {
-      output.push(String(chunk));
-      if (output.join('').length > 30_000) output.shift();
-    });
-  child.output = output;
+  child.output = [];
   return child;
 }
 
@@ -72,7 +79,13 @@ async function stop(child) {
     once(child, 'exit'),
     new Promise((resolve) => setTimeout(resolve, 5000)),
   ]);
-  if (child.exitCode === null) child.kill('SIGKILL');
+  if (child.exitCode === null) {
+    child.kill('SIGKILL');
+    await Promise.race([
+      once(child, 'exit'),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
+  }
 }
 
 async function waitUntilReady(child, base) {
@@ -138,6 +151,34 @@ async function request(
   return { response, data };
 }
 
+async function runSocketProbeAttempt(input) {
+  const child = spawn(process.execPath, [websocketProbe], {
+      cwd: root,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }),
+    output = [],
+    errors = [];
+  child.stdout.on('data', (chunk) => output.push(String(chunk)));
+  child.stderr.on('data', (chunk) => errors.push(String(chunk)));
+  child.stdin.end(JSON.stringify(input));
+  const timeout = setTimeout(() => child.kill('SIGKILL'), 20_000),
+    [code] = await once(child, 'exit');
+  clearTimeout(timeout);
+  if (code !== 0)
+    throw new Error(`WebSocket probe failed:\n${errors.join('')}`);
+  return JSON.parse(output.join(''));
+}
+
+async function runSocketProbe(input, retries = 2) {
+  try {
+    return await runSocketProbeAttempt(input);
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return runSocketProbe(input, retries - 1);
+  }
+}
+
 async function filesBelow(directory) {
   const entries = await readdir(directory, { withFileTypes: true }),
     files = [];
@@ -147,6 +188,31 @@ async function filesBelow(directory) {
     else if (entry.isFile()) files.push(target);
   }
   return files;
+}
+
+async function removeDirectory(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) await removeDirectory(target);
+    else await unlink(target);
+  }
+  await rmdir(directory);
+}
+
+async function cleanupPersistedState() {
+  if (path.dirname(persistPath) !== path.join(root, '.wrangler'))
+    throw new Error(`Unsafe persistence cleanup path: ${persistPath}`);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      await removeDirectory(persistPath);
+      return;
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      if (!['EBUSY', 'ENOTEMPTY', 'EPERM'].includes(error.code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  throw new Error(`Could not clean Wrangler state at ${persistPath}`);
 }
 
 async function verifyStorage(hostToken, guestToken) {
@@ -213,7 +279,7 @@ async function main() {
 
     const created = await request(base, '/api/remote/rooms', {
       method: 'POST',
-      body: { name: '房主', scenario: 'mirror', count: 3 },
+      body: { name: '房主', scenario: 'werewolf', count: 3 },
     });
     assert.equal(created.response.status, 200);
     assert.match(created.data.code, /^[A-Z0-9]{6}$/);
@@ -226,8 +292,33 @@ async function main() {
     assert.equal(joined.response.status, 200);
     assert.equal(joined.data.players.length, 2);
 
+    const socketSeatCommand = {
+        type: 'command',
+        commandId: 'websocket-seat-command-01',
+        expectedRevision: joined.data.revision,
+        payload: { type: 'seat', seat: 2 },
+      },
+      seatProbe = await runSocketProbe({
+        base,
+        code: created.data.code,
+        hostToken: created.data.key,
+        guestToken: joined.data.key,
+        revision: joined.data.revision,
+        command: socketSeatCommand,
+        repeatCommand: true,
+      });
+    assert.equal(seatProbe.hostYou, created.data.you);
+    assert.equal(seatProbe.guestYou, joined.data.you);
+    assert.equal(seatProbe.revision, joined.data.revision + 1);
+    assert.equal(seatProbe.ackRevision, seatProbe.revision);
+    assert.equal(seatProbe.duplicateAckRevision, seatProbe.revision);
+    assert.equal(seatProbe.seats[2], created.data.you);
+
     const roomPath = `/api/remote/rooms/${created.data.code}`,
-      revision = joined.data.revision,
+      afterSocketCommand = await request(base, roomPath, {
+        token: created.data.key,
+      }),
+      revision = afterSocketCommand.data.revision,
       concurrent = await Promise.all([
         request(base, roomPath, {
           method: 'POST',
@@ -264,6 +355,8 @@ async function main() {
         type: 'start',
         revision: latest.data.revision,
         commandId: 'remote-start-command-01',
+        hauntPlaytest: true,
+        playtestFocus: 'basic',
       },
       started = await request(base, roomPath, {
         method: 'POST',
@@ -280,6 +373,20 @@ async function main() {
     assert.equal(retried.data.revision, started.data.revision);
     assert(started.data.game);
 
+    const privateProbe = await runSocketProbe({
+      base,
+      code: created.data.code,
+      hostToken: created.data.key,
+      guestToken: joined.data.key,
+      revision: started.data.revision,
+    });
+    assert.equal(privateProbe.hostRevision, started.data.revision);
+    assert.equal(privateProbe.guestRevision, started.data.revision);
+    assert(
+      privateProbe.guestHiddenHeroes > 0,
+      'guest WebSocket projection exposed the opposing faction',
+    );
+
     await stop(worker);
     worker = launch(port);
     await waitUntilReady(worker, base);
@@ -290,24 +397,28 @@ async function main() {
     assert.equal(restored.data.revision, started.data.revision);
     assert.deepEqual(restored.data.game, started.data.game);
 
-    const advanced = await request(base, roomPath, {
-      method: 'POST',
-      token: created.data.key,
-      body: {
-        type: 'action',
-        action: { type: 'advance' },
-        revision: restored.data.revision,
+    const advanceCommand = {
+        type: 'command',
         commandId: 'remote-advance-command',
+        expectedRevision: restored.data.revision,
+        payload: { type: 'action', action: { type: 'advance' } },
       },
-    });
-    assert.equal(advanced.response.status, 200);
-    assert.equal(advanced.data.revision, restored.data.revision + 1);
+      advanced = await runSocketProbe({
+        base,
+        code: created.data.code,
+        hostToken: created.data.key,
+        guestToken: joined.data.key,
+        revision: restored.data.revision,
+        command: advanceCommand,
+      });
+    assert.equal(advanced.ackRevision, restored.data.revision + 1);
+    assert.equal(advanced.revision, restored.data.revision + 1);
 
     await stop(worker);
     worker = null;
     await verifyStorage(created.data.key, joined.data.key);
     console.log(
-      `Remote Worker verified: room ${created.data.code}, revision ${advanced.data.revision}, restart recovery and SQLite schema passed.`,
+      `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, restart recovery and SQLite schema passed.`,
     );
   } catch (error) {
     if (worker?.output?.length)
@@ -315,12 +426,7 @@ async function main() {
     throw error;
   } finally {
     await stop(worker);
-    await rm(persistPath, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-      retryDelay: 200,
-    });
+    await cleanupPersistedState();
   }
 }
 

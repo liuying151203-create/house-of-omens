@@ -26,7 +26,8 @@ const built = await build({
     export {default as Personal} from './app/personal-panel.jsx';
     export {default as Commands} from './app/explorer-actions.jsx';
     export {default as Supply} from './app/deck-supply.jsx';
-    export {default as MapPawn} from './app/map-pawn.jsx';`,
+    export {default as MapPawn} from './app/map-pawn.jsx';
+    export {default as Damage} from './app/damage-planner.jsx';`,
     resolveDir: root,
   },
   absWorkingDir: root,
@@ -39,9 +40,8 @@ const built = await build({
 });
 await writeFile(bundle, built.outputFiles[0].contents);
 after(() => unlink(bundle));
-const { Inventory, Roster, Personal, Commands, Supply, MapPawn } = await import(
-  bundle.href
-);
+const { Inventory, Roster, Personal, Commands, Supply, MapPawn, Damage } =
+  await import(bundle.href);
 const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
 const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
@@ -216,6 +216,27 @@ test('personal controls preserve a full-track request and disable ending another
   assert.match(html, /等待队友行动/);
   assert.doesNotMatch(html, /亮格 · 当前|下划线 · 起始/);
   assert.match(html, /class="finish-turn" disabled=""/);
+});
+
+test('a hidden LAN damage request degrades safely without reading private tracks', () => {
+  const game = start(),
+    hero = game.heroes[0];
+  hero.stats = null;
+  hero.tracks = null;
+  hero.start = null;
+  hero.privateStats = true;
+  const html = render(Damage, {
+    game,
+    p: {
+      uid: 99,
+      kind: 'damage',
+      heroId: hero.id,
+      damageType: 'physical',
+      remaining: 2,
+    },
+    send() {},
+  });
+  assert.match(html, /伤害详情仅对负责此角色的玩家可见/);
 });
 
 test('contextual commands expose room actions without scenario narration or deck counts', () => {

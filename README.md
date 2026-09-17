@@ -90,12 +90,15 @@
 - `app/game.css`、`app/revision.css`、`app/iteration-three.css`：视觉、动画与响应式布局。
 - `app/workshop.jsx`、`lib/catalog.mjs`：素材浏览与自定义草稿。
 - `app/network.jsx`、`scripts/room-server.mjs`：局域网房间与主机同步。
+- `lib/network/room-domain.mjs`：局域网与远程联机共用的房间权限、版本、幂等和投影内核。
 - `lib/game-data.mjs`：人物、房间、卡牌和剧本数据。
 - `lib/game-engine.mjs`：独立的确定性游戏规则引擎。
 - `lib/card-rules.mjs`：按阶段、剧本和人物解析与修改当前局卡牌。
 - `app/map-stage.css`、`app/enemy-motion.jsx`：全屏地图悬浮窗口与敌人移动展示。
 - `public/manor.png`、`public/rooms.png`：原创宅邸插画和房间图集。
 - `tests/game.test.mjs`：规则与通关模拟测试。
+
+远程联机采用 Cloudflare Worker、每房间一个 Durable Object、SQLite 持久化和 Hibernatable WebSocket；解耦边界及逐阶段验收标准见 [远程联机技术方案](docs/remote-multiplayer-plan.md)。
 
 代码或文档变更不自动提交或推送，按项目协作规则提供提交命令。
 

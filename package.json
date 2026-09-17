@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "test": "node --test tests/*.test.mjs",
+    "test:remote": "npm run build && node scripts/verify-remote-worker.mjs",
     "build:portable": "npm run build && node scripts/build-portable.mjs",
     "demo": "node scripts/serve-demo.mjs"
   },

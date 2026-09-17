@@ -82,7 +82,7 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 
 可测标准：房间创建、加入、换座、开局、权限、冲突、命令重试和超时测试全部通过；房间状态经过 JSON round-trip 后仍可继续游戏；完整测试与生产构建通过。
 
-### 阶段 2：Durable Object + SQLite 本地闭环
+### 阶段 2：Durable Object + SQLite 本地闭环（已完成）
 
 - 增加 Worker 路由和 `GameRoom` Durable Object，按房间码 `idFromName` 路由。
 - 建表、schema 迁移、令牌摘要、原子保存、24 小时闹钟清理。
@@ -90,6 +90,18 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 - 使用 Wrangler 本地持久化验证重启后恢复、并发 revision 冲突、重复命令和旧游戏快照迁移。
 
 可测标准：关闭并重启本地 Worker 后房间与身份仍可恢复；两个浏览器能完成现有 LAN 测试流程；直接检查 SQLite 表和索引；现有 LAN 模式仍通过全部测试。
+
+实际实现：
+
+- `worker.mjs` 在 Vinext Worker 入口导出 `GameRoom`，Vite 配置声明 `GAME_ROOMS` 绑定和 SQLite Durable Object migration。
+- `POST /api/remote/rooms` 创建房间，`POST /api/remote/join` 加入房间；`GET/POST /api/remote/rooms/:code` 分别读取玩家投影和提交命令。
+- `GameRoom` 以房间码命名，一个对象只管理一个房间。所有状态变更通过串行队列进入共享房间内核，再用 `transactionSync` 原子写入 SQLite。
+- SQLite 使用 `schema_meta`、`room_state`、`players`、`command_receipts` 和 `request_deadlines` 五张表；游戏状态、身份、幂等回执和服务端截止时间分开保存。
+- 浏览器保存 256 位随机身份令牌，SQLite 只保存 SHA-256 摘要；原始令牌只在创建或加入成功时返回一次。
+- 24 小时过期时间写入房间记录并设置 Durable Object alarm。读取旧游戏快照时沿用现有 `CURRENT_GAME_VERSION` 迁移器，不与房间 schema 版本绑定。
+- `npm run test:remote` 会构建 Worker、启动真实 Wrangler、本地建房与并发操作、停止并重启 Worker、验证恢复和继续游戏、检查 SQLite 表，并确认原始令牌没有出现在持久化文件中。
+
+阶段二只提供可调用的远程 HTTP 后端，尚未切换大厅界面。阶段三完成 WebSocket 与客户端传输适配器后，再向玩家开放“远程房间”入口。
 
 ### 阶段 3：Hibernatable WebSocket 实时同步
 

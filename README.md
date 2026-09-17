@@ -65,6 +65,12 @@
 
 直接双击离线 HTML 时，可以单人游戏和管理素材；联机需要通过上述主机网址打开。联网双方的游戏规则由主机统一计算，不采用客户端提交的整份存档。
 
+## 远程联机 · 开发中
+
+远程联机后端已完成 Durable Object + SQLite 阶段：每个六位房间码映射到一个 SQLite-backed Durable Object，支持公网 HTTP 建房、加入、权威命令、幂等重试、24 小时过期和 Worker 重启恢复。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要。
+
+当前玩家界面仍默认使用局域网联机；Hibernatable WebSocket、自动重连和远程大厅将在下一阶段接入。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，完成重启恢复和 SQLite 检查后自动关闭。
+
 ## 四个剧本
 
 - 第十三声钟响：一位探险者叛变，指挥其余队员完成三处祭坛封印。
@@ -80,7 +86,7 @@
 
 ## 开发与验证
 
-使用 Node.js 22.13+，安装依赖后运行 `npm run dev`。构建使用 `npm run build`，规则验证使用 `node --test tests/*.test.mjs`。构建完成后运行 `node scripts/build-portable.mjs` 更新离线单文件。
+使用 Node.js 22.13+，安装依赖后运行 `npm run dev`。构建使用 `npm run build`，规则验证使用 `node --test tests/*.test.mjs`，远程 Worker 持久化验收使用 `npm run test:remote`。构建完成后运行 `node scripts/build-portable.mjs` 更新离线单文件。
 
 规则验证覆盖队伍与属性、随机抽取及旋转、门墙通行、楼层连接、卡牌实际效果、分步作祟提示、伤害分配、跳过不可能的作祟检定、素材包导入导出、联机身份与座位、双客户端冲突和刷新恢复、敌人寻路、目标可达、胜负和存档恢复；另包含三个剧本在 3 人和 6 人队伍下共 72 局合法动作通关模拟。模拟通过不代表任意策略都能获胜，也不替代人工交互试玩。
 
@@ -91,6 +97,7 @@
 - `app/workshop.jsx`、`lib/catalog.mjs`：素材浏览与自定义草稿。
 - `app/network.jsx`、`scripts/room-server.mjs`：局域网房间与主机同步。
 - `lib/network/room-domain.mjs`：局域网与远程联机共用的房间权限、版本、幂等和投影内核。
+- `lib/network/game-room-do.mjs`、`app/api/remote`：Durable Object、SQLite 持久化与远程 HTTP 路由。
 - `lib/game-data.mjs`：人物、房间、卡牌和剧本数据。
 - `lib/game-engine.mjs`：独立的确定性游戏规则引擎。
 - `lib/card-rules.mjs`：按阶段、剧本和人物解析与修改当前局卡牌。

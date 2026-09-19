@@ -65,6 +65,14 @@
 
 直接双击离线 HTML 时，可以单人游戏和管理素材；联机需要通过上述主机网址打开。联网双方的游戏规则由主机统一计算，不采用客户端提交的整份存档。
 
+## 远程联机 · 灰度准备
+
+联机大厅保留局域网入口。远程模式支持创建、六位房间码加入、无令牌邀请链接、连接状态、手动重连、刷新恢复和明确的版本/过期提示；进入游戏后沿用同一套座位、权限和操作界面。每个远程房间映射到一个 SQLite-backed Durable Object，支持按玩家投影广播、幂等重试、退避重连、HTTP 降级、24 小时过期和 Worker 重启恢复。
+
+发布开关 `REMOTE_MULTIPLAYER_STAGE` 默认为 `preview`：普通用户只看到局域网，测试者可在已部署网址后加 `?network=remote` 主动进入远程大厅，邀请链接会自动显示远程入口并填入房间码。设为 `on` 后向所有用户显示远程入口；设为 `off` 时停止创建新远程房间，已有房间仍可加入、读取和继续游戏。该开关不是访问控制，预发布 Worker 应使用独立部署名，不要把测试地址当作私有地址。
+
+远程入口包含按来源创建/加入限流、16KB 请求上限、同源校验、安全响应头和稳定错误码。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要；日志和房间指标不记录令牌或私密剧情正文。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，验证真实限流、6 人并发、双 WebSocket 同步、隐私投影、幂等、重启恢复、旧 schema 迁移、过期和关闭新建后的旧房间继续运行。部署前运行 `npm run release:check`。独立预发布已上线，跨网络完整试玩和生产灰度尚待验收，步骤见 [远程联机发布手册](docs/remote-release-runbook.md)。
+
 ## 四个剧本
 
 - 第十三声钟响：一位探险者叛变，指挥其余队员完成三处祭坛封印。
@@ -80,7 +88,7 @@
 
 ## 开发与验证
 
-使用 Node.js 22.13+，安装依赖后运行 `npm run dev`。构建使用 `npm run build`，规则验证使用 `node --test tests/*.test.mjs`。构建完成后运行 `node scripts/build-portable.mjs` 更新离线单文件。
+使用 Node.js 22.13+，安装依赖后运行 `npm run dev`。构建使用 `npm run build`，规则验证使用 `node --test tests/*.test.mjs`，远程 Worker 持久化验收使用 `npm run test:remote`。构建完成后运行 `node scripts/build-portable.mjs` 更新离线单文件。
 
 规则验证覆盖队伍与属性、随机抽取及旋转、门墙通行、楼层连接、卡牌实际效果、分步作祟提示、伤害分配、跳过不可能的作祟检定、素材包导入导出、联机身份与座位、双客户端冲突和刷新恢复、敌人寻路、目标可达、胜负和存档恢复；另包含三个剧本在 3 人和 6 人队伍下共 72 局合法动作通关模拟。模拟通过不代表任意策略都能获胜，也不替代人工交互试玩。
 
@@ -89,13 +97,18 @@
 - `app/page.jsx`：游戏界面、交互弹窗和浏览器存档。
 - `app/game.css`、`app/revision.css`、`app/iteration-three.css`：视觉、动画与响应式布局。
 - `app/workshop.jsx`、`lib/catalog.mjs`：素材浏览与自定义草稿。
-- `app/network.jsx`、`scripts/room-server.mjs`：局域网房间与主机同步。
+- `app/network.jsx`、`scripts/room-server.mjs`：远程/局域网大厅、会话恢复与局域网主机同步。
+- `lib/network/room-domain.mjs`：局域网与远程联机共用的房间权限、版本、幂等和投影内核。
+- `lib/network/game-room-do.mjs`、`remote-rate-limiter.mjs`、`app/api/remote`：房间与限流 Durable Object、SQLite 指标和远程 HTTP / WebSocket 路由。
+- `lib/network/network-protocol.mjs`、`remote-transport.mjs`：稳定消息外壳与浏览器远程传输适配器。
 - `lib/game-data.mjs`：人物、房间、卡牌和剧本数据。
 - `lib/game-engine.mjs`：独立的确定性游戏规则引擎。
 - `lib/card-rules.mjs`：按阶段、剧本和人物解析与修改当前局卡牌。
 - `app/map-stage.css`、`app/enemy-motion.jsx`：全屏地图悬浮窗口与敌人移动展示。
 - `public/manor.png`、`public/rooms.png`：原创宅邸插画和房间图集。
 - `tests/game.test.mjs`：规则与通关模拟测试。
+
+远程联机采用 Cloudflare Worker、每房间一个 Durable Object、SQLite 持久化和 Hibernatable WebSocket；解耦边界及逐阶段验收标准见 [远程联机技术方案](docs/remote-multiplayer-plan.md)。
 
 代码或文档变更不自动提交或推送，按项目协作规则提供提交命令。
 

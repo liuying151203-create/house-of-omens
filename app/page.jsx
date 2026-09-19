@@ -98,7 +98,7 @@ import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
 import DamagePlanner from './damage-planner';
-import { useNetwork, NetworkLobby } from './network';
+import { useNetwork, NetworkLobby, networkStatusLabel } from './network';
 import PlaytestControls from './playtest-controls';
 import {
   createHauntPlaytest,
@@ -1289,6 +1289,17 @@ export default function Home() {
   useEffect(() => {
     netRef.current = net;
   }, [net]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const timer = setTimeout(() => {
+      if (
+        params.get('network') === 'remote' &&
+        /^[A-Z0-9]{6}$/.test(params.get('join')?.toUpperCase() || '')
+      )
+        setView('network');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const attributeFeedback = useAttributeChanges(game);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1510,8 +1521,8 @@ export default function Home() {
           </div>
           {game && net.session && (
             <div
-              className="network-status"
-              title={`房间 ${net.room?.code || net.session.code} · ${net.connected ? '已同步' : '正在重连'}`}
+              className={`network-status network-status-${net.kind}`}
+              title={`${net.kind === 'remote' ? '远程' : '局域网'}房间 ${net.room?.code || net.session.code} · ${networkStatusLabel(net.kind, net.connectionState)}`}
             >
               <Users size={16} />
               <span className="network-identity">
@@ -1520,7 +1531,7 @@ export default function Home() {
               </span>
               <span className="network-room">
                 {net.room?.code || net.session.code} ·{' '}
-                {net.connected ? '已同步' : '重连中'}
+                {networkStatusLabel(net.kind, net.connectionState)}
               </span>
               <span className="network-turn">
                 {waiting ? '等待队友' : '轮到你'}
@@ -1789,7 +1800,9 @@ export default function Home() {
                 <div className="save-status">
                   <Save size={13} />
                   {net.session
-                    ? '联机状态由房主电脑保存'
+                    ? net.kind === 'remote'
+                      ? '远程房间已持久化保存'
+                      : '联机状态由房主电脑保存'
                     : storageError
                       ? '无法保存进度'
                       : '进度已自动保存'}
@@ -2198,7 +2211,7 @@ export default function Home() {
             </ol>
             <p className="help-note">
               36张房间牌、10张事件卡、10张物品卡、12张预兆卡均为本 Demo
-              的原创内容。包含四个原创剧本、单人模式与局域网联机；仍未覆盖原版全部特殊房间、卡牌交易、怪物规则，异地联网将在后续扩展。
+              的原创内容。包含四个原创剧本、单人模式、局域网与远程联机；仍未覆盖原版全部特殊房间、卡牌交易和怪物规则。
             </p>
             <button className="gold-button" onClick={() => setHelp(false)}>
               我准备好了
@@ -2220,7 +2233,9 @@ export default function Home() {
               {confirm === 'round'
                 ? `还有${remaining}名队员未结束行动。结束整轮会跳过他们的剩余行动，并让作祟中的敌人行动。`
                 : net.session
-                  ? '离开此联机房间，房间在主机关闭前继续保留。'
+                  ? net.kind === 'remote'
+                    ? '离开此远程房间后，本设备上的房间身份会被清除；房间将在最后一次操作 24 小时后过期。'
+                    : '离开此局域网房间，房间在主机关闭前继续保留。'
                   : '当前进度已保存在本机。你可以随时从主菜单继续探索。'}
             </DialogDescription>
             <button

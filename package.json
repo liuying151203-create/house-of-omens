@@ -12,6 +12,8 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "test": "node --test tests/*.test.mjs",
+    "test:remote": "npm run build && node scripts/verify-remote-worker.mjs",
+    "release:check": "npm run build && node scripts/check-remote-release.mjs",
     "build:portable": "npm run build && node scripts/build-portable.mjs",
     "demo": "node scripts/serve-demo.mjs"
   },
@@ -52,7 +54,8 @@
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "wrangler": "4.92.0",
+    "ws": "8.18.0"
   },
   "type": "module"
 }

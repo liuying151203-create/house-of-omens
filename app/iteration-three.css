@@ -586,6 +586,9 @@
   border-radius: 8px;
   overflow: hidden;
 }
+.network-mode-switch.network-mode-single {
+  grid-template-columns: 1fr;
+}
 .network-mode-switch button {
   min-height: 72px;
   display: flex;

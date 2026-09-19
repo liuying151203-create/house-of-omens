@@ -142,7 +142,7 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 
 本地自动验收已经完成。公网预发布环境的桌面/移动端跨网络人工试玩需要在部署后执行，作为进入阶段五前的发布门槛。
 
-### 阶段 5：发布与兼容运行
+### 阶段 5：发布与兼容运行（预发布已上线，生产验收待执行）
 
 - 灰度启用远程入口，局域网与离线单人继续保留。
 - 先保持完整快照广播；仅在真实带宽数据证明有必要时引入增量补丁。
@@ -150,9 +150,13 @@ WebSocket attachment 只保存 `playerId`、连接 ID、协议版本和最近确
 
 可测标准：生产新建房间、邀请加入、完整一轮、刷新重连和房间过期流程通过；旧版本客户端收到明确升级提示；回滚不破坏已创建房间。
 
+本地实现：`REMOTE_MULTIPLAYER_STAGE=preview|on|off` 控制大厅曝光和新建；`off` 只关闭新建，不中断已有房间。邀请链接可在灰度期间进入远程模式，测试房主也可通过 `?network=remote` 主动进入。自动验收覆盖旧 SQLite schema 1 迁移到 2、房间过期、关闭新建后的 HTTP/WebSocket 恢复和加入；`npm run release:check` 检查当前构建的 Durable Object 绑定及相对于指定回滚 Git ref 的房间、协议和游戏版本。schema 1 代码不能作为 schema 2 房间的回滚目标。独立预发布 Worker 已部署为 `preview`，公网首页、远程开关、HTTP 建房/加入/读取和 WebSocket `hello / ready / snapshot` 已通过；跨设备完整对局、双方实时消息同步和生产 24 小时过期观察尚未完成，不能以本地模拟替代。
+
+详细部署、灰度验收、止损与回滚边界见 [远程联机发布手册](remote-release-runbook.md)。
+
 ## 5. 当前阶段提交范围
 
-阶段四已接入玩家大厅，但没有在未经授权的情况下提交、推送或连接 Cloudflare 账号。现有 `npm run demo` 继续提供单人/局域网试玩；`npm run dev` 和 `npm run test:remote` 可在本地运行完整远程链路。阶段五负责部署、灰度与生产兼容验收。
+阶段五的本地发布准备已完成，Cloudflare 账号已授权并部署了独立预发布 Worker，但尚未部署生产、提交或推送。现有 `npm run demo` 继续提供单人/局域网试玩；`npm run dev` 和 `npm run test:remote` 可在本地运行完整远程链路。公网阶段仍须按发布手册执行跨网络试玩与生产验收。
 
 ## 6. 官方资料
 

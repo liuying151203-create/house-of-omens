@@ -5,6 +5,11 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import {
+  canCreateRemoteRoom,
+  remoteRolloutStage,
+  remoteRoomVisible,
+} from '../lib/network/remote-rollout.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)),
   bundle = new URL(
@@ -68,7 +73,7 @@ function room() {
   };
 }
 
-test('network lobby separates remote and LAN entry paths', () => {
+test('network lobby defaults to LAN while remote entry is in preview', () => {
   const html = renderToStaticMarkup(
     createElement(NetworkLobby, {
       net: network(),
@@ -77,10 +82,9 @@ test('network lobby separates remote and LAN entry paths', () => {
       onClose() {},
     }),
   );
-  assert.match(html, /远程房间/);
   assert.match(html, /局域网房间/);
-  assert.match(html, /创建远程房间/);
-  assert.match(html, /加入远程房间/);
+  assert.match(html, /创建局域网房间/);
+  assert.doesNotMatch(html, /创建远程房间/);
 });
 
 test('remote room lobby exposes durable status and invitation action', () => {
@@ -115,4 +119,18 @@ test('remote invitation contains only public room coordinates', () => {
   );
   assert(!invite.includes('secret'));
   assert.equal(networkStatusLabel('remote', 'expired'), '房间已过期');
+});
+
+test('remote rollout keeps existing rooms accessible after creation closes', () => {
+  assert.equal(remoteRolloutStage({}), 'preview');
+  assert.equal(remoteRolloutStage({ REMOTE_MULTIPLAYER_STAGE: 'on' }), 'on');
+  assert.equal(
+    remoteRolloutStage({ REMOTE_MULTIPLAYER_STAGE: 'invalid' }),
+    'preview',
+  );
+  assert.equal(remoteRoomVisible('preview'), false);
+  assert.equal(remoteRoomVisible('preview', true), true);
+  assert.equal(remoteRoomVisible('off', true), true);
+  assert.equal(remoteRoomVisible('on'), true);
+  assert.equal(canCreateRemoteRoom({ REMOTE_MULTIPLAYER_STAGE: 'off' }), false);
 });

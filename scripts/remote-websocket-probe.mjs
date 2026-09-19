@@ -8,7 +8,7 @@ function createClient(base, code) {
     ),
     messages = [],
     waiters = [];
-  url.protocol = 'ws:';
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   const socket = new WebSocket(url),
     opened = new Promise((resolve, reject) => {
       const timer = setTimeout(

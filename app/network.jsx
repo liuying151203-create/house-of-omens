@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { HEROES } from '@/lib/game-data.mjs';
 import { createRemoteTransport } from '@/lib/network/remote-transport.mjs';
+import { remoteRoomVisible } from '@/lib/network/remote-rollout.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
 
@@ -302,35 +303,50 @@ export function useNetwork(setGame) {
   };
 }
 
-function initialLobbyMode() {
-  if (typeof window === 'undefined') return 'remote';
-  return new URLSearchParams(window.location.search).get('network') === 'local'
-    ? 'local'
-    : 'remote';
-}
-
-function initialRoomCode() {
-  if (typeof window === 'undefined') return '';
-  const code = new URLSearchParams(window.location.search)
-    .get('join')
-    ?.toUpperCase();
-  return /^[A-Z0-9]{6}$/.test(code || '') ? code : '';
-}
-
 export function NetworkLobby({ net, scenario, count, onClose }) {
   const [playtestFocus, setPlaytestFocus] = useState('basic'),
-    [mode, setMode] = useState(() => net.preferredKind || initialLobbyMode()),
+    [mode, setMode] = useState('local'),
     [name, setName] = useState(''),
-    [code, setCode] = useState(initialRoomCode),
+    [code, setCode] = useState(''),
     [addresses, setAddresses] = useState([]),
-    [copied, setCopied] = useState('');
+    [copied, setCopied] = useState(''),
+    [rollout, setRollout] = useState('preview'),
+    [remoteOptIn, setRemoteOptIn] = useState(false);
   const activeMode = net.session?.kind || mode,
     room = net.room,
     isRemote = activeMode === 'remote',
+    showRemote =
+      net.session?.kind === 'remote' || remoteRoomVisible(rollout, remoteOptIn),
     inviteUrl =
       room && isRemote && typeof window !== 'undefined'
         ? buildRemoteInviteUrl(window.location, room.code)
         : '';
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search),
+      remoteRequested = params.get('network') === 'remote',
+      invitedCode = params.get('join')?.toUpperCase(),
+      validCode = /^[A-Z0-9]{6}$/.test(invitedCode || '');
+    const timer = setTimeout(() => {
+      if (remoteRequested) {
+        setRemoteOptIn(true);
+        setMode('remote');
+        if (validCode) setCode(invitedCode);
+      }
+    }, 0);
+    let cancelled = false;
+    fetch('/api/remote/availability')
+      .then((response) => response.json())
+      .then((data) => {
+        if (!cancelled && ['off', 'preview', 'on'].includes(data.stage))
+          setRollout(data.stage);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeMode !== 'local') {
@@ -384,18 +400,23 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
         </button>
       </div>
 
-      <div className="network-mode-switch" aria-label="联机方式">
-        <button
-          aria-pressed={activeMode === 'remote'}
-          disabled={!!net.session}
-          onClick={() => setMode('remote')}
-        >
-          <Cloud size={18} />
-          <span>
-            远程房间
-            <small>跨网络 · 云端保存 24 小时</small>
-          </span>
-        </button>
+      <div
+        className={`network-mode-switch ${showRemote ? '' : 'network-mode-single'}`}
+        aria-label="联机方式"
+      >
+        {showRemote && (
+          <button
+            aria-pressed={activeMode === 'remote'}
+            disabled={!!net.session}
+            onClick={() => setMode('remote')}
+          >
+            <Cloud size={18} />
+            <span>
+              远程房间
+              <small>跨网络 · 云端保存 24 小时</small>
+            </span>
+          </button>
+        )}
         <button
           aria-pressed={activeMode === 'local'}
           disabled={!!net.session}
@@ -443,7 +464,9 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
           </label>
           <button
             className="gold-button"
-            disabled={net.busy || !!net.session}
+            disabled={
+              net.busy || !!net.session || (isRemote && rollout === 'off')
+            }
             onClick={() =>
               net.connect(activeMode, 'create', { name, scenario, count })
             }
@@ -451,6 +474,11 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
             {isRemote ? <Cloud size={18} /> : <Wifi size={18} />}
             创建{isRemote ? '远程' : '局域网'}房间 · {count} 个角色
           </button>
+          {isRemote && rollout === 'off' && (
+            <p className="network-note">
+              远程房间暂不开放创建，已有房间仍可加入。
+            </p>
+          )}
           <div className="network-divider">
             <span>或加入已有房间</span>
           </div>

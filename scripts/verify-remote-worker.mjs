@@ -43,7 +43,7 @@ function freePort() {
   });
 }
 
-function launch(port) {
+function launch(port, stage) {
   const child = spawn(
     process.execPath,
     [
@@ -61,14 +61,20 @@ function launch(port) {
       persistArgument,
       '--local',
       '--show-interactive-dev-session=false',
+      ...(stage ? ['--var', `REMOTE_MULTIPLAYER_STAGE:${stage}`] : []),
     ],
     {
       cwd: root,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     },
   );
   child.output = [];
+  for (const stream of [child.stdout, child.stderr])
+    stream.on('data', (chunk) => {
+      child.output.push(String(chunk));
+      if (child.output.length > 50) child.output.shift();
+    });
   return child;
 }
 
@@ -96,6 +102,7 @@ async function waitUntilReady(child, base) {
     try {
       const response = await fetch(base + '/api/remote/rooms/TEST00', {
           headers: { Authorization: 'Bearer readiness-probe' },
+          signal: AbortSignal.timeout(10_000),
         }),
         body = await response.text();
       if (
@@ -119,14 +126,31 @@ async function request(
 ) {
   const options = {
     method,
+    signal: AbortSignal.timeout(15_000),
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };
   if (body) options.body = JSON.stringify(body);
-  const response = await fetch(base + pathname, options),
-    responseBody = await response.text();
+  let response;
+  try {
+    response = await fetch(base + pathname, options);
+  } catch (error) {
+    if (method === 'GET' && retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return request(base, pathname, {
+        method,
+        token,
+        body,
+        retries: retries - 1,
+      });
+    }
+    throw new Error(`${method} ${pathname} failed: ${error.message}`, {
+      cause: error,
+    });
+  }
+  const responseBody = await response.text();
   if (
     retries > 0 &&
     response.status === 503 &&
@@ -222,6 +246,58 @@ async function cleanupPersistedState() {
   throw new Error(`Could not clean Wrangler state at ${persistPath}`);
 }
 
+async function roomDatabasePath(roomCode) {
+  for (const file of await filesBelow(persistPath)) {
+    if (!file.endsWith('.sqlite')) continue;
+    let database;
+    try {
+      database = new DatabaseSync(file, { readOnly: true });
+      const row = database
+        .prepare('SELECT state_json FROM room_state WHERE singleton = 1')
+        .get();
+      if (row && JSON.parse(row.state_json).code === roomCode) return file;
+    } catch {
+      // Other Wrangler databases do not contain a room_state table.
+    } finally {
+      database?.close();
+    }
+  }
+  throw new Error(`Could not find SQLite state for room ${roomCode}`);
+}
+
+async function withRoomDatabase(roomCode, operation) {
+  const file = await roomDatabasePath(roomCode);
+  assert.equal(path.relative(persistPath, file).startsWith('..'), false);
+  const database = new DatabaseSync(file);
+  try {
+    return operation(database);
+  } finally {
+    database.close();
+  }
+}
+
+async function simulateLegacySchema(roomCode) {
+  await withRoomDatabase(roomCode, (database) => {
+    database.exec('BEGIN');
+    try {
+      database.exec('UPDATE schema_meta SET version = 1 WHERE singleton = 1');
+      database.exec('DROP TABLE room_metrics');
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+  });
+}
+
+async function expireRoomFixture(roomCode) {
+  await withRoomDatabase(roomCode, (database) => {
+    database
+      .prepare('UPDATE room_state SET expires_at = ? WHERE singleton = 1')
+      .run(Date.now() - 1000);
+  });
+}
+
 async function verifyStorage(roomCode, hostToken, guestToken) {
   const files = await filesBelow(persistPath);
   assert(files.length, 'Wrangler did not create persistent storage files');
@@ -239,36 +315,19 @@ async function verifyStorage(roomCode, hostToken, guestToken) {
     );
   }
 
-  let tables, metrics;
-  for (const file of files) {
-    try {
-      const database = new DatabaseSync(file, { readOnly: true });
-      const names = database
-        .prepare("SELECT name FROM sqlite_schema WHERE type = 'table'")
-        .all()
-        .map((row) => row.name);
-      if (
-        names.includes('room_state') &&
-        database
-          .prepare('SELECT state_json FROM room_state WHERE singleton = 1')
-          .get()
-          ?.state_json.includes(`"code":"${roomCode}"`)
-      ) {
-        tables = names;
-        metrics = database
-          .prepare(
-            `SELECT schema_version, connection_high_water, connections_total,
-              commands_total, command_conflicts, restore_failures
-            FROM room_metrics WHERE singleton = 1`,
-          )
-          .get();
-        database.close();
-        break;
-      }
-      database.close();
-    } catch {}
-  }
-  assert(tables, 'Could not find the Durable Object SQLite database');
+  const { tables, metrics } = await withRoomDatabase(roomCode, (database) => ({
+    tables: database
+      .prepare("SELECT name FROM sqlite_schema WHERE type = 'table'")
+      .all()
+      .map((row) => row.name),
+    metrics: database
+      .prepare(
+        `SELECT schema_version, connection_high_water, connections_total,
+          commands_total, command_conflicts, restore_failures
+        FROM room_metrics WHERE singleton = 1`,
+      )
+      .get(),
+  }));
   for (const table of [
     'schema_meta',
     'room_state',
@@ -498,6 +557,7 @@ async function main() {
     );
 
     await stop(worker);
+    await simulateLegacySchema(stressRoom.code);
     worker = launch(port);
     await waitUntilReady(worker, base);
     const restored = await request(base, roomPath, {
@@ -506,6 +566,16 @@ async function main() {
     assert.equal(restored.response.status, 200);
     assert.equal(restored.data.revision, started.data.revision);
     assert.deepEqual(restored.data.game, started.data.game);
+    const migratedStressRoom = await request(
+      base,
+      `/api/remote/rooms/${stressRoom.code}`,
+      { token: stressRoom.key },
+    );
+    assert.equal(migratedStressRoom.response.status, 200);
+    assert.equal(
+      migratedStressRoom.data.revision,
+      stressLatest.data.revision + 1,
+    );
 
     const advanceCommand = {
         type: 'command',
@@ -525,10 +595,60 @@ async function main() {
     assert.equal(advanced.revision, restored.data.revision + 1);
 
     await stop(worker);
+    await withRoomDatabase(stressRoom.code, (database) => {
+      assert.equal(
+        database
+          .prepare('SELECT version FROM schema_meta WHERE singleton = 1')
+          .get().version,
+        2,
+      );
+      assert(
+        database
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'room_metrics'")
+          .get(),
+      );
+    });
+    await expireRoomFixture(stressRoom.code);
+    worker = launch(port, 'off');
+    await waitUntilReady(worker, base);
+    const availability = await request(base, '/api/remote/availability');
+    assert.equal(availability.data.stage, 'off');
+    const creationDisabled = await request(base, '/api/remote/rooms', {
+      method: 'POST',
+      body: { name: '新房主', scenario: 'mirror', count: 3 },
+    });
+    assert.equal(creationDisabled.response.status, 503);
+    assert.equal(creationDisabled.data.code, 'remote_creation_disabled');
+    const existingRoom = await request(base, roomPath, {
+      token: created.data.key,
+    });
+    assert.equal(existingRoom.response.status, 200);
+    assert.equal(existingRoom.data.revision, advanced.revision);
+    const existingConnections = await runSocketProbe({
+      base,
+      code: created.data.code,
+      hostToken: created.data.key,
+      guestToken: joined.data.key,
+      revision: advanced.revision,
+    });
+    assert.equal(existingConnections.hostRevision, advanced.revision);
+    const lateJoin = await request(base, '/api/remote/join', {
+      method: 'POST',
+      body: { name: '迟到访客', code: createBurst[1].data.code },
+    });
+    assert.equal(lateJoin.response.status, 200);
+    const expired = await request(
+      base,
+      `/api/remote/rooms/${stressRoom.code}`,
+      { token: stressRoom.key },
+    );
+    assert.equal(expired.response.status, 404);
+    assert.equal(expired.data.code, 'room_not_found');
+    await stop(worker);
     worker = null;
     await verifyStorage(created.data.code, created.data.key, joined.data.key);
     console.log(
-      `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, restart recovery and SQLite schema passed.`,
+      `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, schema migration, expiry, and rollout-off recovery passed.`,
     );
   } catch (error) {
     if (worker?.output?.length)

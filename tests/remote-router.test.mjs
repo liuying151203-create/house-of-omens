@@ -6,6 +6,7 @@ import {
   connectRemoteRoom,
   createRemoteRoom,
   joinRemoteRoom,
+  routeErrorResponse,
 } from '../lib/network/remote-router.mjs';
 
 function fakeNamespace() {
@@ -30,6 +31,20 @@ function post(path, data, headers = {}) {
   });
 }
 
+function fakeRateLimit(response = () => Response.json({ allowed: true })) {
+  const requests = [];
+  return {
+    requests,
+    idFromName: (name) => name,
+    get: (name) => ({
+      async fetch(request) {
+        requests.push({ name, request });
+        return response();
+      },
+    }),
+  };
+}
+
 test('remote routes map create, join, read and commands to one object per code', async () => {
   const namespace = fakeNamespace();
   const created = await createRemoteRoom(
@@ -39,6 +54,8 @@ test('remote routes map create, join, read and commands to one object per code',
   const createdBody = await created.json();
   assert.match(createdBody.code, /^[A-Z0-9]{6}$/);
   assert.equal(namespace.requests[0].code, createdBody.code);
+  assert.equal(created.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.equal(created.headers.get('Referrer-Policy'), 'no-referrer');
 
   await joinRemoteRoom(
     namespace,
@@ -106,4 +123,70 @@ test('remote routes reject cross-origin mutation and malformed room codes', asyn
     (error) => error instanceof RemoteRouteError && error.status === 426,
   );
   assert.equal(namespace.requests.length, 0);
+});
+
+test('remote routes enforce JSON size limits and structured rate errors', async () => {
+  const namespace = fakeNamespace(),
+    limiter = fakeRateLimit();
+  await createRemoteRoom(
+    namespace,
+    post(
+      '/api/remote/rooms',
+      { scenario: 'mirror', count: 3 },
+      { 'CF-Connecting-IP': '203.0.113.10' },
+    ),
+    limiter,
+  );
+  assert.equal(limiter.requests.length, 1);
+  assert.match(limiter.requests[0].name, /^create:203\.0\.113\.10:/);
+
+  await assert.rejects(
+    () =>
+      createRemoteRoom(
+        namespace,
+        new Request('https://omens.test/api/remote/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: '{}',
+        }),
+        limiter,
+      ),
+    (error) => error instanceof RemoteRouteError && error.status === 415,
+  );
+  await assert.rejects(
+    () =>
+      createRemoteRoom(
+        namespace,
+        post(
+          '/api/remote/rooms',
+          { scenario: 'mirror', count: 3 },
+          { 'Content-Length': '16001' },
+        ),
+        limiter,
+      ),
+    (error) => error instanceof RemoteRouteError && error.status === 413,
+  );
+
+  const blockedLimiter = fakeRateLimit(() =>
+    Response.json(
+      { error: '请求过于频繁，请稍后重试。', code: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': '30' } },
+    ),
+  );
+  let rejected;
+  try {
+    await joinRemoteRoom(
+      namespace,
+      post('/api/remote/join', { code: 'ABC123', name: '访客' }),
+      blockedLimiter,
+    );
+  } catch (error) {
+    rejected = routeErrorResponse(error);
+  }
+  assert.equal(rejected.status, 429);
+  assert.equal(rejected.headers.get('Retry-After'), '30');
+  assert.deepEqual(await rejected.json(), {
+    error: '请求过于频繁，请稍后重试。',
+    code: 'rate_limited',
+  });
 });

@@ -16,9 +16,18 @@ const localBindingConfig = {
   main: './worker.mjs',
   compatibility_flags: ['nodejs_compat'],
   durable_objects: {
-    bindings: [{ name: 'GAME_ROOMS', class_name: 'GameRoom' }],
+    bindings: [
+      { name: 'GAME_ROOMS', class_name: 'GameRoom' },
+      { name: 'REMOTE_RATE_LIMITERS', class_name: 'RemoteRateLimiter' },
+    ],
   },
-  migrations: [{ tag: 'remote-rooms-v1', new_sqlite_classes: ['GameRoom'] }],
+  migrations: [
+    { tag: 'remote-rooms-v1', new_sqlite_classes: ['GameRoom'] },
+    {
+      tag: 'remote-rate-limits-v1',
+      new_sqlite_classes: ['RemoteRateLimiter'],
+    },
+  ],
   d1_databases: d1
     ? [
         {

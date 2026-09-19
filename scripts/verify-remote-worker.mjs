@@ -151,6 +151,13 @@ async function request(
   return { response, data };
 }
 
+async function fetchAfterStartup(url, options, retries = 4) {
+  const response = await fetch(url, options);
+  if (response.status !== 503 || retries <= 0) return response;
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return fetchAfterStartup(url, options, retries - 1);
+}
+
 async function runSocketProbeAttempt(input) {
   const child = spawn(process.execPath, [websocketProbe], {
       cwd: root,
@@ -215,7 +222,7 @@ async function cleanupPersistedState() {
   throw new Error(`Could not clean Wrangler state at ${persistPath}`);
 }
 
-async function verifyStorage(hostToken, guestToken) {
+async function verifyStorage(roomCode, hostToken, guestToken) {
   const files = await filesBelow(persistPath);
   assert(files.length, 'Wrangler did not create persistent storage files');
   for (const file of files) {
@@ -232,7 +239,7 @@ async function verifyStorage(hostToken, guestToken) {
     );
   }
 
-  let tables;
+  let tables, metrics;
   for (const file of files) {
     try {
       const database = new DatabaseSync(file, { readOnly: true });
@@ -240,11 +247,25 @@ async function verifyStorage(hostToken, guestToken) {
         .prepare("SELECT name FROM sqlite_schema WHERE type = 'table'")
         .all()
         .map((row) => row.name);
-      database.close();
-      if (names.includes('room_state')) {
+      if (
+        names.includes('room_state') &&
+        database
+          .prepare('SELECT state_json FROM room_state WHERE singleton = 1')
+          .get()
+          ?.state_json.includes(`"code":"${roomCode}"`)
+      ) {
         tables = names;
+        metrics = database
+          .prepare(
+            `SELECT schema_version, connection_high_water, connections_total,
+              commands_total, command_conflicts, restore_failures
+            FROM room_metrics WHERE singleton = 1`,
+          )
+          .get();
+        database.close();
         break;
       }
+      database.close();
     } catch {}
   }
   assert(tables, 'Could not find the Durable Object SQLite database');
@@ -254,8 +275,15 @@ async function verifyStorage(hostToken, guestToken) {
     'players',
     'command_receipts',
     'request_deadlines',
+    'room_metrics',
   ])
     assert(tables.includes(table), `Missing SQLite table ${table}`);
+  assert.equal(metrics.schema_version, 2);
+  assert(metrics.connection_high_water >= 2, 'connection metric was not kept');
+  assert(metrics.connections_total >= 2, 'connection total was not kept');
+  assert(metrics.commands_total >= 5, 'command metric was not kept');
+  assert(metrics.command_conflicts >= 1, 'command conflict was not kept');
+  assert.equal(metrics.restore_failures, 0);
 }
 
 async function main() {
@@ -267,7 +295,7 @@ async function main() {
     worker = launch(port);
     await waitUntilReady(worker, base);
 
-    const blocked = await fetch(base + '/api/remote/rooms', {
+    const blocked = await fetchAfterStartup(base + '/api/remote/rooms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -276,14 +304,96 @@ async function main() {
       body: JSON.stringify({ scenario: 'mirror', count: 3 }),
     });
     assert.equal(blocked.status, 403);
+    assert.equal((await blocked.json()).code, 'forbidden');
+
+    const wrongType = await fetchAfterStartup(base + '/api/remote/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: '{}',
+    });
+    assert.equal(wrongType.status, 415);
+    assert.equal((await wrongType.json()).code, 'unsupported_media_type');
+
+    const oversized = await fetchAfterStartup(base + '/api/remote/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'x'.repeat(17_000) }),
+    });
+    assert.equal(oversized.status, 413);
+    assert.equal((await oversized.json()).code, 'payload_too_large');
 
     const created = await request(base, '/api/remote/rooms', {
       method: 'POST',
       body: { name: '房主', scenario: 'werewolf', count: 3 },
     });
     assert.equal(created.response.status, 200);
+    assert.equal(
+      created.response.headers.get('X-Content-Type-Options'),
+      'nosniff',
+    );
     assert.match(created.data.code, /^[A-Z0-9]{6}$/);
     assert.equal(created.data.key.length, 64);
+
+    const createBurst = [];
+    for (let index = 0; index < 6; index++)
+      createBurst.push(
+        await request(base, '/api/remote/rooms', {
+          method: 'POST',
+          body: {
+            name: `压力房主${index + 1}`,
+            scenario: 'mirror',
+            count: 6,
+          },
+        }),
+      );
+    assert.deepEqual(
+      createBurst.map((result) => result.response.status),
+      [200, 200, 200, 200, 200, 429],
+    );
+    assert.equal(createBurst.at(-1).data.code, 'rate_limited');
+
+    const stressRoom = createBurst[0].data,
+      stressGuests = await Promise.all(
+        Array.from({ length: 5 }, (_, index) =>
+          request(base, '/api/remote/join', {
+            method: 'POST',
+            body: {
+              name: `并发访客${index + 1}`,
+              code: stressRoom.code,
+            },
+          }),
+        ),
+      );
+    assert(stressGuests.every((result) => result.response.status === 200));
+    const stressLatest = await request(
+        base,
+        `/api/remote/rooms/${stressRoom.code}`,
+        { token: stressRoom.key },
+      ),
+      stressSessions = [
+        stressRoom,
+        ...stressGuests.map((result) => result.data),
+      ],
+      stressCommands = await Promise.all(
+        stressSessions.map((player, index) =>
+          request(base, `/api/remote/rooms/${stressRoom.code}`, {
+            method: 'POST',
+            token: player.key,
+            body: {
+              type: 'seat',
+              seat: index,
+              revision: stressLatest.data.revision,
+              commandId: `stress-seat-command-${index}`,
+            },
+          }),
+        ),
+      );
+    assert.deepEqual(
+      stressCommands
+        .map((result) => result.response.status)
+        .sort((left, right) => left - right),
+      [200, 409, 409, 409, 409, 409],
+    );
 
     const joined = await request(base, '/api/remote/join', {
       method: 'POST',
@@ -416,7 +526,7 @@ async function main() {
 
     await stop(worker);
     worker = null;
-    await verifyStorage(created.data.key, joined.data.key);
+    await verifyStorage(created.data.code, created.data.key, joined.data.key);
     console.log(
       `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, restart recovery and SQLite schema passed.`,
     );

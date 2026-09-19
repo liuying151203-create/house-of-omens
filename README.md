@@ -65,11 +65,11 @@
 
 直接双击离线 HTML 时，可以单人游戏和管理素材；联机需要通过上述主机网址打开。联网双方的游戏规则由主机统一计算，不采用客户端提交的整份存档。
 
-## 远程联机 · 开发中
+## 远程联机 · 第四阶段
 
-远程联机已完成 Durable Object + SQLite 和 Hibernatable WebSocket 实时同步阶段：每个六位房间码映射到一个 SQLite-backed Durable Object，支持权威命令、按玩家投影广播、幂等重试、退避重连、HTTP 降级、24 小时过期和 Worker 重启恢复。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要，WebSocket attachment 也不保存原始令牌。
+联机大厅现在可以切换“远程房间”和“局域网房间”。远程模式支持创建、六位房间码加入、无令牌邀请链接、连接状态、手动重连、刷新恢复和明确的版本/过期提示；进入游戏后沿用同一套座位、权限和操作界面。每个远程房间映射到一个 SQLite-backed Durable Object，支持按玩家投影广播、幂等重试、退避重连、HTTP 降级、24 小时过期和 Worker 重启恢复。
 
-当前玩家界面仍使用局域网大厅；远程模式选择、邀请链接和连接状态将在第四阶段接入。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，用两个独立 WebSocket 客户端验证实时同步、隐私投影、幂等和重启恢复，再检查 SQLite 后自动关闭。
+远程入口包含按来源创建/加入限流、16KB 请求上限、同源校验、安全响应头和稳定错误码。身份令牌只在浏览器保留，服务端持久化 SHA-256 摘要；日志和房间指标不记录令牌或私密剧情正文。开发验证运行 `npm run test:remote`，该命令会构建并启动临时 Wrangler 服务，验证真实限流、6 人并发、双 WebSocket 同步、隐私投影、幂等、重启恢复和 SQLite 指标后自动关闭。公网跨网络验收需要先部署 Worker。
 
 ## 四个剧本
 
@@ -95,9 +95,9 @@
 - `app/page.jsx`：游戏界面、交互弹窗和浏览器存档。
 - `app/game.css`、`app/revision.css`、`app/iteration-three.css`：视觉、动画与响应式布局。
 - `app/workshop.jsx`、`lib/catalog.mjs`：素材浏览与自定义草稿。
-- `app/network.jsx`、`scripts/room-server.mjs`：局域网房间与主机同步。
+- `app/network.jsx`、`scripts/room-server.mjs`：远程/局域网大厅、会话恢复与局域网主机同步。
 - `lib/network/room-domain.mjs`：局域网与远程联机共用的房间权限、版本、幂等和投影内核。
-- `lib/network/game-room-do.mjs`、`app/api/remote`：Durable Object、SQLite 持久化与远程 HTTP / WebSocket 路由。
+- `lib/network/game-room-do.mjs`、`remote-rate-limiter.mjs`、`app/api/remote`：房间与限流 Durable Object、SQLite 指标和远程 HTTP / WebSocket 路由。
 - `lib/network/network-protocol.mjs`、`remote-transport.mjs`：稳定消息外壳与浏览器远程传输适配器。
 - `lib/game-data.mjs`：人物、房间、卡牌和剧本数据。
 - `lib/game-engine.mjs`：独立的确定性游戏规则引擎。

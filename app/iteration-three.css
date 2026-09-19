@@ -571,47 +571,158 @@
 }
 .network-lobby {
   max-width: 1000px;
+  min-height: calc(100svh - 76px);
+}
+.network-heading {
+  border-bottom: 1px solid #65766c55;
+  padding-bottom: 22px;
+}
+.network-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(620px, 100%);
+  margin: 28px auto 0;
+  border: 1px solid #64766c88;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.network-mode-switch button {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #111f22;
+  color: #aab8b2;
+  text-align: left;
+}
+.network-mode-switch button + button {
+  border-left: 1px solid #64766c88;
+}
+.network-mode-switch button[aria-pressed='true'] {
+  background: #2a3029;
+  color: #efd9a5;
+  box-shadow: inset 0 -3px #c2a767;
+}
+.network-mode-switch button:disabled {
+  cursor: default;
+}
+.network-mode-switch span {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+.network-mode-switch small {
+  color: #8fa39a;
+  font-size: 10px;
 }
 .network-join {
-  max-width: 470px;
+  max-width: 500px;
   margin: 30px auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 28px;
-  background: #172922;
-  border: 1px solid #7f886366;
-  border-radius: 12px;
+  background: #172522;
+  border: 1px solid #7f886377;
+  border-radius: 8px;
 }
 .network-join label {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  color: #b9c4bc;
+  font-size: 12px;
 }
-.network-join p,
 .network-note {
   font-size: 12px;
   line-height: 1.8;
   color: #9db49f;
 }
-.room-code {
+.network-divider {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 25px;
-  background: #233526;
+  gap: 12px;
+  color: #879b92;
+  font-size: 11px;
+}
+.network-divider::before,
+.network-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: #65756c55;
+}
+.room-code {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px;
+  background: #253128;
   border: 1px solid #b49d68;
-  border-radius: 10px;
+  border-radius: 8px;
   margin: 25px 0;
 }
 .room-code strong {
-  font-size: 35px;
+  font-size: 32px;
   letter-spacing: 6px;
   color: #e7ce92;
 }
-.room-code span {
-  margin-left: auto;
+.room-code > span:first-child,
+.room-player-count {
   font-size: 12px;
+}
+.room-player-count {
+  justify-self: end;
+  color: #a9b9b0;
+}
+.room-code .icon-button {
+  width: 36px;
+  height: 36px;
+}
+.room-code .invite-copy {
+  justify-self: start;
+}
+.copy-confirmation {
+  position: absolute;
+  right: 20px;
+  bottom: -23px;
+  color: #d9c58e;
+  font-size: 11px;
+}
+.network-connection {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 36px;
+  gap: 9px;
+  padding: 7px 10px;
+  border-left: 3px solid #6fa28c;
+  background: #17302a;
+  color: #bed8ca;
+  font-size: 12px;
+}
+.network-connection .icon-button {
+  width: 28px;
+  height: 28px;
+  margin-left: 5px;
+}
+.network-connection:not(.connection-connected) > svg {
+  animation: network-spin 1.5s linear infinite;
+}
+.network-connection.connection-expired,
+.network-connection.connection-upgrade_required {
+  border-color: #b06f64;
+  background: #3b2225;
+  color: #efbeb4;
+}
+@keyframes network-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .network-seats {
   display: grid;
@@ -627,7 +738,7 @@
   padding: 25px;
   background: #182b25;
   border: 1px solid #5c7a6255;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #ced6bc;
 }
 .network-seat > span {
@@ -641,6 +752,10 @@
   border-color: #d1b56d;
   box-shadow: 0 0 20px #c4a44522;
 }
+.network-waiting {
+  color: #c4b58d;
+  font-size: 13px;
+}
 .network-error {
   display: block;
   margin: 15px 0;
@@ -649,6 +764,11 @@
   color: #efb5a5;
   background: #572c2633;
   border-radius: 6px;
+}
+.network-note {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #63726955;
 }
 .network-status {
   display: flex;
@@ -794,13 +914,31 @@
   .network-seats {
     grid-template-columns: repeat(2, 1fr);
   }
+  .network-mode-switch {
+    grid-template-columns: 1fr;
+  }
+  .network-mode-switch button + button {
+    border-left: 0;
+    border-top: 1px solid #64766c88;
+  }
+  .network-join {
+    padding: 20px;
+  }
   .room-code {
-    flex-wrap: wrap;
+    grid-template-columns: auto minmax(0, 1fr) 38px;
     gap: 10px;
     padding: 18px;
   }
   .room-code strong {
     font-size: 28px;
+  }
+  .room-code .invite-copy {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .room-player-count {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
   .network-status {
     flex-wrap: wrap;
@@ -813,7 +951,8 @@
 @media (prefers-reduced-motion: reduce) {
   .dice-animated .die,
   .turn-banner,
-  .placement-dock {
+  .placement-dock,
+  .network-connection > svg {
     animation: none !important;
   }
 }
@@ -860,11 +999,14 @@
 }
 .lan-addresses > div {
   display: flex;
-  gap: 20px;
+  gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 .lan-addresses a {
   color: #e1c783;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .lan-addresses small {
   color: #96aa98;

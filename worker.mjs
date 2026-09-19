@@ -5,6 +5,7 @@ import {
 } from './lib/network/remote-router.mjs';
 
 export { GameRoom } from './lib/network/game-room-do.mjs';
+export { RemoteRateLimiter } from './lib/network/remote-rate-limiter.mjs';
 
 const REMOTE_SOCKET_PATH = /^\/api\/remote\/rooms\/([^/]+)\/socket\/?$/;
 

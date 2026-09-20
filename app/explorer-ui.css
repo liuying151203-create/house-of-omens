@@ -713,9 +713,16 @@
 .dock-tile .tile-card-icon {
   inset: auto auto 8px 8px;
 }
-/* The enlarged discovery preview keeps its room title clear at the bottom. */
+/* The discovery preview reserves its bottom row for type and travel markers. */
 .placement-tile .tile-card-icon {
-  inset: 12px auto auto 12px;
+  inset: auto auto 12px 12px;
+}
+.placement-tile .room-name {
+  right: 12px;
+  bottom: 48px;
+  left: 12px;
+  width: auto;
+  font-size: 16px;
 }
 @media (max-width: 1100px) and (min-width: 761px) {
   .explorer-controls {

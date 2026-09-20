@@ -268,15 +268,16 @@ test('placement favors full matching over blocked doors', () => {
     ),
   );
 });
-test('event cards show their face before effects and use the matching trait dice', () => {
+test('event cards show their face before effects and preserve remaining movement', () => {
   let s = start('mirror', 42);
   s.decks.event = ['cipher'];
-  const before = structuredClone(s.heroes[0].stats);
+  const before = structuredClone(s.heroes[0].stats),
+    moves = s.heroes[0].moves;
   drawCard(s, 'event', s.heroes[0]);
   assert.equal(pending(s).kind, 'card');
   assert.deepEqual(s.heroes[0].stats, before);
-  assert(s.heroes[0].stopped);
-  assert.equal(s.heroes[0].moves, 0);
+  assert.equal(s.heroes[0].stopped, false);
+  assert.equal(s.heroes[0].moves, moves);
   s = act(s, { type: 'advance' });
   assert.equal(pending(s).kind, 'cardResult');
   assert.equal(
@@ -284,14 +285,21 @@ test('event cards show their face before effects and use the matching trait dice
     traitValue({ ...s.heroes[0], stats: before }, 'knowledge'),
   );
   assert.equal(pending(s).threshold, 4);
-  assert(!actions(s).move.length);
+  s = act(s, { type: 'advance' });
+  assert.equal(pending(s), null);
+  assert.equal(s.heroes[0].stopped, false);
+  assert.equal(s.heroes[0].moves, moves);
+  assert(actions(s).move.length);
 });
 test('items apply distinct passive and consumable effects, including zero movement use', () => {
   let s = start();
   s.decks.item = ['boots'];
+  const moves = s.heroes[0].moves;
   drawCard(s, 'item', s.heroes[0]);
   s = resolve(s);
   assert(s.heroes[0].items.includes('boots'));
+  assert.equal(s.heroes[0].stopped, false);
+  assert.equal(s.heroes[0].moves, moves);
   s = resolve(act(s, { type: 'endRound' }));
   assert.equal(s.heroes[0].moves, traitValue(s.heroes[0], 'speed') + 1);
   s.heroes[0].items.push('medkit');
@@ -308,6 +316,8 @@ test('omen effect, roll, result and haunt reveal are separate persistent confirm
   const before = s.heroes[0].stats.knowledge;
   drawCard(s, 'omen', s.heroes[0]);
   assert.equal(pending(s).kind, 'card');
+  assert.equal(s.heroes[0].stopped, true);
+  assert.equal(s.heroes[0].moves, 0);
   s = act(s, { type: 'advance' });
   assert.equal(s.heroes[0].stats.knowledge, before + 1);
   assert.equal(s.omens, 9);

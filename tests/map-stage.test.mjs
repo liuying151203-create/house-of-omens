@@ -139,7 +139,7 @@ test('event overrides drive displayed thresholds, rolled traits, outcomes and mo
     patch: {
       trait: 'speed',
       threshold: 0,
-      stopsMovement: false,
+      stopsMovement: true,
       success: {
         text: '奔跑使你振奋，力量提升两格。',
         trait: 'might',
@@ -147,12 +147,11 @@ test('event overrides drive displayed thresholds, rolled traits, outcomes and mo
       },
     },
   });
-  const before = game.heroes[0].stats.might,
-    moves = game.heroes[0].moves;
+  const before = game.heroes[0].stats.might;
   game.decks.event = ['cipher'];
   drawCard(game, 'event', game.heroes[0]);
-  assert.equal(game.heroes[0].moves, moves);
-  assert.equal(game.heroes[0].stopped, false);
+  assert.equal(game.heroes[0].moves, 0);
+  assert.equal(game.heroes[0].stopped, true);
   game = act(game, { type: 'advance' });
   assert.equal(
     pending(game).rolls[0].count,

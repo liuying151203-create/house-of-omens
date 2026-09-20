@@ -236,7 +236,7 @@ export default function Workshop({ onClose, TileFace, game }) {
                   style={{ color: row.data.color }}
                 >
                   {row.data.mark ||
-                    { event: '✦', item: '◇', omen: '◉', scenarios: 'Ⅹ' }[
+                    { event: '!', item: '◇', omen: '◉', scenarios: 'Ⅹ' }[
                       category
                     ] ||
                     '人'}

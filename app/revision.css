@@ -419,13 +419,15 @@
   border: 1px solid #72785577;
 }
 .icon-event {
-  color: #ac99ca;
+  color: #dfc36f;
+  filter: drop-shadow(0 0 4px #dfc36f33);
 }
 .icon-item {
   color: #cdb16e;
 }
 .icon-omen {
-  color: #d08060;
+  color: #b18ad7;
+  filter: drop-shadow(0 0 4px #b18ad733);
 }
 .room-cell > .room-tokens {
   bottom: 32px;
@@ -555,7 +557,7 @@
   color: #b49575 !important;
 }
 .revision-two .omen-track {
-  color: #cfa473;
+  color: #b18ad7;
   font-size: 14px;
   gap: 10px;
 }
@@ -707,6 +709,12 @@
 .card-emblem {
   align-self: center;
   filter: drop-shadow(0 0 17px #c7a77533);
+}
+.card-emblem.icon-event {
+  filter: drop-shadow(0 0 17px #dfc36f33);
+}
+.card-emblem.icon-omen {
+  filter: drop-shadow(0 0 17px #b18ad733);
 }
 .card-rules {
   text-align: left;

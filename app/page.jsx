@@ -29,6 +29,7 @@ import {
   RotateCw,
   Check,
   Sparkles,
+  CircleAlert,
   Skull,
   Ghost,
   Save,
@@ -140,7 +141,7 @@ const iconMap = {
     mirror: Eye,
     flood: Waves,
   },
-  cardIcons = { event: Sparkles, item: Package, omen: Eye };
+  cardIcons = { event: CircleAlert, item: Package, omen: Eye };
 const targetLabels = {
   moonSeal: '月印',
   moonRitual: '解咒入口',
@@ -263,7 +264,7 @@ function Prompt({
         ? cardDefinition(game, p.cardType, p.cardId, p.heroId)
         : null,
     h = p.heroId !== undefined ? game.heroes[p.heroId] : null,
-    CardIcon = cardIcons[p.cardType] || Sparkles;
+    CardIcon = cardIcons[p.cardType] || CircleAlert;
   const kindLabels = {
     intro: '探索开始',
     placement: '抽取房间',

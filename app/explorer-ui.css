@@ -1135,6 +1135,12 @@
   gap: 4px;
   font-size: 12px;
 }
+.supply-counts > .supply-event > svg {
+  color: #dfc36f;
+}
+.supply-counts > .supply-omen > svg {
+  color: #b18ad7;
+}
 .supply-counts b {
   font-size: 14px;
   color: #e5d9b7;

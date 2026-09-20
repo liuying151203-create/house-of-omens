@@ -710,9 +710,12 @@
   right: 6px;
 }
 .frontier-cell .tile-card-icon,
-.placement-tile .tile-card-icon,
 .dock-tile .tile-card-icon {
   inset: auto auto 8px 8px;
+}
+/* The enlarged discovery preview keeps its room title clear at the bottom. */
+.placement-tile .tile-card-icon {
+  inset: 12px auto auto 12px;
 }
 @media (max-width: 1100px) and (min-width: 761px) {
   .explorer-controls {

@@ -9,6 +9,7 @@ import {
   restoreRoomState,
   updateRoomState,
 } from '../lib/network/room-domain.mjs';
+import { act, createGame, drawCard, pending } from '../lib/game-engine.mjs';
 
 const hostIdentity = {
   id: 'host-player',
@@ -30,6 +31,13 @@ function setup(now = () => 1000) {
     { identity: guestIdentity, now },
   );
   return { room: created.room, host: created.response, guest };
+}
+
+function eventCardGame(heroId = 0) {
+  const game = act(createGame('mirror', 81, 3), { type: 'advance' });
+  game.decks.event = ['cipher'];
+  drawCard(game, 'event', game.heroes[heroId]);
+  return game;
 }
 
 test('room domain state is JSON-persistable and restores a playable game', () => {
@@ -82,6 +90,54 @@ test('persisted command receipts remain compact and idempotent', () => {
       }),
     /不能用于不同动作/,
   );
+});
+
+test('the explorer owner, rather than the host, resolves their event result', () => {
+  const { room, host, guest } = setup();
+  const seated = updateRoomState(room, guest.key, {
+    type: 'seat',
+    seat: 0,
+    revision: guest.revision,
+  });
+  let state = updateRoomState(
+    room,
+    host.key,
+    { type: 'start', revision: seated.revision },
+    { gameFactory: () => eventCardGame(0) },
+  );
+
+  state = updateRoomState(room, guest.key, {
+    type: 'action',
+    action: { type: 'continueCard', requestId: pending(state.game).uid },
+    revision: state.revision,
+  });
+  const diceRequest = pending(state.game);
+  assert.equal(diceRequest.kind, 'diceRequest');
+  assert(diceRequest.rolls.every((roll) => roll.dice));
+  state = updateRoomState(room, guest.key, {
+    type: 'action',
+    action: { type: 'resolveDice', requestId: diceRequest.uid },
+    revision: state.revision,
+  });
+  const result = pending(state.game);
+  assert.equal(result.kind, 'cardResult');
+  assert.equal(result.heroId, 0);
+
+  assert.throws(
+    () =>
+      updateRoomState(room, host.key, {
+        type: 'action',
+        action: { type: 'advance' },
+        revision: state.revision,
+      }),
+    (error) => error.status === 403,
+  );
+  const completed = updateRoomState(room, guest.key, {
+    type: 'action',
+    action: { type: 'advance' },
+    revision: state.revision,
+  });
+  assert.notEqual(completed.revision, state.revision);
 });
 
 test('unknown room state versions fail closed', () => {

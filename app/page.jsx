@@ -305,7 +305,9 @@ function Prompt({
         )}
         {locked && (
           <output className="prompt-wait">
-            等待负责此角色的玩家或房主确认…
+            {p.heroId === undefined
+              ? '等待房主确认…'
+              : '等待负责此角色的玩家确认…'}
           </output>
         )}
         <fieldset className="prompt-fields" disabled={locked}>

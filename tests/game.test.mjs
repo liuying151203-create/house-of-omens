@@ -236,6 +236,29 @@ test('walls and floor tabs never teleport explorers; stairs require physical pre
   assert.equal(s.heroes[0].pos, 'upper');
   assert(!pathTo(s, 'entrance', 'basement').length);
 });
+test('room entry notices belong to the explorer who triggered them', () => {
+  let s = start();
+  const downstairs = ROOM_DECK.find((tile) => tile.id === 'stairs-down');
+  s.rooms.push({
+    ...structuredClone(downstairs),
+    floor: 0,
+    x: 1,
+    y: 0,
+    rotation: 1,
+    starter: false,
+    target: null,
+    done: false,
+    attempts: 0,
+    roomBonus: [],
+  });
+
+  s = act(s, { type: 'move', pos: 'foyer' });
+  s = act(s, { type: 'move', pos: 'stairs-down' });
+  const request = pending(s);
+  assert.equal(request.kind, 'floor');
+  assert.equal(request.heroId, 0);
+  assert.equal(s.basementUnlocked, true);
+});
 test('room art rotation and actual door graph stay consistent across random exploration', () => {
   for (let seed = 1; seed <= 25; seed++) {
     const s = autoPlay('mirror', seed, 3, true);

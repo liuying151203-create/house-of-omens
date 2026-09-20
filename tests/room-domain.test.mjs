@@ -40,6 +40,20 @@ function eventCardGame(heroId = 0) {
   return game;
 }
 
+function floorNoticeGame(heroId = 0) {
+  const game = act(createGame('mirror', 82, 3), { type: 'advance' });
+  game.queue = [
+    {
+      uid: ++game.serial,
+      kind: 'floor',
+      heroId,
+      title: '地下室的入口',
+      text: '这个房间与地下室平台永久连通。',
+    },
+  ];
+  return game;
+}
+
 test('room domain state is JSON-persistable and restores a playable game', () => {
   const { room, host, guest } = setup();
   const started = updateRoomState(room, host.key, {
@@ -138,6 +152,39 @@ test('the explorer owner, rather than the host, resolves their event result', ()
     revision: state.revision,
   });
   assert.notEqual(completed.revision, state.revision);
+});
+
+test('the explorer owner, rather than the host, acknowledges floor discovery', () => {
+  const { room, host, guest } = setup();
+  const seated = updateRoomState(room, guest.key, {
+    type: 'seat',
+    seat: 0,
+    revision: guest.revision,
+  });
+  const state = updateRoomState(
+    room,
+    host.key,
+    { type: 'start', revision: seated.revision },
+    { gameFactory: () => floorNoticeGame(0) },
+  );
+
+  assert.equal(pending(state.game).kind, 'floor');
+  assert.equal(pending(state.game).heroId, 0);
+  assert.throws(
+    () =>
+      updateRoomState(room, host.key, {
+        type: 'action',
+        action: { type: 'advance' },
+        revision: state.revision,
+      }),
+    (error) => error.status === 403,
+  );
+  const completed = updateRoomState(room, guest.key, {
+    type: 'action',
+    action: { type: 'advance' },
+    revision: state.revision,
+  });
+  assert.equal(completed.revision, state.revision + 1);
 });
 
 test('unknown room state versions fail closed', () => {

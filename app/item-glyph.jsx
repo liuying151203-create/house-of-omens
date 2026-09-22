@@ -18,8 +18,15 @@ import {
   KeyRound,
   Eye,
   Package,
+  CircleDot,
+  ShieldCheck,
+  LockKeyhole,
 } from 'lucide-react';
 const glyphs = {
+  'family-ring': CircleDot,
+  'saint-badge': ShieldCheck,
+  'bear-trap': LockKeyhole,
+  'silver-bullet': Gem,
   'might-potion': Pill,
   'speed-potion': Pill,
   'sanity-potion': Pill,

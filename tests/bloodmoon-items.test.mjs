@@ -61,7 +61,9 @@ test('bloodmoon cards stay out of every existing random deck and ordinary werewo
   assert(!ordinary.heroes.some((hero) => hero.items.includes('antidote')));
   const directed = createHauntPlaytest('werewolf', 23, 3, 'bloodmoon-cards');
   assert(
-    BLOODMOON_ITEMS.every((card) => directed.heroes[0].items.includes(card.id)),
+    BLOODMOON_ITEMS.filter((card) =>
+      ['boostTrait', 'cleanse'].includes(card.use),
+    ).every((card) => directed.heroes[0].items.includes(card.id)),
   );
   assert.match(directed.queue[0].text, /不代表/);
   const target = directed.heroes.find((hero) =>

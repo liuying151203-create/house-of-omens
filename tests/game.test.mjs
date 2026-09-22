@@ -196,7 +196,10 @@ test('exploration draws a tile, offers entry-matching rotations, then places onl
     tile = ROOM_DECK.find((t) => t.id === p.tileId);
   assert.equal(p.kind, 'placement');
   assert.equal(s.rooms.length, 5);
-  assert.equal(s.decks.rooms.length, ROOM_DECK.length - 1);
+  assert.equal(
+    s.decks.rooms.length,
+    ROOM_DECK.filter((room) => !room.supply).length - 1,
+  );
   for (const option of p.options)
     assert(doorsOf(tile, option.rotation).includes((f.dir + 2) % 4));
   assert.deepEqual(act(s, { type: 'move', pos: 'foyer' }), s);
@@ -209,7 +212,10 @@ test('exploration draws a tile, offers entry-matching rotations, then places onl
   assert(room.floors.includes(0));
   assert(connections(s, 'entrance').includes(room.id));
   assert.equal(new Set(s.rooms.map((r) => r.id)).size, s.rooms.length);
-  assert.equal(original.decks.rooms.length, ROOM_DECK.length);
+  assert.equal(
+    original.decks.rooms.length,
+    ROOM_DECK.filter((room) => !room.supply).length,
+  );
 });
 test('walls and floor tabs never teleport explorers; stairs require physical presence', () => {
   let s = start();

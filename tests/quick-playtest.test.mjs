@@ -190,7 +190,7 @@ test('all directed quick starts have connected floors, reachable objectives and 
         }
         assert.equal(
           game.decks.rooms.length + game.rooms.filter((r) => !r.starter).length,
-          ROOM_DECK.length,
+          ROOM_DECK.filter((room) => !room.supply).length,
         );
         assert(
           game.rooms

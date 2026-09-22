@@ -92,7 +92,7 @@
 
 开发新内容前请阅读 [剧本与物品机制扩展指南](docs/content-extension-guide.md)，了解剧本生命周期注册、物品能力定义和可恢复结算的边界。
 
-《血月之夜》的首批药剂与解药效果已提供隔离定向试玩，旧狼人剧本保持原规则。入口、已实现范围及其余机制的可行性见 [血月之夜卡牌试作与机制评估](docs/bloodmoon-implementation-assessment.md)。
+《血月之夜》已提供药剂、解药、家族戒指、圣者徽章、捕兽夹及三张新地图牌的隔离定向试玩，旧狼人剧本保持原规则。玩法与开发契约见 [血月房间与机关指南](docs/bloodmoon-content-guide.md)，完整新剧本的待办见 [机制评估](docs/bloodmoon-implementation-assessment.md)。
 
 使用 Node.js 22.13+，安装依赖后运行 `npm run dev`。构建使用 `npm run build`，规则验证使用 `node --test tests/*.test.mjs`，远程 Worker 持久化验收使用 `npm run test:remote`。构建完成后运行 `node scripts/build-portable.mjs` 更新离线单文件。
 

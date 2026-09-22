@@ -7,6 +7,7 @@ import './immersion.css';
 import './map-stage.css';
 import './explorer-ui.css';
 import './lobby.css';
+import './game-sets.css';
 
 export const metadata: Metadata = {
   title: '预兆之屋 · 四个午夜故事',

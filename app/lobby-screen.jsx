@@ -11,6 +11,7 @@ import { HEROES, SCENARIOS } from '../lib/game-data.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
 import ExplorerEmblem from './explorer-emblem';
+import { GameSetPicker } from './game-sets';
 
 export default function LobbyScreen({
   count,
@@ -25,6 +26,8 @@ export default function LobbyScreen({
   onContinue,
   onTest,
   onNetwork,
+  gameSets,
+  onGameSets,
 }) {
   const [dialog, setDialog] = useState(null);
   const scenario = SCENARIOS.find((s) => s.id === choice);
@@ -64,7 +67,12 @@ export default function LobbyScreen({
               </span>
             ))}
           </div>
-          <button className="gold-button entry-start" onClick={onStart}>
+          <GameSetPicker controller={gameSets} onManage={onGameSets} />
+          <button
+            className="gold-button entry-start"
+            disabled={gameSets && !gameSets.ready}
+            onClick={onStart}
+          >
             <span>{saved ? '新开一局' : '进入宅邸'}</span>
             <ArrowRight size={20} />
           </button>

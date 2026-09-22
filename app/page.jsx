@@ -72,6 +72,7 @@ import {
   restoreGameSave,
 } from '@/lib/game-engine.mjs';
 import Workshop from './workshop';
+import GameSetManager, { useGameSets } from './game-sets';
 import PersonalPanel from './personal-panel';
 import { mapScrollTarget, preserveMapScroll } from '../lib/map-camera.mjs';
 import {
@@ -1254,6 +1255,8 @@ function Board({
   );
 }
 export default function Home() {
+  const gameSets = useGameSets();
+  const [gameSetsReturn, setGameSetsReturn] = useState('game');
   const [game, setGame] = useState(null),
     [choice, setChoice] = useState('mystery'),
     [playtestFocus, setPlaytestFocus] = useState('basic'),
@@ -1271,6 +1274,11 @@ export default function Home() {
     [storyOpen, setStoryOpen] = useState(true),
     [journalOpen, setJournalOpen] = useState(false);
   const [inspected, setInspected] = useState(null);
+  function manageGameSets(from = view) {
+    setGameSetsReturn(from === 'sets' ? 'game' : from);
+    setView('sets');
+    setPanel(null);
+  }
   const togglePanel = (name) =>
     setPanel((open) => (open === name ? null : name));
   const enemyMotion = useEnemyMotion(game, playtestEpoch);
@@ -1488,7 +1496,7 @@ export default function Home() {
         className={
           game
             ? 'app playing revision-two revision-three map-focus' +
-              (view !== 'workshop' ? ' map-stage' : '')
+              (!['workshop', 'sets'].includes(view) ? ' map-stage' : '')
             : 'app lobby revision-two revision-three'
         }
       >
@@ -1603,6 +1611,13 @@ export default function Home() {
               <Library size={16} />
               素材室
             </button>
+            <button
+              className="secondary-button top-text-button"
+              disabled={!gameSets.ready}
+              onClick={() => manageGameSets()}
+            >
+              游戏集
+            </button>
             {!game && (
               <button
                 className="secondary-button top-text-button"
@@ -1638,17 +1653,26 @@ export default function Home() {
             </button>
           </div>
         </header>
-        {view === 'workshop' ? (
+        {view === 'sets' ? (
+          <GameSetManager
+            controller={gameSets}
+            game={game}
+            onClose={() => setView(gameSetsReturn)}
+          />
+        ) : view === 'workshop' ? (
           <Workshop
             onClose={() => setView('game')}
             TileFace={TileFace}
             game={game}
+            onGameSets={() => manageGameSets('workshop')}
           />
         ) : !game && (view === 'network' || net.session) ? (
           <NetworkLobby
             net={net}
             scenario={choice}
             count={count}
+            gameSets={gameSets}
+            onGameSets={() => manageGameSets('network')}
             onClose={() => setView('game')}
           />
         ) : !game ? (
@@ -1661,7 +1685,15 @@ export default function Home() {
             savedPlaytest={savedPlaytest}
             playtestFocus={playtestFocus}
             setPlaytestFocus={setPlaytestFocus}
-            onStart={() => setGame(createGame(choice, Date.now(), count))}
+            gameSets={gameSets}
+            onGameSets={() => manageGameSets('game')}
+            onStart={() =>
+              setGame(
+                createGame(choice, Date.now(), count, {
+                  gameSet: gameSets.selected,
+                }),
+              )
+            }
             onContinue={(save) => {
               setChoice(save.automaticHaunt ? 'mystery' : save.scenario);
               setGame(save);
@@ -2143,7 +2175,9 @@ export default function Home() {
                             game.automaticHaunt ? 'mystery' : sc.id,
                             Date.now(),
                             game.count,
-                            game.playtest?.focus || 'basic',
+                            game.playtest?.mode === 'haunt'
+                              ? game.playtest.focus || 'basic'
+                              : { gameSet: game.gameSet },
                           ),
                         )
                   }

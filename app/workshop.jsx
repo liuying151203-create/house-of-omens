@@ -19,7 +19,7 @@ import {
 import { FLOORS, TRAITS } from '@/lib/game-data.mjs';
 import { hauntCardRule } from '../lib/game-view.mjs';
 const KEY = 'hillhouse-workshop-v1';
-export default function Workshop({ onClose, TileFace, game }) {
+export default function Workshop({ onClose, TileFace, game, onGameSets }) {
   const [category, setCategory] = useState('rooms'),
     [query, setQuery] = useState(''),
     [drafts, setDrafts] = useState([]),
@@ -158,6 +158,9 @@ export default function Workshop({ onClose, TileFace, game }) {
         </button>
       </div>
       <div className="workshop-toolbar">
+        <button className="secondary-button" onClick={onGameSets}>
+          编辑游戏集
+        </button>
         <label className="search-field">
           <Search size={17} />
           <input

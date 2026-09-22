@@ -15,6 +15,7 @@ import { createRemoteTransport } from '@/lib/network/remote-transport.mjs';
 import { remoteRoomVisible } from '@/lib/network/remote-rollout.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
+import { GameSetPicker, GameSetSummary } from './game-sets';
 
 const SESSION = 'hillhouse-network-session-v2';
 const LEGACY_SESSION = 'hillhouse-network-session';
@@ -303,7 +304,14 @@ export function useNetwork(setGame) {
   };
 }
 
-export function NetworkLobby({ net, scenario, count, onClose }) {
+export function NetworkLobby({
+  net,
+  scenario,
+  count,
+  onClose,
+  gameSets,
+  onGameSets,
+}) {
   const [playtestFocus, setPlaytestFocus] = useState('basic'),
     [mode, setMode] = useState('local'),
     [name, setName] = useState(''),
@@ -452,6 +460,7 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
 
       {!room ? (
         <div className="network-join">
+          <GameSetPicker controller={gameSets} onManage={onGameSets} />
           <label>
             你的名字
             <input
@@ -465,10 +474,18 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
           <button
             className="gold-button"
             disabled={
-              net.busy || !!net.session || (isRemote && rollout === 'off')
+              net.busy ||
+              !!net.session ||
+              (isRemote && rollout === 'off') ||
+              (gameSets && !gameSets.ready)
             }
             onClick={() =>
-              net.connect(activeMode, 'create', { name, scenario, count })
+              net.connect(activeMode, 'create', {
+                name,
+                scenario,
+                count,
+                ...(gameSets ? { gameSet: gameSets.selected } : {}),
+              })
             }
           >
             {isRemote ? <Cloud size={18} /> : <Wifi size={18} />}
@@ -535,6 +552,10 @@ export function NetworkLobby({ net, scenario, count, onClose }) {
               <output className="copy-confirmation">已复制</output>
             )}
           </div>
+          <GameSetSummary gameSet={room.gameSet} />
+          <p className="network-note">
+            普通开局使用房主创建房间时的游戏集；定向测试使用固定测试场景。
+          </p>
 
           <output
             className={`network-connection connection-${net.connectionState}`}

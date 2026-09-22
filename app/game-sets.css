@@ -1,0 +1,111 @@
+.game-set-picker {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.game-set-picker label,
+.game-set-editor label {
+  display: grid;
+  gap: 6px;
+}
+.game-set-picker select,
+.game-set-editor input:not([type='checkbox']) {
+  padding: 9px 12px;
+  border: 1px solid #756345;
+  border-radius: 6px;
+  background: #17191c;
+  color: #eadfc9;
+}
+.game-set-summary {
+  color: #c7b795;
+  font-size: 13px;
+}
+.game-set-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 22px;
+}
+.game-set-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.game-set-list button {
+  justify-content: space-between;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.game-set-list button[aria-pressed='true'] {
+  border-color: #d7b56e;
+  color: #eed7a7;
+}
+.game-set-list small {
+  white-space: nowrap;
+  font-size: 10px;
+}
+.game-set-editor {
+  min-width: 0;
+}
+.game-set-editor > p {
+  color: #b7af9f;
+  font-size: 13px;
+  margin: 12px 0;
+}
+.game-set-search {
+  width: 100%;
+  margin: 14px 0;
+}
+.game-set-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr));
+  gap: 10px;
+}
+.game-set-cards label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #3b3a36;
+  border-radius: 8px;
+  background: #1b1e20;
+  cursor: pointer;
+}
+.game-set-cards label.included {
+  border-color: #857049;
+  background: #282720;
+}
+.game-set-cards label > span {
+  display: grid;
+  gap: 6px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.game-set-cards small {
+  color: #b9aa8e;
+}
+.game-set-cards input {
+  margin-top: 5px;
+  accent-color: #d7b56e;
+}
+.game-set-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  border: 1px solid #d7b56e;
+}
+@media (max-width: 720px) {
+  .game-set-layout {
+    grid-template-columns: 1fr;
+  }
+  .game-set-picker {
+    align-items: stretch;
+  }
+  .game-set-picker label {
+    flex: 1;
+  }
+}

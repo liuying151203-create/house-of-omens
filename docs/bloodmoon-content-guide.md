@@ -1,6 +1,6 @@
 # 血月房间、信物与陷阱开发指南
 
-本阶段实现实验室、锅炉房、消毒杀菌室、家族戒指、圣者徽章及捕兽夹。原狼人《月光照进来的时候》的普通开局与规则保持原样；新内容进入独立资源池和定向测试，不自动混入旧房间牌堆或物品牌堆。
+本阶段实现实验室、锅炉房、消毒杀菌室、家族戒指、圣者徽章及捕兽夹。这些效果属于通用内容，来源于血月设计但不限定剧本。经典游戏集和原狼人规则保持原样；普通新局选择“通用扩展游戏集”或编辑自定义游戏集，即可加入新内容。使用说明见 [游戏集指南](game-sets-guide.md)。
 
 ## 试玩入口
 
@@ -35,7 +35,7 @@
 
 ## 开发边界与持久化
 
-- `lib/content/bloodmoon-rooms.mjs` 与 `bloodmoon-items.mjs` 保存独立定义。`supply: 'bloodmoon'` 保证普通洗牌不增加牌数、不改变随机数调用顺序。素材室仍可查看新定义；定向场景明确注入资源。
+- `lib/content/bloodmoon-rooms.mjs` 与 `bloodmoon-items.mjs` 保存独立定义。`supply: 'bloodmoon'` 是来源标签；经典预设保持原有牌数和随机数调用顺序，通用扩展和自定义游戏集可显式收录。银弹设置 `deckEligible: false`，仅可熔铸获得。
 - `lib/content/bloodmoon-mechanics.mjs` 提供行动、触发器、可序列化 Workflow 及内容结算。通过引擎传入投骰、日志、相邻门、环境伤害服务，不反向导入引擎。
 - 人物 `bloodmoonActions` 记录对应动作使用轮次，`sterilizationUsed` 记录整局净化；物品实例 `state.ringRound`、`badgeRound`、`smeltRound` 随交易／丢弃保留。
 - `game.bloodmoon.crafted`／`smelted` 是整局生产台账，不能从当前背包反推生产次数。成功结算与材料销毁／产出在同一权威命令内同步完成。

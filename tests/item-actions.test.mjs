@@ -12,9 +12,46 @@ import {
 } from '../lib/content/item-actions.mjs';
 import { addItemInstance } from '../lib/item-instances.mjs';
 import { updateCardRule } from '../lib/card-rules.mjs';
+import { itemUseDefinition } from '../lib/content/item-abilities.mjs';
 
 const start = () =>
   act(createSimulationGame('bells', 151, 3), { type: 'advance' });
+
+test('runtime item abilities use the same definitions as validation and execution', () => {
+  for (const use of ['movement', 'healPhysical', 'healMental']) {
+    let game = start();
+    game.heroes[0].stats.might--;
+    game.heroes[0].stats.sanity--;
+    addItemInstance(game.heroes[0], 'coffee', 'ability-test');
+    game = updateCardRule(game, {
+      id: 'ability-override',
+      cardType: 'item',
+      cardId: 'coffee',
+      patch: { use, useAmount: 1 },
+    });
+    const action = itemActionViews(game, game.heroes[0], TRAITS).find(
+      (entry) => entry.available,
+    );
+    assert(action, use);
+    assert(itemUseDefinition(use));
+    const next = act(game, action.command);
+    assert.notDeepEqual(next, game);
+    assert(!next.heroes[0].items.includes('coffee'));
+  }
+  for (const use of ['unknown', 'toString', '__proto__']) {
+    assert.equal(itemUseDefinition(use), undefined);
+    assert.throws(
+      () =>
+        updateCardRule(start(), {
+          id: 'invalid-ability',
+          cardType: 'item',
+          cardId: 'coffee',
+          patch: { use },
+        }),
+      /无效的卡牌规则/,
+    );
+  }
+});
 
 test('item action views share availability, targets and effects with execution', () => {
   let game = start();

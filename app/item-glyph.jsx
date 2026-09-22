@@ -20,6 +20,10 @@ import {
   Package,
 } from 'lucide-react';
 const glyphs = {
+  'might-potion': Pill,
+  'speed-potion': Pill,
+  'sanity-potion': Pill,
+  antidote: BriefcaseMedical,
   coffee: Coffee,
   medkit: BriefcaseMedical,
   tonic: Pill,

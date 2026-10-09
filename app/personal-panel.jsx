@@ -11,6 +11,7 @@ import {
 import { wolfMight } from '../lib/werewolf.mjs';
 import HeroInventory from './hero-inventory';
 import ExplorerEmblem from './explorer-emblem';
+import { pursuitAvailable } from '../lib/content/bloodmoon-pursuit.mjs';
 
 export default function PersonalPanel({
   game,
@@ -80,6 +81,11 @@ export default function PersonalPanel({
                         ? '停止移动'
                         : '移动'}
               </span>
+              {pursuitAvailable(game, hero) && (
+                <small title="本回合还有1点追猎移动，仅可用于靠近残血英雄">
+                  +1追猎
+                </small>
+              )}
             </span>
             <span
               className="explorer-position"
@@ -142,6 +148,7 @@ export default function PersonalPanel({
           !active
             ? '等待当前人物结束行动'
             : game.phase === 'haunt' &&
+                game.scenario !== 'bloodmoon' &&
                 game.heroes.filter((h) => !h.dead && !h.traitor && !h.ended)
                   .length === 1
               ? '结束后敌人开始追猎'

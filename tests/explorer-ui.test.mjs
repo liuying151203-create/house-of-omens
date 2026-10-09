@@ -12,6 +12,7 @@ import {
   updateTraitRule,
 } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
+import { heroStatuses } from '../lib/hero-status.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const bundle = new URL(
@@ -45,6 +46,33 @@ const { Inventory, Roster, Personal, Commands, Supply, MapPawn, Damage } =
 const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
 const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
+
+test('bloodmoon personal panel explains directional pursuit and wounded infection details', () => {
+  const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-pursuit');
+  game.queue = [];
+  let html = render(Personal, { game, net: {}, send() {}, changes: [] });
+  assert.match(html, /\+1追猎/);
+  assert.match(
+    heroStatuses(game, game.heroes[0]).find(
+      (status) => status.id === 'bloodmoon-pursuit',
+    ).description,
+    /不右移速度标记/,
+  );
+  game.active = 1;
+  game.heroes[1].statuses.push({
+    id: 'bloodmoon-infection',
+    label: '感染Ⅱ',
+    level: 2,
+  });
+  html = render(Personal, { game, net: {}, send() {}, changes: [] });
+  assert.match(html, /残血/);
+  assert.match(html, /感染Ⅱ/);
+  const infection = heroStatuses(game, game.heroes[1]).find(
+    (status) => status.id === 'bloodmoon-infection',
+  );
+  assert.match(infection.description, /理智3\+/);
+  assert.match(infection.description, /无法用解药逆转/);
+});
 
 test('controlled alpha shows capped track positions without removing the eight-position moon track', () => {
   const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-recovery-cap');

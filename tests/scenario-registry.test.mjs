@@ -111,6 +111,14 @@ test('workflow and simulation use the same scenario timeout and faction result',
       game.queue = [];
       triggerHaunt(game);
       game = drivePendingRequests(game, act);
+      if (id === 'bloodmoon') {
+        assert.equal(game.limit, null);
+        for (let round = 0; round < 8; round++)
+          game = drivePendingRequests(act(game, { type: 'endRound' }), act);
+        assert.equal(game.phase, 'haunt');
+        assert.equal(game.bloodmoonCombat.moon, 'blood');
+        continue;
+      }
       game.elapsed = game.limit - 1;
       for (const enemy of game.enemies) {
         enemy.speed = 0;

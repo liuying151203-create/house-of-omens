@@ -82,6 +82,7 @@ import {
 import RoomStatusIcons from './room-status-icons';
 import CardNotice from './card-notice';
 import WerewolfPanel from './werewolf-panel';
+import BloodmoonPanel from './bloodmoon-panel';
 import ExplorerActions from './explorer-actions';
 import DeckSupply from './deck-supply';
 import FactionRoster from './faction-roster';
@@ -1890,7 +1891,11 @@ export default function Home() {
                   <span>
                     章节 · 作祟
                     {game.phase === 'haunt' && (
-                      <small>剩余 {game.limit - game.elapsed} 轮</small>
+                      <small>
+                        {game.limit === null
+                          ? '无轮数上限'
+                          : `剩余 ${game.limit - game.elapsed} 轮`}
+                      </small>
                     )}
                   </span>
                 </button>
@@ -1940,6 +1945,7 @@ export default function Home() {
                       <p>{sc.haunt}</p>
                     </details>
                   )}
+                  <BloodmoonPanel game={game} />
                   <WerewolfPanel
                     game={game}
                     send={send}
@@ -1982,28 +1988,35 @@ export default function Home() {
                         <div className="countdown">
                           <Clock size={15} />
                           <span>
-                            剩余 {Math.max(0, game.limit - game.elapsed)} 回合
+                            {game.limit === null
+                              ? '无轮数上限'
+                              : `剩余 ${Math.max(0, game.limit - game.elapsed)} 回合`}
                           </span>
                         </div>
-                        <div className="danger-track">
-                          <i
-                            style={{
-                              width: `${(game.elapsed / game.limit) * 100}%`,
-                            }}
-                          />
-                        </div>
+                        {game.limit !== null && (
+                          <div className="danger-track">
+                            <i
+                              style={{
+                                width: `${(game.elapsed / game.limit) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        )}
                         <div className="objective-progress">
-                          {game.scenario === 'werewolf'
-                            ? game.progress + '/2 月印已净化；全部完成后回入口'
-                            : game.scenario === 'bells'
-                              ? `${game.progress}/3 祭坛已封印`
-                              : game.scenario === 'mirror'
-                                ? game.mirrorFound
-                                  ? '真身已现形！'
-                                  : `${game.progress}/3 古镜已调查`
-                                : game.powered
-                                  ? '电力已恢复，返回入口'
-                                  : `${game.fuses}/2 保险丝已找到`}
+                          {game.scenario === 'bloodmoon'
+                            ? '战斗模块试作 · 初始狼人由玩家操作'
+                            : game.scenario === 'werewolf'
+                              ? game.progress +
+                                '/2 月印已净化；全部完成后回入口'
+                              : game.scenario === 'bells'
+                                ? `${game.progress}/3 祭坛已封印`
+                                : game.scenario === 'mirror'
+                                  ? game.mirrorFound
+                                    ? '真身已现形！'
+                                    : `${game.progress}/3 古镜已调查`
+                                  : game.powered
+                                    ? '电力已恢复，返回入口'
+                                    : `${game.fuses}/2 保险丝已找到`}
                         </div>
                         <ul className="target-list">
                           {(game.targetRooms || []).map((id) => {

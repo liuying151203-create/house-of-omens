@@ -136,7 +136,9 @@ export default function LobbyScreen({
           {dialog === 'test' ? (
             <>
               <div className="entry-scenarios" aria-label="定向剧本">
-                {SCENARIOS.filter((s) => s.id !== 'mystery').map((s) => (
+                {SCENARIOS.filter(
+                  (s) => s.id !== 'mystery' && !s.playtestOnly,
+                ).map((s) => (
                   <button
                     key={s.id}
                     aria-pressed={choice === s.id}

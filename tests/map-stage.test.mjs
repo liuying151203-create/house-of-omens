@@ -66,6 +66,18 @@ test('all omen cards remove exploration-only instructions and rolls after the ha
     game.decks.omen = [omen.id];
     drawCard(game, 'omen', game.heroes[0]);
     game = act(game, { type: 'advance' });
+    if (card.gainAttack) {
+      const request = pending(game);
+      assert.equal(request.kind, 'diceRequest');
+      assert.equal(request.sourceCardId, omen.id);
+      assert.equal(request.rolls[0].computer, true);
+      assert.equal(request.rolls[0].count, card.gainAttack.count);
+      assert.doesNotMatch(JSON.stringify(request.outcomes), /作祟检定/);
+      request.rolls.forEach((group, index) => {
+        group.dice = Array(group.count).fill(index === 0 ? 0 : 2);
+      });
+      game = act(game, { type: 'resolveDice', requestId: request.uid });
+    }
     assert(
       game.queue.every(
         (p) => !['diceRequest', 'hauntRoll', 'hauntResult'].includes(p.kind),

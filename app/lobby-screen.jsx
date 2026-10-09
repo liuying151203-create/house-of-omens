@@ -131,7 +131,7 @@ export default function LobbyScreen({
           <DialogDescription>
             {dialog === 'credits'
               ? '美术来源与使用许可'
-              : '选择剧本，直接进入作祟。测试进度独立保存。'}
+              : '选择剧本与测试场景。测试进度独立保存。'}
           </DialogDescription>
           {dialog === 'test' ? (
             <>
@@ -159,7 +159,11 @@ export default function LobbyScreen({
                 disabled={choice === 'mystery'}
                 onClick={onTest}
               >
-                {choice === 'mystery' ? '选择一个剧本' : '进入作祟测试'}
+                {choice === 'mystery'
+                  ? '选择一个剧本'
+                  : playtestFocus === 'bloodmoon-bite'
+                    ? '进入咬痕测试'
+                    : '进入作祟测试'}
               </button>
               {savedPlaytest && (
                 <button

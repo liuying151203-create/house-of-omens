@@ -657,7 +657,7 @@ export function NetworkLobby({
                     })
                   }
                 >
-                  定向测试 · 直接进入作祟
+                  定向测试 · 开始所选场景
                 </button>
               )}
             </div>

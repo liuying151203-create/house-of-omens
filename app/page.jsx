@@ -547,11 +547,13 @@ function Prompt({
               {tile
                 ? '放置房间并进入'
                 : p.kind === 'card'
-                  ? c.trait && p.cardType === 'event'
-                    ? '掷骰并查看结果'
-                    : p.cardType === 'event'
-                      ? '应用并继续'
-                      : '收下并继续'
+                  ? c.gainAttack
+                    ? '收下并进行攻防检定'
+                    : c.trait && p.cardType === 'event'
+                      ? '掷骰并查看结果'
+                      : p.cardType === 'event'
+                        ? '应用并继续'
+                        : '收下并继续'
                   : p.kind === 'roomFall'
                     ? '掷骰，查看伤害'
                     : p.kind === 'hauntRoll'

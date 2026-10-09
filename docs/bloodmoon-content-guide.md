@@ -1,5 +1,24 @@
 # 血月卡牌、房间与机关开发指南
 
+## 嗜血模块（2026-10-10）
+
+新增「满月嗜血与自由分配」「血月嗜血与第7格上限」「嗜血与银弹永久上限」三个定向测试入口。
+
+1. 初始狼人主动撕咬英雄，先看骰子结果，再由受伤者分配身体伤害，最后处理感染／徽章反应；这些流程结束前不显示恢复选择。
+2. 在「嗜血 · 分配身体恢复」窗口逐格选择力量或速度。每个按钮列出当前位置和移动后的格数，剩余恢复格数实时更新；选择一直保留到分配完成或两条轨道均达到上限。
+3. 满月最高恢复至第4格；血月最高第7格；受银弹永久削弱后，即使血月也只能到第4格。达到上限后，多余恢复量失效，不降低原本已经高于嗜血上限的标记。
+4. 只按实际扣掉的身体轨道格数计算恢复。初醒、次级狼人、反击、手枪和环境伤害不触发；速度恢复不额外赠送当前回合移动点。
+5. 分配第一格后保存测试点并恢复，继续分配，检查已恢复部分不重复、结果只记录一次。联机只有初始狼人座位的玩家可以操作，其他玩家看到等待提示。
+
+`lib/content/bloodmoon-bloodlust.mjs` 定义伤害后触发与可序列化逐格分配，复用已有选择窗口和父流程续体；`traitPositionBounds` 统一约束嗜血月相上限和银弹永久上限，不新增独立属性写入通道。
+
+本阶段提交命令（本轮由开发代理执行，勿重复提交）：
+
+```powershell
+git add lib/content/bloodmoon-bloodlust.mjs lib/content/bloodmoon-health.mjs lib/content/bloodmoon-mechanics.mjs lib/game-engine.mjs lib/event-journal.mjs lib/game-view.mjs lib/playtest.mjs app/bloodmoon-panel.jsx tests/bloodmoon-bloodlust.test.mjs docs/bloodmoon-content-guide.md
+git commit -m "feat(bloodmoon): add bloodlust recovery / 新增嗜血自由分配恢复"
+```
+
 ## 感染模块（2026-10-10）
 
 选择「定向测试 → 狼人 → 感染传播与徽章庇护」或「感染Ⅱ检定与净化」。以下测试仍使用独立 `bloodmoon` 战斗模块，旧狼人感染倒计时不变。

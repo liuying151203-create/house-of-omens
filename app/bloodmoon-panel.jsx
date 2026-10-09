@@ -20,6 +20,9 @@ export default function BloodmoonPanel({ game }) {
         初始狼人普通伤害触及骷髅时保留第1格，下次自己的回合不能主动攻击。银弹绕过不死，7点伤害由狼人分配；存活后力量与速度最高位置永久降至第4格。
       </p>
       {alpha.silverWeakened && <p>银弹永久削弱已生效：力量、速度最高第4格。</p>}
+      <p>
+        初醒没有嗜血。满月／血月主动撕咬后，按实际身体伤害自由分配力量、速度恢复；满月最高第4格，血月最高第7格，不能突破银弹永久上限。
+      </p>
       {alpha.skipNextAttack && <p>下次狼人回合不能主动攻击。</p>}
       {alpha.attackBlockedRound === game.round && (
         <p>本回合狼人不能主动攻击，仍可移动和使用物品。</p>

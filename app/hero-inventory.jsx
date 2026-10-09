@@ -6,6 +6,7 @@ import { resolveCard } from '../lib/card-rules.mjs';
 import { hauntCardRule, canInspectHero } from '../lib/game-view.mjs';
 import { TRAITS } from '../lib/game-data.mjs';
 import { itemInstances } from '../lib/item-instances.mjs';
+import { firearmActions } from '../lib/content/firearms.mjs';
 import {
   itemActionViews,
   itemManagementActionViews,
@@ -54,6 +55,7 @@ export default function HeroInventory({
         ...resolveCard(game, 'item', instance.definitionId, hero.id),
         cardType: 'item',
         instanceId: instance.instanceId,
+        instanceState: instance.state,
       })),
       ...hero.omens.map((id, index) => ({
         ...resolveCard(game, 'omen', id, hero.id),
@@ -64,6 +66,11 @@ export default function HeroInventory({
     itemActions = [
       ...itemActionViews(game, hero, TRAITS),
       ...itemManagementActionViews(game, hero),
+      ...firearmActions(game, hero).map((action) => ({
+        ...action,
+        instanceId: action.gunId,
+        available: true,
+      })),
     ];
   const content = (card) => {
     const abilities = itemActions.filter(
@@ -72,6 +79,14 @@ export default function HeroInventory({
     return (
       <div className="carried-card-content">
         <p>{card.effect}</p>
+        {card.id === 'pistol' && (
+          <p>
+            当前装填：
+            {card.instanceState?.loadedBullet ? '银弹1发' : '普通弹药'}。
+            {card.instanceState?.reloadRound === game.round &&
+              '本回合装填机会已使用。'}
+          </p>
+        )}
         {hauntCardRule(card, game) && (
           <div className="haunt-card-rule">
             <strong>☾ 作祟能力</strong>
@@ -118,7 +133,10 @@ export default function HeroInventory({
                 (chosen?.instanceId === card.instanceId ? 'slot-selected' : '')
               }
               aria-label={
-                card.title + (card.use ? '，可使用物品' : '，被动效果')
+                card.title +
+                (card.use || card.id === 'pistol'
+                  ? '，可使用物品'
+                  : '，被动效果')
               }
               aria-expanded={chosen?.instanceId === card.instanceId}
               aria-controls={

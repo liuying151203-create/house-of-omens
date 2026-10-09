@@ -4,7 +4,7 @@ import {
   ruleNoticesFromEvents,
 } from '../lib/game-view.mjs';
 
-export function useAttributeChanges(game) {
+export function useAttributeChanges(game, suspended = false) {
   const lastEventId = useRef(null);
   const [feedback, setFeedback] = useState({
     id: 0,
@@ -20,6 +20,7 @@ export function useAttributeChanges(game) {
       );
       return () => clearTimeout(timer);
     }
+    if (suspended) return;
     const latestEventId = game.events?.at(-1)?.id || 0;
     if (lastEventId.current === null) {
       lastEventId.current = latestEventId;
@@ -34,7 +35,7 @@ export function useAttributeChanges(game) {
       0,
     );
     return () => clearTimeout(timer);
-  }, [game]);
+  }, [game, suspended]);
   useEffect(() => {
     if (!feedback.changes.length && !feedback.notices.length) return;
     const timer = setTimeout(
@@ -50,19 +51,17 @@ export default function AttributeFeedback({ feedback }) {
   if (!feedback.changes.length && !feedback.notices.length) return null;
   return (
     <output className="attribute-feedback" key={feedback.id} aria-live="polite">
-      <strong>即时结算</strong>
+      <strong>事件播报</strong>
       {feedback.changes.map((c) => (
         <span
           key={c.eventId || `${c.heroId}-${c.trait}`}
           className={c.steps > 0 ? 'attribute-gain' : 'attribute-loss'}
         >
-          {c.name} · {c.label}{' '}
-          <b>
-            {c.from} → {c.dead ? '☠' : c.to}
-          </b>
+          {c.name} · {c.label}
+          {c.steps > 0 ? '右移' : '左移'}
+          {Math.abs(c.steps)}格
           <small>
-            {c.steps > 0 ? '+' : ''}
-            {c.steps}格
+            数值 {c.from} → {c.dead ? '☠' : c.to}
           </small>
         </span>
       ))}

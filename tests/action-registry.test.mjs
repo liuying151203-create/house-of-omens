@@ -147,7 +147,7 @@ test('rest actions share effective trait descriptions and registry execution', (
   );
   assert(rest);
   assert.deepEqual(rest.command, { type: 'rest', trait: 'might' });
-  assert.match(rest.label, /力量 \+1/);
+  assert.match(rest.label, /力量向右移动1格/);
   const next = act(game, rest.command);
   assert.equal(next.heroes[0].stats.might, hero.stats.might + 1);
   assert.equal(next.heroes[0].moves, 0);

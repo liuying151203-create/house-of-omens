@@ -1,6 +1,8 @@
 import ExplorerEmblem from './explorer-emblem';
+import { heroStatuses } from '../lib/hero-status.mjs';
 
 export default function MapPawn({
+  game,
   hero,
   active = false,
   className = 'pawn',
@@ -15,6 +17,9 @@ export default function MapPawn({
     '的状态' +
     (playerName ? `，由${playerName}${mine ? '（你）' : ''}控制` : '') +
     (active && !hero.ended ? '，当前行动人物' : '');
+  const infection =
+    game &&
+    heroStatuses(game, hero).find((status) => status.id === 'infection');
   return (
     <button
       type="button"
@@ -22,7 +27,7 @@ export default function MapPawn({
         className + (active ? ' selected-pawn' : '') + (mine ? ' my-pawn' : '')
       }
       style={{ backgroundColor: hero.color, '--pawn-color': hero.color }}
-      title={label}
+      title={label + (infection ? `。${infection.description}` : '')}
       aria-label={label}
       onPointerDown={(event) => event.stopPropagation()}
       onPointerUp={(event) => event.stopPropagation()}
@@ -34,7 +39,9 @@ export default function MapPawn({
       <ExplorerEmblem hero={hero} token />
       {mine ? <span className="my-pawn-mark">我</span> : null}
       {badge !== undefined && badge !== null ? (
-        <sup className="infection-badge">{badge}</sup>
+        <sup className="infection-badge" title={infection?.description}>
+          {badge}
+        </sup>
       ) : null}
     </button>
   );

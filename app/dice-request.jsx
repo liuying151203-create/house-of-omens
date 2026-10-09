@@ -8,7 +8,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { rollOwner } from '@/lib/roll-ownership.mjs';
-const ROLL_ANIMATION_MS = 1500,
+import RingReroll from './ring-reroll';
+const ROLL_ANIMATION_MS = 950,
   RESULT_HOLD_MS = 1400;
 function EmojiDice({ dice, count, rollEventId, motion, onSettled }) {
   const signature = dice
@@ -68,7 +69,68 @@ function EmojiDice({ dice, count, rollEventId, motion, onSettled }) {
     </div>
   );
 }
-export default function DiceRequest({
+function RingDiceRequest({ game, send, motion, toggleMotion, locked }) {
+  const p = game.queue[0];
+  return (
+    <Dialog open={true} onOpenChange={() => {}}>
+      <DialogContent
+        className="story-dialog dice-request-dialog"
+        showCloseButton={false}
+      >
+        {p.kind !== 'ringResult' && (
+          <div className="dice-options">
+            <button
+              className="text-button"
+              aria-pressed={motion}
+              onClick={toggleMotion}
+            >
+              动画 {motion ? '开' : '关'}
+            </button>
+          </div>
+        )}
+        <span className="eyebrow">检定后 · 家族戒指</span>
+        <DialogTitle>{p.title}</DialogTitle>
+        <DialogDescription>{p.text}</DialogDescription>
+        {p.kind === 'ringResult' ? (
+          <div className="ring-result" aria-live="polite">
+            <strong>{p.groupLabel}</strong>
+            <div className="ring-dice-row">
+              {(p.dice || []).map((face, index) => (
+                <span
+                  className={
+                    'emoji-die ' +
+                    (index === p.dieIndex ? 'flow-rerolled-die' : '')
+                  }
+                  key={index}
+                >
+                  {face === 0 ? '—' : face === 1 ? '●' : '● ●'}
+                </span>
+              ))}
+            </div>
+            <p>
+              第 {p.dieIndex + 1} 枚：{p.before} → <b>{p.after} 点</b>
+            </p>
+            <p>
+              本组结果：<b>{p.total} 点</b>
+            </p>
+            <small>确认结果后继续原检定。</small>
+            <button
+              type="button"
+              className="gold-button"
+              disabled={locked}
+              onClick={() => send({ type: 'advance', requestId: p.uid })}
+            >
+              继续检定
+            </button>
+          </div>
+        ) : (
+          <RingReroll request={p} send={send} motion={motion} locked={locked} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+function RollDiceRequest({
   game,
   send,
   net,
@@ -240,5 +302,13 @@ export default function DiceRequest({
         {testTools}
       </DialogContent>
     </Dialog>
+  );
+}
+export default function DiceRequest(props) {
+  return props.game.queue[0].ringRolls ||
+    props.game.queue[0].kind === 'ringResult' ? (
+    <RingDiceRequest {...props} />
+  ) : (
+    <RollDiceRequest {...props} />
   );
 }

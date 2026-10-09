@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { Minus, Plus, Check } from 'lucide-react';
-import { suggestDamage } from '@/lib/damage-plan.mjs';
 import { traitRuleView } from '@/lib/rule-views.mjs';
 export default function DamagePlanner({ game, p, send }) {
   const keys =
@@ -17,9 +16,7 @@ export default function DamagePlanner({ game, p, send }) {
           keys.map((key) => [key, traitRuleView(game, h, key)]),
         );
   const [allocation, setAllocation] = useState(() =>
-    privateStats
-      ? {}
-      : suggestDamage(h, p.damageType, p.remaining, game.phase, game, keys),
+    Object.fromEntries(keys.map((key) => [key, 0])),
   );
   if (privateStats)
     return (
@@ -104,35 +101,12 @@ export default function DamagePlanner({ game, p, send }) {
                 <Plus size={18} />
               </button>
             </div>
-            <div className="damage-consequence">
-              {after === view.current
-                ? '不受影响'
-                : after === 0
-                  ? '致命伤害'
-                  : view.value === view.track[after]
-                    ? '位置下降，当前能力数值不变'
-                    : k === 'speed'
-                      ? `下回合基础移动力 ${view.value} → ${view.track[after]}`
-                      : `${view.label}检定骰数 ${view.value} → ${view.track[after]}`}
-            </div>
           </div>
         );
       })}
-      <div className="damage-plan-legend">
-        <span>虚线：当前位置</span>
-        <span>亮框：确认后位置</span>
-        <span>红色：经过的格子</span>
-      </div>
-      {lethal ? (
+      {lethal && (
         <p className="lethal-warning">
           此分配将使 {h.name} 死亡。可以撤回调整，确认后生效。
-        </p>
-      ) : (
-        <p>
-          {minimum === 1
-            ? '作祟前最低停在第 1 格。'
-            : '任一属性抵达骷髅位，角色死亡。'}
-          数值可能相同，但位置仍会下降。
         </p>
       )}
       <button

@@ -1,27 +1,31 @@
 'use client';
-import EnemyGlyph from './enemy-glyph';
 import { useEffect, useMemo, useState } from 'react';
-import { locationLabel } from '../lib/game-view.mjs';
+import { pendingEnemyMovements } from '../lib/enemy-presentation.mjs';
 
 export function useEnemyMotion(game, epoch) {
   const pending = game?.queue[0];
-  const flowId = pending?.workflow?.flowId,
-    movementEvents = (game?.events || [])
-      .filter(
-        (event) => event.type === 'MovementQueued' && event.flowId === flowId,
-      )
-      .map((event) => ({
-        enemyId: event.enemyId || event.entityId,
-        name: event.name,
-        kind: event.kind,
-        heroId: event.heroId,
-        path: event.path,
-        targetId: event.targetId,
-        targetName: event.targetName,
-        attacks: event.attacks,
-      }));
+  const [completed, setCompleted] = useState({ epoch, through: 0 });
+  const playedThrough = completed.epoch === epoch ? completed.through : 0;
+  const movementEvents = pendingEnemyMovements(game, playedThrough).map(
+    (event) => ({
+      id: event.id,
+      enemyId: event.enemyId || event.entityId,
+      name: event.name,
+      kind: event.kind,
+      heroId: event.heroId,
+      path: event.path,
+      targetId: event.targetId,
+      targetName: event.targetName,
+      attacks: event.attacks,
+    }),
+  );
+  const lastEventId = movementEvents.at(-1)?.id || 0;
   const signature = JSON.stringify(
-    movementEvents.length ? movementEvents : pending?.enemyMovements || [],
+    movementEvents.length
+      ? movementEvents
+      : playedThrough
+        ? []
+        : pending?.enemyMovements || [],
   );
   const routes = useMemo(() => JSON.parse(signature), [signature]);
   const frames = useMemo(
@@ -36,7 +40,7 @@ export function useEnemyMotion(game, epoch) {
       ),
     [routes],
   );
-  const key = `${epoch}:${game?.scenario}:${pending?.uid}:${signature}`;
+  const key = `${epoch}:${game?.scenario}:${pending?.workflow?.flowId}:${signature}`;
   const [playback, setPlayback] = useState({ key: null, index: 0 });
   const index = playback.key === key ? playback.index : 0;
   useEffect(() => {
@@ -45,10 +49,20 @@ export function useEnemyMotion(game, epoch) {
     const timer = setInterval(() => {
       step++;
       setPlayback({ key, index: step });
-      if (step >= frames.length) clearInterval(timer);
+      if (step >= frames.length) {
+        clearInterval(timer);
+        if (lastEventId)
+          setCompleted((current) => ({
+            epoch,
+            through: Math.max(
+              current.epoch === epoch ? current.through : 0,
+              lastEventId,
+            ),
+          }));
+      }
     }, 850);
     return () => clearInterval(timer);
-  }, [key, frames.length]);
+  }, [key, frames.length, lastEventId, epoch]);
   const moving = index < frames.length;
   const frame = frames[Math.min(index, frames.length - 1)];
   let shown = game;
@@ -76,36 +90,30 @@ export function useEnemyMotion(game, epoch) {
     moving,
     frame: moving ? frame : null,
     stepKey: `${key}:${index}`,
-    skip: () => setPlayback({ key, index: frames.length }),
+    skip: () => {
+      setPlayback({ key, index: frames.length });
+      if (lastEventId)
+        setCompleted((current) => ({
+          epoch,
+          through: Math.max(
+            current.epoch === epoch ? current.through : 0,
+            lastEventId,
+          ),
+        }));
+    },
   };
 }
 
-export default function EnemyMotion({ game, playback }) {
-  const step = playback.frame;
-  if (!step) return null;
+export default function EnemyMotion({ playback }) {
+  if (!playback.frame) return null;
   return (
-    <section
-      className="enemy-motion-banner"
-      aria-live="polite"
-      aria-label="敌人移动过程"
+    <button
+      type="button"
+      className="enemy-motion-skip text-button"
+      onClick={playback.skip}
+      aria-label="跳过敌人移动动画"
     >
-      <span className="enemy-motion-symbol">{<EnemyGlyph enemy={step} />}</span>
-      <div>
-        <small>全队行动结束 · 敌人回合</small>
-        <strong>
-          {step.name} · {locationLabel(game, step.pos)}
-        </strong>
-        <span>
-          {step.arriving
-            ? step.attacks
-              ? `已与${step.targetName}同室，即将进行攻击检定`
-              : '本轮追猎到此，尚未与目标同室'
-            : '沿相通的门追猎，抵达同室后才能攻击'}
-        </span>
-      </div>
-      <button className="text-button" onClick={playback.skip}>
-        跳过移动动画
-      </button>
-    </section>
+      跳过移动动画
+    </button>
   );
 }

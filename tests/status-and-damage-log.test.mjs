@@ -5,6 +5,7 @@ import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { updateCardRule } from '../lib/card-rules.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
 import { cure, infect } from '../lib/werewolf.mjs';
+import { eventJournalEntries } from '../lib/event-journal.mjs';
 
 const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 const hit = (uid, amount = 2) => ({
@@ -33,13 +34,26 @@ test('confirmed damage records a complete result once and stale clicks cannot al
   game = act(game, action);
   const summary = game.logs.filter((l) => /结算2点肉体伤害/.test(l.text));
   assert.equal(summary.length, 1);
-  assert.match(summary[0].text, /力量 .*→.*速度 .*→/);
+  assert.match(summary[0].text, /力量向左移动1格.*速度向左移动1格/);
   assert.equal(pending(game).uid, 501);
   assert.deepEqual(act(game, action), game);
   assert.equal(
     JSON.parse(JSON.stringify(game)).logs[0].text,
     game.logs[0].text,
   );
+});
+
+test('incremental damage keeps the full allocation in the final journal entry', () => {
+  let game = start();
+  game.queue = [hit(520)];
+  game = act(game, { type: 'allocate', trait: 'might' });
+  assert.equal(pending(game).remaining, 1);
+  game = act(game, { type: 'allocate', trait: 'speed' });
+  const result = game.events.findLast(
+    (event) => event.type === 'DamageApplied',
+  );
+  assert.deepEqual(result.allocation, { might: 1, speed: 1 });
+  assert.match(eventJournalEntries(game)[0].text, /力量左移1格、速度左移1格/);
 });
 
 test('fatal damage retains its journal result even when the game ends', () => {
@@ -73,7 +87,8 @@ test('fully prevented mental damage appears in the journal without a damage allo
   game = act(game, { type: 'advance' });
   assert(game.logs.some((l) => /1点精神伤害已被抵消/.test(l.text)));
   assert(!game.queue.some((p) => p.kind === 'damage'));
-  assert.match(pending(game).changes[0], /已被抵消/);
+  assert.equal(pending(game), null);
+  assert.match(eventJournalEntries(game)[0].text, /已全部抵消/);
 });
 
 test('settled attacks record actual enemy damage and HP before and after, including armor', () => {
@@ -111,4 +126,20 @@ test('buff descriptions follow infection progress and exact immunity expiry with
   assert.match(heroStatuses(game, hero)[0].description, /保护 0 次/);
   game.elapsed++;
   assert.deepEqual(heroStatuses(game, hero), []);
+});
+
+test('bloodmoon infection test marker explains cleansing and its current limits', () => {
+  const game = start();
+  const hero = game.heroes[0];
+  hero.statuses.push({
+    id: 'bloodmoon-infection',
+    label: '感染Ⅱ（测试）',
+    level: 2,
+    negative: true,
+    removable: true,
+  });
+  const badge = heroStatuses(game, hero).find(
+    (entry) => entry.label === '感染Ⅱ（测试）',
+  );
+  assert.match(badge.description, /消毒杀菌室.*不会撤销.*不会自动升级或转化/);
 });

@@ -789,6 +789,52 @@
 .map-stage .modular-room {
   animation: none;
 }
+.map-stage .modular-room:not(.current):not(.reachable) {
+  border-color: #566068;
+  box-shadow:
+    inset 0 0 0 1px #8c9ba522,
+    0 3px 9px #0009;
+  filter: saturate(0.62) brightness(0.78);
+}
+.map-stage .modular-room.reachable:not(.current) {
+  border: 3px solid #9cdaa9;
+  box-shadow:
+    0 0 0 2px #6bdc9950,
+    0 0 21px #62d29860;
+}
+.map-stage .modular-room.current {
+  border: 3px solid #ffe49c;
+  box-shadow:
+    0 0 0 3px #ffdb735c,
+    0 0 25px #ffcb7770;
+}
+.room-card-tooltip {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  width: min(290px, 70vw);
+  padding: 11px 13px;
+  transform: translateX(-50%);
+  border: 1px solid #bdcbd0a0;
+  border-radius: 8px;
+  background: #172933f5;
+  color: #e4e9e9;
+  box-shadow: 0 12px 32px #000a;
+  display: none;
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.room-card-tooltip strong {
+  display: block;
+  color: #ffe0a4;
+  margin-bottom: 4px;
+}
+.room-cell:hover .room-card-tooltip,
+.room-cell:focus-within .room-card-tooltip {
+  display: block;
+}
 .map-stage .modular-room:not(:disabled):active,
 .map-stage .frontier-cell:not(:disabled):active,
 .room-status-icons button:active {

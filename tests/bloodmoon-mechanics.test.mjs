@@ -138,7 +138,16 @@ test('ring permits only own 0/2 dice, records a round on its instance, and resum
   assert.equal(game.queue[0].title, '家族戒指 · 命运回环');
   assert(!game.queue[0].options.some((option) => option.value === '0:1'));
   assert.deepEqual(choose(game, '0:1'), game);
-  game = settle(choose(restore(game), '0:0'));
+  game = choose(restore(game), '0:0');
+  assert.equal(game.queue[0].kind, 'ringResult');
+  assert.equal(game.queue[0].before, 0);
+  assert.equal(game.queue[0].dice[0], game.queue[0].after);
+  assert.equal(
+    game.queue[0].total,
+    game.queue[0].dice.reduce((sum, face) => sum + face, 0),
+  );
+  assert.equal(act(game, { type: 'endHero' }).queue[0].kind, 'ringResult');
+  game = settle(restore(game));
   assert.equal(
     itemInstances(game.heroes[0]).find((item) => item.instanceId === 'ring')
       .state.ringRound,
@@ -150,6 +159,19 @@ test('ring permits only own 0/2 dice, records a round on its instance, and resum
   game = act(game, { type: 'select', id: 1 });
   game = dice(act(game, ability(game, 'craft').command), 0);
   assert.equal(game.queue.length, 0, 'trading does not refresh the reroll');
+});
+
+test('a successful craft shows the rerolled die before asking which potion to make', () => {
+  let game = start();
+  addItemInstance(game.heroes[0], 'family-ring', 'ring:craft');
+  game = dice(act(game, ability(game, 'craft').command), [2, 2, 0]);
+  assert.equal(game.queue[0].kind, 'choiceRequest');
+  game = choose(game, '0:2');
+  assert.equal(game.queue[0].kind, 'ringResult');
+  assert.equal(game.queue[0].sourceRequestUid > 0, true);
+  assert(game.queue.some((request) => request.title === '选择制备药剂'));
+  game = act(game, { type: 'advance' });
+  assert.equal(game.queue[0].title, '选择制备药剂');
 });
 
 test('badge can block initial status or upgrades, preserves history, and carries effect continuations through restore', () => {
@@ -250,7 +272,8 @@ test('sterilization lowers one level, costs once per game, can be declined and n
   assert.deepEqual(game.heroes[0].stats, stats);
   game = settle(act(game, { type: 'endRound' }));
   game = act(game, { type: 'endHero' });
-  assert.equal(game.queue.length, 0);
+  assert.equal(game.queue[0].kind, 'turnStart');
+  assert.equal(settle(game).queue.length, 0);
 });
 
 test('steam activates after the owner turn, tests each room independently, stops movement on failure and expires at owner start', () => {
@@ -269,12 +292,16 @@ test('steam activates after the owner turn, tests each room independently, stops
     new Set(game.bloodmoon.steam[0].roomIds),
     new Set(['bloodmoon-laboratory', 'sterilization']),
   );
-  assert.equal(game.queue[0].title, '避开蒸汽');
+  assert.equal(game.queue[0].kind, 'turnStart');
+  game = act(game, { type: 'advance' });
+  assert.equal(game.queue[0].title, '锅炉房 · 避开蒸汽');
+  assert.equal(game.queue[0].sourceRoomId, 'bloodmoon-boiler');
+  assert.match(game.queue[0].outcomes[1].effect, /受到 1 点肉体伤害/);
   game = dice(restore(game), 2);
   game.heroes[1].moves = 10;
   game = act(game, { type: 'move', pos: 'bloodmoon-boiler' });
   game = act(game, { type: 'move', pos: 'sterilization' });
-  assert.equal(game.queue[0].title, '避开蒸汽');
+  assert.equal(game.queue[0].title, '锅炉房 · 避开蒸汽');
   const before = game.heroes[1].stats.might + game.heroes[1].stats.speed;
   game = settle(dice(restore(game), 0));
   assert.equal(game.heroes[1].moves, 0);
@@ -343,6 +370,42 @@ test('traps are faction-private and stop an enemy at the intermediate room, not 
   }
 });
 
+test('alpha wolf entering a prepared trap stops there and records the trigger', () => {
+  let game = start();
+  game.phase = 'haunt';
+  game.heroes[0].pos = 'foyer';
+  addItemInstance(game.heroes[0], 'bear-trap', 'alpha-trap');
+  game = act(game, ability(game, 'trap').command);
+  game.heroes[2].traitor = true;
+  game.heroes[2].pos = 'stairs';
+  game.heroes[0].pos = 'entrance';
+  game.heroes[1].pos = 'entrance';
+  game.enemies = [
+    {
+      id: 'alpha-test',
+      name: '测试狼王',
+      kind: 'alpha',
+      heroId: 2,
+      pos: 'stairs',
+      hp: 10,
+      maxHp: 10,
+      speed: 3,
+      might: 3,
+    },
+  ];
+  game = settle(act(game, { type: 'endRound' }));
+  assert.equal(game.enemies[0].pos, 'foyer');
+  assert.equal(game.enemies[0].hp, 8);
+  assert(
+    game.events.some(
+      (event) =>
+        event.type === 'TrapTriggered' &&
+        event.enemyId === 'alpha-test' &&
+        event.roomId === 'foyer',
+    ),
+  );
+});
+
 test('hostile trap hero entry waits for damage before room continuation and cannot trigger twice after restore', () => {
   let game = start();
   game.heroes[0].pos = 'entrance';
@@ -352,7 +415,14 @@ test('hostile trap hero entry waits for damage before room continuation and cann
   const before = game.heroes[0].stats.might + game.heroes[0].stats.speed;
   game = act(game, { type: 'move', pos: 'foyer' });
   assert.equal(game.queue[0].kind, 'damage');
-  game = settle(restore(game));
+  game = restore(game);
+  game = act(game, {
+    type: 'allocateDamage',
+    requestId: game.queue[0].uid,
+    allocation: { might: 2, speed: 0 },
+  });
+  assert.notEqual(game.queue[0]?.kind, 'contentResume');
+  game = settle(game);
   assert.equal(
     game.heroes[0].stats.might + game.heroes[0].stats.speed,
     before - 2,
@@ -483,7 +553,7 @@ test('a nested status ward resumes the owning turn trigger and later effects aft
       .length,
     1,
   );
-  assert.equal(game.queue.length, 0);
+  assert.equal(game.queue[0].kind, 'turnStart');
 });
 
 test('badge protection during enemy attack resumes exactly once and does not repeat attack damage', () => {

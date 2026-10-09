@@ -281,7 +281,7 @@ test('direct event effects still require damage allocation, and omen reception r
   assert.equal(pending(game).kind, 'damage');
   assert.equal(pending(game).remaining, 2);
   assert.deepEqual(game.heroes[0].stats, stats);
-  assert.match(game.cardNotice.text, /2点/);
+  assert.equal(game.cardNotice, undefined);
   game = cardGame('omen', 'bell');
   game.omens = 2;
   game = continueCard(game);

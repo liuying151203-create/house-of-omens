@@ -85,7 +85,9 @@ test('declarative damage hooks can prevent damage and retaliate without item bra
     hpBefore - 1,
   );
   assert.deepEqual(
-    pending(game).triggers.map((trigger) => trigger.sourceLabel),
+    game.events
+      .findLast((event) => event.type === 'DamageApplied')
+      .triggers.map((trigger) => trigger.sourceLabel),
     ['测试护符', '测试荆棘'],
   );
   assert(game.logs.some((entry) => /测试荆棘令.*生命/.test(entry.text)));
@@ -267,7 +269,7 @@ test('a BeforeDeath reaction resumes damage allocation without killing twice', (
     1,
   );
   assert.equal(
-    game.queue.filter((entry) => entry.kind === 'damageResult').length,
+    game.events.filter((event) => event.type === 'DamageApplied').length,
     1,
   );
 });
@@ -336,7 +338,9 @@ test('an AfterDamage reaction resumes without applying allocation twice', () => 
     allocation: { might: 1, speed: 0 },
   });
   assert.equal(game.heroes[hero.id].stats.might, before - 1);
-  const result = game.queue.find((entry) => entry.kind === 'damageResult');
+  const result = game.events.findLast(
+    (event) => event.type === 'DamageApplied',
+  );
   assert.equal(result.triggers[0].sourceLabel, '受伤后反应测试');
   game = advanceUntil(game, 'choiceRequest');
   const reaction = pending(game);

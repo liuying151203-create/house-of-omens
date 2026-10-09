@@ -105,3 +105,65 @@ test('unrolled groups show waiting dice and do not announce settlement', () => {
   assert.doesNotMatch(html, /class="side-total"/);
   assert.doesNotMatch(html, /dice-auto-status/);
 });
+
+test('family ring choices stay in the dice window and only 0/2 dice can be clicked', () => {
+  const html = renderToStaticMarkup(
+    createElement(DiceRequest, {
+      game: {
+        queue: [
+          {
+            uid: 20,
+            kind: 'choiceRequest',
+            title: '家族戒指 · 命运回环',
+            text: '选择一枚骰子重掷',
+            ringRolls: [{ label: '力量检定', dice: [0, 1, 2] }],
+            options: [
+              { value: '0:0', label: '第一枚' },
+              { value: '0:2', label: '第三枚' },
+              { value: 'skip', label: '放弃' },
+            ],
+          },
+        ],
+      },
+      send() {},
+      motion: true,
+      toggleMotion() {},
+    }),
+  );
+  assert.match(html, /dice-request-dialog/);
+  assert.match(html, /第1枚，0点，点击重掷/);
+  assert.match(html, /第2枚，1点，不可重掷/);
+  assert.match(html, /第3枚，2点，点击重掷/);
+});
+
+test('the rerolled result remains in the dice window before the next choice', () => {
+  const html = renderToStaticMarkup(
+    createElement(DiceRequest, {
+      game: {
+        queue: [
+          {
+            uid: 21,
+            kind: 'ringResult',
+            title: '家族戒指 · 重掷结果',
+            text: '新点数已计入本次检定。',
+            groupLabel: '制备药剂',
+            dice: [2, 2, 1],
+            dieIndex: 2,
+            before: 0,
+            after: 1,
+            total: 5,
+          },
+        ],
+      },
+      send() {},
+      motion: true,
+      toggleMotion() {},
+    }),
+  );
+  assert.match(html, /dice-request-dialog/);
+  assert.match(html, /第 3 枚：0 →/);
+  assert.match(html, /本组结果：/);
+  assert.match(html, /5 点/);
+  assert.match(html, /继续检定/);
+  assert.doesNotMatch(html, /自动继续原检定/);
+});

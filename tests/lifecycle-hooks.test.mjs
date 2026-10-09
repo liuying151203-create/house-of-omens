@@ -706,6 +706,8 @@ test('turn, round, haunt and status lifecycle timings execute declarative effect
   ];
   game = act(game, { type: 'endRound' });
   assert.equal(game.round, 2);
+  assert.equal(pending(game).kind, 'roundStart');
+  game = act(game, { type: 'advance' });
   assert.deepEqual(
     game.heroes[0].statuses.map((status) => status.id),
     ['turn-ended', 'round-ended', 'round-started', 'turn-started'],
@@ -865,6 +867,9 @@ test('round end, round start and first turn reactions resume in order', () => {
     requestId: reaction.uid,
     choice: 'mark',
   });
+  reaction = pending(game);
+  assert.equal(reaction.kind, 'roundStart');
+  game = act(game, { type: 'advance' });
   reaction = pending(game);
   assert.equal(reaction.kind, 'choiceRequest');
   assert.equal(

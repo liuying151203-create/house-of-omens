@@ -61,8 +61,11 @@ test('damage preview commits atomically and rejects partial, negative and wrong-
   s = act(s, { type: 'allocateDamage', allocation: { might: 1, speed: 2 } });
   assert.equal(s.heroes[0].stats.might, before.heroes[0].stats.might - 1);
   assert.equal(s.heroes[0].stats.speed, before.heroes[0].stats.speed - 2);
-  assert.equal(pending(s).kind, 'damageResult');
-  assert.equal(pending(s).changes.length, 2);
+  assert.equal(pending(s), null);
+  assert.deepEqual(
+    s.events.findLast((event) => event.type === 'DamageApplied').allocation,
+    { might: 1, speed: 2 },
+  );
   assert.deepEqual(before.queue[0].allocation, []);
 });
 test('new rounds explicitly announce recovery and reset active explorer', () => {
@@ -174,6 +177,8 @@ test('two clients serialize actions, reject stale writes, and recover exactly th
   );
   execute(host.key, { type: 'endHero' });
   assert.equal(r.game.active, 1);
+  assert.equal(pending(r.game).kind, 'turnStart');
+  execute(guest.key, { type: 'advance' });
   execute(guest.key, { type: 'move', pos: 'foyer' });
   assert.equal(r.game.heroes[1].pos, 'foyer');
   assert.deepEqual(
@@ -182,6 +187,7 @@ test('two clients serialize actions, reject stale writes, and recover exactly th
   );
   execute(guest.key, { type: 'endHero' });
   assert.equal(r.game.active, 2);
+  execute(host.key, { type: 'advance' });
   execute(host.key, { type: 'endHero' });
   assert.equal(pending(r.game).kind, 'roundStart');
 });
@@ -265,7 +271,9 @@ test('movement, explorer changes and a new round follow the acting explorer floo
   s = act(s, { type: 'endHero' });
   assert.equal(s.active, 1);
   assert.equal(s.viewFloor, 0);
+  s = act(s, { type: 'advance' });
   s = act(s, { type: 'endHero' });
+  s = act(s, { type: 'advance' });
   s = act(s, { type: 'endHero' });
   assert.equal(s.round, 2);
   assert.equal(s.active, 0);

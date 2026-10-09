@@ -134,6 +134,8 @@ test('replayed finish commands cannot end another hero or a later round', () => 
   game = act(game, command);
   const next = structuredClone(game);
   assert.deepEqual(act(game, command), next);
+  assert.equal(pending(game).kind, 'turnStart');
+  game = act(game, { type: 'advance' });
   const end = { type: 'endRound', round: game.round };
   game = dismiss(act(game, end));
   assert.equal(game.round, 2);

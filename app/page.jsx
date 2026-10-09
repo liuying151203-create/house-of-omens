@@ -98,6 +98,8 @@ import { roomRuleView, traitRuleView } from '../lib/rule-views.mjs';
 import { eventJournalEntries } from '../lib/event-journal.mjs';
 import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
+import FlowTransition, { InternalContinuation } from './flow-transition';
+import { isBroadcastRequest } from '../lib/presentation-requests.mjs';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
 import DamagePlanner from './damage-planner';
 import { useNetwork, NetworkLobby, networkStatusLabel } from './network';
@@ -244,18 +246,30 @@ function Prompt({
 }) {
   const p = pending(game);
   if (!p || p.kind === 'placement') return null;
-  if (p.kind === 'diceRequest')
+  if (p.kind === 'contentResume' || p.kind === 'enemyTurn')
+    return <InternalContinuation key={p.uid} send={send} locked={locked} />;
+  if (p.kind === 'diceRequest' || p.ringRolls || p.kind === 'ringResult')
     return (
       <DiceRequest
-        key={p.uid}
+        key={p.kind === 'ringResult' ? p.sourceRequestUid || p.uid : p.uid}
         game={game}
         send={send}
+        locked={locked}
         net={net}
         motion={diceMotion}
         toggleMotion={toggleDice}
         autoRoll={autoRoll}
         toggleAuto={toggleAuto}
         testTools={testTools}
+      />
+    );
+  if (isBroadcastRequest(p))
+    return (
+      <FlowTransition
+        key={p.uid}
+        request={p}
+        send={send}
+        locked={locked || p.kind === 'privateRequest'}
       />
     );
   const tile =
@@ -281,7 +295,6 @@ function Prompt({
     floor: '楼层连通',
     reveal: '真身现形',
     check: '目标检定',
-    roundStart: '新回合 · 全队准备',
     damageResult: '伤害结算',
     choiceRequest: '等待你的决定',
     privateRequest: '等待其他玩家',
@@ -474,20 +487,10 @@ function Prompt({
               <span>{p.skipHint}</span>
             </div>
           )}
-          {p.kind === 'roundStart' && (
-            <div className="round-roster">
-              {living(game).map((h) => (
-                <span key={h.id} style={{ color: h.color }}>
-                  {h.name}
-                  <b>{h.moves} 移动</b>
-                </span>
-              ))}
-            </div>
-          )}
           {p.kind === 'damage' && (
             <DamagePlanner key={p.uid} game={game} p={p} send={send} />
           )}
-          {p.kind === 'choiceRequest' && (
+          {p.kind === 'choiceRequest' && !p.ringRolls && (
             <div className="reaction-options">
               {p.options.map((option) => (
                 <button
@@ -579,6 +582,7 @@ function FloorPeople({ game, f, onInspect, room }) {
         .map((h) => (
           <MapPawn
             key={h.id}
+            game={game}
             hero={h}
             active={h.id === game.active}
             className={
@@ -982,15 +986,29 @@ function Board({
                     (roomView.target ? 'quest-room ' : '') +
                     (moonlit(game, roomView) ? 'moonlit-room' : '')
                   }
-                  title={`${roomView.name}${moonlit(game, roomView) ? ' · 月光：狼人力量 +1，可封窗解除' : roomView.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
+                  title={`${roomView.name}${roomView.description ? '：' + roomView.description : ''}${moonlit(game, roomView) ? ' · 月光：狼人力量值 +1，可封窗解除' : roomView.states?.boarded ? ' · 已封窗：无月光加成' : ''}`}
                   aria-label={`${roomView.name}${here ? '，当前位置' : ''}${legal.move.includes(r.id) ? '，可经门移动' : ''}`}
+                  aria-describedby={
+                    roomView.description ? `room-effect-${r.id}` : undefined
+                  }
                 >
                   <TileFace tile={roomView} />
                 </button>
+                {roomView.description && (
+                  <span
+                    className="room-card-tooltip"
+                    id={`room-effect-${r.id}`}
+                    role="tooltip"
+                  >
+                    <strong>{roomView.name}</strong>
+                    <span>{roomView.description}</span>
+                  </span>
+                )}
                 <span className="room-tokens">
                   {occupants.map((h) => (
                     <MapPawn
                       key={h.id}
+                      game={game}
                       hero={h}
                       active={h.id === game.active}
                       onInspect={onInspect}
@@ -1311,7 +1329,7 @@ export default function Home() {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-  const attributeFeedback = useAttributeChanges(game);
+  const attributeFeedback = useAttributeChanges(game, enemyMotion.moving);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -1757,7 +1775,7 @@ export default function Home() {
                 />
               </section>
             )}
-            <EnemyMotion game={game} playback={enemyMotion} />
+            <EnemyMotion playback={enemyMotion} />
             {game.cardNotice && (
               <CardNotice key={game.cardNotice.uid} notice={game.cardNotice} />
             )}
@@ -2057,7 +2075,9 @@ export default function Home() {
                           key={l.id}
                         >
                           <span className="journal-dot" />
-                          <small>第{l.round}回合</small>
+                          <small>
+                            第{l.round}回合 · {l.category}
+                          </small>
                           <p>{l.text}</p>
                         </div>
                       ))}
@@ -2065,7 +2085,7 @@ export default function Home() {
                     <div className="mini-heading">
                       <span>
                         <BookOpen size={15} />
-                        宅邸手记
+                        过程记录
                       </span>
                     </div>
                     <div className="journal-entries">

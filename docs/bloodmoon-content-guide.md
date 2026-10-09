@@ -136,6 +136,13 @@ git commit -m "feat(bloodmoon): add immortality and silver weakening / 新增不
 
 ## 验证命令
 
+收尾文档同步也独立提交，命令已执行，不必重复运行：
+
+```powershell
+git add docs/bloodmoon-implementation-assessment.md docs/bloodmoon-content-guide.md
+git commit -m "docs(bloodmoon): align completed module guidance / 同步已完成模块说明"
+```
+
 ```powershell
 node --test tests/bloodmoon-bite.test.mjs tests/bloodmoon-mechanics.test.mjs tests/bloodmoon-items.test.mjs
 npm test

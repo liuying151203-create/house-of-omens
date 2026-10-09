@@ -1769,6 +1769,13 @@
 .attribute-tracks .trait-start:after {
   display: none;
 }
+.attribute-tracks .trait-track > .trait-unavailable {
+  color: #858a93;
+  background: #23262c;
+  border-color: #414650;
+  opacity: 0.55;
+  text-decoration: line-through;
+}
 
 .attribute-tracks .trait-health {
   --track-color: #d394a1;

@@ -46,6 +46,42 @@ const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
 const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
 
+test('controlled alpha shows capped track positions without removing the eight-position moon track', () => {
+  const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-recovery-cap');
+  game.queue = [];
+  const html = render(Personal, { game, net: {}, send() {}, changes: [] });
+  assert.match(html, /初始狼人/);
+  assert.equal((html.match(/trait-unavailable/g) || []).length, 6);
+  assert.match(html, /银弹削弱后不可使用/);
+});
+test('gun details show loaded ammo and share actions with the main command strip', () => {
+  let game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-silver-first');
+  game.queue = [];
+  const unloaded = render(Inventory, {
+    game,
+    hero: game.heroes[0],
+    send() {},
+    disabled: false,
+  });
+  assert.match(unloaded, /当前装填：普通弹药/);
+  assert.match(unloaded, /装填银弹/);
+  game = act(game, {
+    type: 'loadSilver',
+    gunId: 'test-pistol',
+    bulletId: 'test-silver-1',
+  });
+  const loaded = render(Inventory, {
+    game,
+    hero: game.heroes[0],
+    send() {},
+    disabled: false,
+  });
+  assert.match(loaded, /当前装填：银弹1发/);
+  assert.match(loaded, /银弹射击/);
+  assert.match(loaded, /本回合装填机会已使用/);
+  assert.match(loaded, /卸下银弹/);
+});
+
 test('map explorer tokens are buttons for the matching status sheet', () => {
   const hero = start().heroes[0];
   const html = render(MapPawn, { hero, active: true });

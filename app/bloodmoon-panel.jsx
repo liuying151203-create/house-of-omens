@@ -13,6 +13,14 @@ export default function BloodmoonPanel({ game }) {
         {alpha.name} · 初始狼人，由玩家控制；月相改变数值，保持属性标记位置。
       </p>
       <p>初醒：第1～2轮；满月：第3～4轮；血月：第5轮起。感染与嗜血尚未接入。</p>
+      <p>
+        初始狼人普通伤害触及骷髅时保留第1格，下次自己的回合不能主动攻击。银弹绕过不死，7点伤害由狼人分配；存活后力量与速度最高位置永久降至第4格。
+      </p>
+      {alpha.silverWeakened && <p>银弹永久削弱已生效：力量、速度最高第4格。</p>}
+      {alpha.skipNextAttack && <p>下次狼人回合不能主动攻击。</p>}
+      {alpha.attackBlockedRound === game.round && (
+        <p>本回合狼人不能主动攻击，仍可移动和使用物品。</p>
+      )}
     </section>
   );
 }

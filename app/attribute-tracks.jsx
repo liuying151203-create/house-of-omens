@@ -54,6 +54,7 @@ export default function AttributeTracks({
           current: view.current,
           start: view.start,
           track: view.changeable ? view.track : null,
+          maxPosition: view.maxPosition,
         }));
   return (
     <span
@@ -82,11 +83,12 @@ export default function AttributeTracks({
               {row.track.map((n, i) => (
                 <span
                   key={i}
-                  title={`第${i}格：${i === 0 ? '死亡' : n}${i === row.current ? ' · 当前' : ''}${i === row.start ? ' · 起始' : ''}`}
+                  title={`第${i}格：${i === 0 ? '骷髅' : n}${i === row.current ? ' · 当前' : ''}${i === row.start ? ' · 起始' : ''}${i > row.maxPosition ? ' · 银弹削弱后不可使用' : ''}`}
                   aria-current={i === row.current ? 'step' : undefined}
                   className={
                     (i === row.current ? 'trait-current ' : '') +
-                    (i === row.start ? 'trait-start' : '')
+                    (i === row.start ? 'trait-start ' : '') +
+                    (i > row.maxPosition ? 'trait-unavailable' : '')
                   }
                 >
                   {i === 0 ? <Skull size={10} /> : n}

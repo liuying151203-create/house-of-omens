@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Minus, Plus, Check } from 'lucide-react';
 import { traitRuleView } from '@/lib/rule-views.mjs';
+import { traitPositionBounds } from '../lib/content/bloodmoon-health.mjs';
 export default function DamagePlanner({ game, p, send }) {
   const keys =
       p.traits ||
@@ -25,8 +26,15 @@ export default function DamagePlanner({ game, p, send }) {
       </p>
     );
   const left = p.remaining - keys.reduce((n, k) => n + allocation[k], 0),
-    minimum = game.phase === 'explore' ? 1 : 0,
-    lethal = keys.some((k) => h.stats[k] - allocation[k] <= 0 && minimum === 0);
+    bounds = Object.fromEntries(
+      keys.map((key) => [
+        key,
+        traitPositionBounds(game, h, key, p, views[key].track.length - 1),
+      ]),
+    ),
+    lethal = keys.some(
+      (k) => h.stats[k] - allocation[k] <= 0 && bounds[k].minimum === 0,
+    );
   return (
     <div className="damage-planner">
       <div className="damage-counter">
@@ -35,7 +43,7 @@ export default function DamagePlanner({ game, p, send }) {
 
       {keys.map((k) => {
         const view = views[k],
-          after = Math.max(minimum, view.current - allocation[k]),
+          after = Math.max(bounds[k].minimum, view.current - allocation[k]),
           other = keys.find((key) => key !== k);
         return (
           <div
@@ -49,7 +57,9 @@ export default function DamagePlanner({ game, p, send }) {
               <span>
                 {view.value} → <b>{after === 0 ? '☠' : view.track[after]}</b>
               </span>
-              <small>下降 {allocation[k]} 格</small>
+              <small>
+                分配{allocation[k]}点，下降{view.current - after}格
+              </small>
             </div>
             <div className="damage-plan-controls">
               <button

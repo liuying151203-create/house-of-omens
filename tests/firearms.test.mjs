@@ -138,6 +138,29 @@ test('successful dodge inflicts no damage and still spends the attack', () => {
   assert(!game.events.some((event) => event.type === 'DamageApplied'));
   assert(game.heroes[0].attacked);
 });
+test('defender ring result stays pending before gun injury and preserves the target-owned dice through restore', () => {
+  let game = fixture();
+  addItemInstance(game.heroes[1], 'family-ring', 'dodge-ring');
+  game = act(game, shot(game).command);
+  pending(game).rolls[0].dice = Array(pending(game).rolls[0].count).fill(0);
+  game = act(game, { type: 'resolveDice', requestId: pending(game).uid });
+  assert.equal(pending(game).kind, 'choiceRequest');
+  assert.equal(pending(game).heroId, 1);
+  game = act(restore(game), {
+    type: 'resolveChoice',
+    requestId: pending(game).uid,
+    choice: '0:0',
+  });
+  assert.equal(pending(game).kind, 'ringResult');
+  assert.equal(pending(game).heroId, 1);
+  assert(!game.events.some((event) => event.type === 'DamageApplied'));
+  const request = pending(game);
+  assert.deepEqual(act(restore(game), { type: 'endHero' }), restore(game));
+  game = act(restore(game), { type: 'advance', requestId: request.uid });
+  assert.equal(pending(game).kind, 'damage');
+  assert.equal(pending(game).remaining, 2);
+  assert.equal(pending(game).heroId, 1);
+});
 test('silver is consumed exactly once, bypasses dice and awaits seven manually allocated points after save restore', () => {
   let game = load(fixture('bloodmoon-silver-first'));
   const command = shot(game).command;

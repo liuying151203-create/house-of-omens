@@ -76,11 +76,63 @@
 
 `combat.firearm` 流程保存枪、目标、弹药模式、射线和骰子说明。使用者与目标的骰子／伤害权限沿用现有座位规则。已装银弹存入手枪实例的 `state.loadedBullet`，交易、丢弃、拾取和读档不会复制或丢失弹药。装填／卸下与枪击结果写入探索手记；通知只描述已经发生的事。手枪详情显示当前装填状态，可直接操作射击、装填与卸下。
 
-试作默认：射击占本回合唯一主动攻击；每支枪每回合可装填一次、不占攻击，卸下不退还装填机会；不能同室射击；银弹暂只开放对初始狼人射击，其他目标效果待设计确认。新增「手枪射程与闪避」「射线遮挡与墙壁」「第一发银弹与永久削弱」「第二发银弹与英雄胜利」测试入口。永久削弱与不死将在下一模块接入，测试入口为其预留高低属性状态。
+试作默认：射击占本回合唯一主动攻击；每支枪每回合可装填一次、不占攻击，卸下不退还装填机会；不能同室射击；银弹暂只开放对初始狼人射击，其他目标效果待设计确认。
 
-《血月之夜》目前作为独立战斗模块试作开放。咬痕、玩家控制狼人、月相和枪械已可独立试玩；感染自动升级／转化、嗜血与不死尚未接入。消毒室净化与新感染Ⅱ回合末检定的先后，需在感染流程接入时确认。阶段顺序与验收边界见 [实现评估与后续计划](bloodmoon-implementation-assessment.md)。
+### 不死与永久上限（2026-10-09）
+
+`bloodmoon-health.mjs` 提供统一的属性位置边界，属性修改与伤害预览共同使用。初始狼人普通身体伤害最低保留第1格，分配到该属性的多余伤害失效，实际下降格数与失效点数分别记录。击倒惩罚在下一次**该角色自己的回合开始**时消耗一次：本回合已经开始时受伤不会扣掉当前攻击；尚未开始自己的回合时受伤，可以在同一完整轮次的稍后回合生效。回合内切换角色和读档不会重复消耗；移动、装填和物品使用仍可进行。次级狼人及英雄没有不死。
+
+银弹身体伤害可进入骷髅；初始狼人死亡立即判定英雄胜利。命中存活后，等待完整伤害与反应流程结束，再永久降低力量和速度的最高位置至第4格，并立刻压低超出位置。药剂、休整、通用恢复效果共用此上限；月相保留八格轨道与标记，不能解除上限。第5～7格在人物面板划线标为不可用。永久削弱独立于可清除负面状态，解药不会解除它。
+
+精神属性到骷髅的规则设计尚未规定，试作暂最低保留第1格、不触发身体击倒惩罚，以保持初始狼人只有银弹可击杀；这不是对正式剧本的最终定案。恢复和伤害来源的扩展应继续经过统一属性／伤害接口，避免直接写 `hero.stats` 绕过上限。
+
+### 本轮手动验收入口
+
+运行 `npm run dev`，打开终端给出的网址，在首页进入「定向测试」，选择旧狼人《月光照进来的时候》，再选择以下独立测试。新测试实际使用 `bloodmoon` 战斗模块；既有狼人测试仍使用原规则。开始后确认试作说明，读只读的回合通知；骰子、伤害分配和物品选择仍需主动确认。
+
+| 测试场景 | 操作与应见结果 |
+| --- | --- |
+| 可控狼人与轨道 | 初始狼人可移动、攻击同室英雄，双方分别投力量骰；完整差值由受伤角色手动分配，没有 HP 敌人代替角色。 |
+| 月相切换：满月前夕 | 结束**整轮**进入第3轮满月，标记仍在第4格，初始狼人的力量值变为6；只结束一个人的回合不换月相。 |
+| 月相切换：血月前夕 | 结束整轮进入第5轮血月，保持标记，力量／速度读取血月数值。 |
+| 次级狼人轨道 | 第二位角色属于狼群，保留原人物轨道；反复换月相不会套用初始狼人的轨道。 |
+| 手枪射程与闪避 | 首位英雄向两房间外狼人射击；速度4+成功无伤，失败分配2点。投骰窗口显示成功／失败的具体效果；射击后本回合不能再次主动攻击。 |
+| 射线遮挡与墙壁 | 初始没有射击按钮。切换第三位角色，让其从长廊走回门厅，再切回枪手，可射击；中间角色会阻挡。墙壁、旋转后的不相通门、跨层或转弯射线由自动测试覆盖。 |
+| 第一发银弹与永久削弱 | 狼人位于三房间外，普通射程不够。装填后可射击，直接进入7点手动分配，无闪避骰。可分力量1／速度6，存活后力量第6格压至第4格、速度第1格；狼人两条身体轨道的第5～7格不可使用。也可分力量7，验证第一发直接致死。 |
+| 第二发银弹与英雄胜利 | 已削弱狼人双身体第4格。装填并射击，完整分配7点必使至少一项到骷髅，立刻判定英雄胜利。 |
+| 普通伤害与不死 | 初始狼人双身体第1格，走入入口大厅触发预置英雄捕兽夹。分配2点后仍存活；结束整轮后狼人能移动、不能主动攻击；再结束整轮恢复攻击。探索手记应有触发、失效伤害和惩罚记录。 |
+| 削弱上限与药剂恢复 | 首位已削弱狼人持两种药剂。在第4格使用药剂仍只到第4格；下次自己的回合开始回退1格。可休整回第4格，反复换月相仍不能越过第4格。 |
+
+需要反复测试时先「保存测试点」，用「恢复测试点」重试分配；分配窗口保持原位置并从0点开始，不预先替玩家选择。射击、伤害分配、戒指反应中刷新页面后，从「继续测试局」恢复，确认弹药、攻击机会与实际伤害不重复结算。联机专项测试覆盖座位权限与私有伤害窗口；浏览器单机试玩不能替代多人真机验收。
+
+《血月之夜》目前作为独立战斗模块试作开放。咬痕、玩家控制狼人、月相、枪械、银弹与不死已可独立试玩；感染自动升级／转化、嗜血、落单／残血与追猎尚待下一阶段。消毒室净化与新感染Ⅱ回合末检定的先后，需在感染流程接入时确认。阶段顺序与验收边界见 [实现评估与后续计划](bloodmoon-implementation-assessment.md)。
 
 旧存档可继续使用；新内容存档需要所有客户端和主机一起更新。房间画面复用现有图案，未新增图片依赖。
+
+### 本轮模块提交命令
+
+以下为本轮实际采用的提交范围和命令，**当前已经提交，不需要重复运行**。不使用交互式暂存，也不推送远端。
+
+可控狼人及月相：
+
+```powershell
+git add app/lobby-screen.jsx app/page.jsx app/bloodmoon-panel.jsx docs/bloodmoon-content-guide.md lib/catalog.mjs lib/content/actions.mjs lib/content/scenarios/index.mjs lib/content/scenarios/bloodmoon.mjs lib/content/actor-combat-workflow.mjs lib/content/bloodmoon-actors.mjs lib/engine/scenarios.mjs lib/event-journal.mjs lib/game-data.mjs lib/game-engine.mjs lib/game-view.mjs lib/playtest.mjs lib/rule-views.mjs tests/scenario-registry.test.mjs tests/bloodmoon-actors.test.mjs
+git commit -m "feat(bloodmoon): add controlled wolves and moon phases / 新增可控狼人及月相"
+```
+
+枪械与银弹：
+
+```powershell
+git add app/hero-inventory.jsx docs/bloodmoon-content-guide.md lib/content/actions.mjs lib/content/bloodmoon-items.mjs lib/content/firearms.mjs lib/content/firearm-workflow.mjs lib/event-journal.mjs lib/game-engine.mjs lib/playtest.mjs tests/firearms.test.mjs
+git commit -m "feat(combat): add firearms and silver ammunition / 新增枪械与银弹"
+```
+
+不死与永久削弱：
+
+```powershell
+git add app/attribute-tracks.jsx app/bloodmoon-panel.jsx app/damage-planner.jsx app/explorer-ui.css docs/bloodmoon-content-guide.md docs/bloodmoon-implementation-assessment.md lib/content/bloodmoon-health.mjs lib/content/bloodmoon-mechanics.mjs lib/event-journal.mjs lib/game-engine.mjs lib/game-view.mjs lib/playtest.mjs lib/rule-views.mjs tests/bloodmoon-health.test.mjs tests/explorer-ui.test.mjs tests/firearms.test.mjs
+git commit -m "feat(bloodmoon): add immortality and silver weakening / 新增不死与银弹永久削弱"
+```
 
 ## 验证命令
 

@@ -22,3 +22,23 @@ node --test tests/game-sets.test.mjs tests/bloodmoon-bite.test.mjs
 git add lib/game-sets.mjs lib/content/bloodmoon-omens.mjs app/game-sets.jsx tests/game-sets.test.mjs tests/bloodmoon-bite.test.mjs docs/game-sets-guide.md docs/bloodmoon-acceptance-guide.md
 git commit -m "feat(game-sets): add bloodmoon preset validation / 新增血月预设及必要卡牌校验"
 ```
+
+## 2. 咬痕正式触发
+
+定向测试选择“血月之夜 → 咬痕 → 血月正式触发”，可保存测试点并反复重置。原狼人剧本的“咬痕攻防与作祟（独立测试）”保留旧行为。
+
+1. 查看卡牌说明后继续：暗处袭击者投4枚攻击骰，抽牌者以当前力量值投防御骰。
+2. 有戒指时，在原骰子窗口选择自己的可重掷骰；重掷结果一直保留，点击继续后才结算。
+3. 攻击方胜出时，自己从原位置分配完整差值身体伤害；防御方胜出或平局无伤、无反击。
+4. 上述反应全部处理完，才出现作祟检定；此测试点已获得三张预兆，即使点数不足5也会开始作祟。
+5. 首位咬痕持有者成为初始狼人，仍由原玩家控制；没有旧版自动移动的狼王，其他人物保留座位。
+6. 在攻防、戒指选择或伤害分配期间保存测试点／刷新恢复，流程不能跳过或重复伤害。
+7. 普通定向血月局，咬痕第一／第二张出现时仍按现有规则跳过不可能达到5点的检定；后续预兆触发作祟时，初始狼人仍为早先的咬痕持有者。咬痕未出现时不开始血月作祟。
+
+自动剧本自定义集可以清除“默认剧本”；咬痕作为触发预兆时优先揭示血月，其他预兆继续采用既有组合规则，因此自动局不保证抽咬痕之前不会触发其他剧本。
+
+```powershell
+node --test tests/bloodmoon-entry.test.mjs tests/bloodmoon-bite.test.mjs tests/scenario-registry.test.mjs tests/quick-playtest.test.mjs
+git add lib/game-engine.mjs lib/engine/scenarios.mjs lib/content/scenarios/bloodmoon.mjs lib/playtest.mjs tests/scenario-registry.test.mjs tests/bloodmoon-entry.test.mjs docs/bloodmoon-acceptance-guide.md
+git commit -m "feat(bloodmoon): connect bite to formal haunt entry / 接入咬痕与正式作祟流程"
+```

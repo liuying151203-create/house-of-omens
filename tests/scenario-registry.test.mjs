@@ -72,6 +72,7 @@ test('haunt selection preserves overlapping rule priorities and supports new def
     ['bone', [], 'werewolf'],
     ['eye', ['water'], 'mirror'],
     ['key', [], 'flood'],
+    ['bite-mark', ['moon', 'memory', 'water'], 'bloodmoon'],
     [undefined, [], 'bells'],
   ])
     assert.equal(scenarioRegistry.select(omen, { tags }), expected);
@@ -109,6 +110,7 @@ test('workflow and simulation use the same scenario timeout and faction result',
     for (const create of [createGame, createSimulationGame]) {
       let game = create(id, 151, 3);
       game.queue = [];
+      if (id === 'bloodmoon') game.heroes[0].omens.push('bite-mark');
       triggerHaunt(game);
       game = drivePendingRequests(game, act);
       if (id === 'bloodmoon') {

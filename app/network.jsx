@@ -15,7 +15,12 @@ import { createRemoteTransport } from '@/lib/network/remote-transport.mjs';
 import { remoteRoomVisible } from '@/lib/network/remote-rollout.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
-import { GameSetPicker, GameSetSummary } from './game-sets';
+import {
+  GameSetPicker,
+  GameSetSummary,
+  ScenarioPicker,
+  gameSetupError,
+} from './game-sets';
 
 const SESSION = 'hillhouse-network-session-v2';
 const LEGACY_SESSION = 'hillhouse-network-session';
@@ -307,6 +312,7 @@ export function useNetwork(setGame) {
 export function NetworkLobby({
   net,
   scenario,
+  setScenario,
   count,
   onClose,
   gameSets,
@@ -329,6 +335,11 @@ export function NetworkLobby({
       room && isRemote && typeof window !== 'undefined'
         ? buildRemoteInviteUrl(window.location, room.code)
         : '';
+  const setupError = gameSetupError(scenario, gameSets?.selected);
+  const configuredScenario =
+    scenario === 'mystery' && !setupError
+      ? (gameSets?.selected?.scenario ?? scenario)
+      : scenario;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search),
@@ -390,8 +401,9 @@ export function NetworkLobby({
           <h1>多人联机</h1>
           <p>
             {gameModeLabel({
-              scenario: room?.scenario || scenario,
-              automaticHaunt: (room?.scenario || scenario) === 'mystery',
+              scenario: room?.scenario || configuredScenario,
+              automaticHaunt:
+                (room?.scenario || configuredScenario) === 'mystery',
               phase: 'explore',
             })}
           </p>
@@ -460,7 +472,12 @@ export function NetworkLobby({
 
       {!room ? (
         <div className="network-join">
-          <GameSetPicker controller={gameSets} onManage={onGameSets} />
+          <ScenarioPicker value={scenario} onChange={setScenario} />
+          <GameSetPicker
+            controller={gameSets}
+            onManage={onGameSets}
+            scenario={scenario}
+          />
           <label>
             你的名字
             <input
@@ -477,6 +494,7 @@ export function NetworkLobby({
               net.busy ||
               !!net.session ||
               (isRemote && rollout === 'off') ||
+              !!setupError ||
               (gameSets && !gameSets.ready)
             }
             onClick={() =>
@@ -652,8 +670,7 @@ export function NetworkLobby({
                     net.update({
                       type: 'start',
                       hauntPlaytest: true,
-                      playtestFocus:
-                        room.scenario === 'werewolf' ? playtestFocus : 'basic',
+                      playtestFocus,
                     })
                   }
                 >

@@ -400,7 +400,8 @@ async function main() {
           method: 'POST',
           body: {
             name: `压力房主${index + 1}`,
-            scenario: 'mirror',
+            scenario: index === 4 ? 'mystery' : 'mirror',
+            ...(index === 4 ? { gameSet: 'bloodmoon' } : {}),
             count: 6,
           },
         }),
@@ -410,6 +411,34 @@ async function main() {
       [200, 200, 200, 200, 200, 429],
     );
     assert.equal(createBurst.at(-1).data.code, 'rate_limited');
+
+    // 复用限流测试中的一个成功名额，验证血月正式开局而不额外消耗创建额度。
+    const bloodmoonRoom = createBurst[4].data,
+      bloodmoonPath = `/api/remote/rooms/${bloodmoonRoom.code}`,
+      bloodmoonJoined = await request(base, '/api/remote/join', {
+        method: 'POST',
+        body: { name: '血月访客', code: bloodmoonRoom.code },
+      });
+    assert.equal(bloodmoonRoom.scenario, 'bloodmoon');
+    assert.equal(bloodmoonRoom.gameSet.id, 'bloodmoon');
+    assert.equal(bloodmoonJoined.response.status, 200);
+    const bloodmoonStarted = await request(base, bloodmoonPath, {
+      method: 'POST',
+      token: bloodmoonRoom.key,
+      body: { type: 'start', revision: bloodmoonJoined.data.revision },
+    });
+    assert.equal(bloodmoonStarted.response.status, 200);
+    assert.equal(bloodmoonStarted.data.game.phase, 'explore');
+    assert.equal(bloodmoonStarted.data.game.playtest, undefined);
+    assert.equal(bloodmoonStarted.data.game.gameSet.id, 'bloodmoon');
+    const bloodmoonSocket = await runSocketProbe({
+      base,
+      code: bloodmoonRoom.code,
+      hostToken: bloodmoonRoom.key,
+      guestToken: bloodmoonJoined.data.key,
+      revision: bloodmoonStarted.data.revision,
+    });
+    assert.equal(bloodmoonSocket.guestRevision, bloodmoonStarted.data.revision);
 
     const stressRoom = createBurst[0].data,
       stressGuests = await Promise.all(
@@ -566,6 +595,15 @@ async function main() {
     assert.equal(restored.response.status, 200);
     assert.equal(restored.data.revision, started.data.revision);
     assert.deepEqual(restored.data.game, started.data.game);
+    const bloodmoonRestored = await request(base, bloodmoonPath, {
+      token: bloodmoonRoom.key,
+    });
+    assert.equal(bloodmoonRestored.response.status, 200);
+    assert.deepEqual(bloodmoonRestored.data.game, bloodmoonStarted.data.game);
+    assert.deepEqual(
+      bloodmoonRestored.data.gameSet,
+      bloodmoonStarted.data.gameSet,
+    );
     const migratedStressRoom = await request(
       base,
       `/api/remote/rooms/${stressRoom.code}`,
@@ -624,6 +662,12 @@ async function main() {
     });
     assert.equal(existingRoom.response.status, 200);
     assert.equal(existingRoom.data.revision, advanced.revision);
+    const bloodmoonExisting = await request(base, bloodmoonPath, {
+      token: bloodmoonJoined.data.key,
+    });
+    assert.equal(bloodmoonExisting.response.status, 200);
+    assert.equal(bloodmoonExisting.data.scenario, 'bloodmoon');
+    assert.equal(bloodmoonExisting.data.game.phase, 'explore');
     const existingConnections = await runSocketProbe({
       base,
       code: created.data.code,
@@ -648,7 +692,7 @@ async function main() {
     worker = null;
     await verifyStorage(created.data.code, created.data.key, joined.data.key);
     console.log(
-      `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, schema migration, expiry, and rollout-off recovery passed.`,
+      `Remote Worker verified: room ${created.data.code}, revision ${advanced.revision}, WebSocket sync, schema migration, expiry, rollout-off recovery, and formal bloodmoon start/recovery passed.`,
     );
   } catch (error) {
     if (worker?.output?.length)

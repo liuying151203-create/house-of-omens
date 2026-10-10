@@ -9,6 +9,7 @@ import {
   validateGameSet,
   validateGameSetPack,
   validateGameSetLibrary,
+  resolveScenarioGameSet,
 } from '../lib/game-sets.mjs';
 import { FLOORS, SCENARIOS } from '../lib/game-data.mjs';
 
@@ -78,8 +79,41 @@ export function useGameSets() {
   };
 }
 
-export function GameSetPicker({ controller, onManage }) {
+export function gameSetupError(scenario, gameSet) {
+  try {
+    resolveScenarioGameSet(scenario, gameSet);
+    return '';
+  } catch (error) {
+    return error.message;
+  }
+}
+
+export function ScenarioPicker({ value, onChange }) {
+  return (
+    <div className="game-set-picker">
+      <label>
+        本局剧本
+        <select
+          aria-label="本局剧本"
+          value={value}
+          disabled={!onChange}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {SCENARIOS.filter((entry) => !entry.playtestOnly).map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.title}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+export function GameSetPicker({ controller, onManage, scenario = 'mystery' }) {
   if (!controller) return null;
+  const setupError =
+    controller.ready && gameSetupError(scenario, controller.selected);
   return (
     <div className="game-set-picker">
       <label>
@@ -101,6 +135,7 @@ export function GameSetPicker({ controller, onManage }) {
         编辑／导入游戏集
       </button>
       {controller.error && <output role="alert">{controller.error}</output>}
+      {setupError && <output role="alert">{setupError}</output>}
       {controller.selected?.scenario && (
         <small>
           默认剧本：

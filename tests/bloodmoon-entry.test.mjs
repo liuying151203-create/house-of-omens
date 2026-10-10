@@ -9,6 +9,11 @@ import {
   triggerHaunt,
   restoreGameSave,
   traitValue,
+  actions,
+  frontiers,
+  pathTo,
+  placementOptions,
+  ROOM_DECK,
 } from '../lib/game-engine.mjs';
 import { resolveGameSet } from '../lib/game-sets.mjs';
 import { drivePendingRequests } from '../lib/automatic-driver.mjs';
@@ -69,6 +74,66 @@ test('bloodmoon formal creation freezes its preset and still starts in explorati
     () => createGame('bloodmoon', 31, 3, { gameSet: 'classic' }),
     /必要卡牌/,
   );
+});
+
+test('ordinary three-to-six-player games reach bloodmoon by legal room exploration and card actions', () => {
+  for (const count of [3, 4, 5, 6]) {
+    let game = createGame('bloodmoon', 31, count);
+    for (let step = 0; step < 800 && game.phase === 'explore'; step++) {
+      if (pending(game)) {
+        game = settle(game);
+        continue;
+      }
+      const hero = game.heroes[game.active];
+      const view = actions(game);
+      const destinations = [0, 1, ...(game.basementUnlocked ? [-1] : [])]
+        .flatMap((floor) => frontiers(game, floor))
+        .map((frontier) => ({
+          ...frontier,
+          path: pathTo(game, hero.pos, frontier.from),
+        }))
+        .filter(
+          (frontier) =>
+            frontier.path.length &&
+            game.decks.rooms.some(
+              (id) =>
+                placementOptions(
+                  game,
+                  frontier.from,
+                  frontier.dir,
+                  ROOM_DECK.find((room) => room.id === id),
+                ).length,
+            ),
+        )
+        .sort((a, b) => a.path.length - b.path.length);
+      const target = destinations[0];
+      if (!hero.stopped && hero.moves > 0 && target) {
+        const command =
+          target.path.length === 1
+            ? view.explore.find((entry) => entry.dir === target.dir) && {
+                type: 'explore',
+                dir: target.dir,
+              }
+            : [...view.move, ...view.stairs].includes(target.path[1]) && {
+                type: 'move',
+                pos: target.path[1],
+              };
+        if (command) {
+          game = act(game, command);
+          continue;
+        }
+      }
+      game = act(game, { type: 'endHero' });
+    }
+    game = settle(game);
+    assert.equal(game.phase, 'haunt', `${count}人正式探索必须进入作祟`);
+    assert.equal(game.omens, 3);
+    assert.equal(game.rooms.filter((room) => room.icon === 'omen').length, 3);
+    assert(
+      game.heroes[game.bloodmoonCombat.alphaId].omens.includes('bite-mark'),
+    );
+    assert.equal(game.playtest, undefined);
+  }
 });
 
 test('directed bloodmoon cannot begin before a living bite holder is determined, even after three other omens', () => {

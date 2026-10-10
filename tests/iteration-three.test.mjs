@@ -90,6 +90,27 @@ test('catalog includes all current cards and rooms, and all built-in types round
     validateDraft(JSON.parse(JSON.stringify({ version: 1, entries }))),
     entries,
   );
+  assert(
+    CATALOG.scenarios.some(
+      (scenario) => scenario.id === 'bloodmoon' && scenario.limit === null,
+    ),
+  );
+  for (const limit of [0, -1, 101, 'null']) {
+    assert.throws(
+      () =>
+        validateDraft({
+          version: 1,
+          entries: [
+            {
+              id: 'bad-limit',
+              category: 'scenarios',
+              data: { title: '无效回合上限', limit },
+            },
+          ],
+        }),
+      /回合数/,
+    );
+  }
   const room = {
     id: 'test',
     category: 'rooms',

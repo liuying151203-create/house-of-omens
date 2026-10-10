@@ -18,6 +18,7 @@
 | `setup(game, metadata, context)` | 必填，初始化目标、敌人和提示；只能同步完成，不在这里创建自行等待的异步任务 |
 | `timeoutReason` | 必填，倒计时耗尽的失败文案 |
 | `hauntRules` | 可选，`{ priority, matches(omenId, room) }` 列表；优先级越大越先匹配，同优先级按注册顺序匹配；省略时仅支持定向入口 |
+| `canStartHaunt(game)` | 可选，返回 `false` 时继续探索，不检定或初始化该定向剧本；同时提供 `hauntRequirement` 中文提示，例如血月必须先有存活的咬痕持有者 |
 | `victory(game)` | 可选，返回胜利原因或假值；由引擎现有状态检查点调用，不是每次渲染都调用 |
 | `enemyDefeated(game, enemy)` | 可选，敌人移除后返回胜利原因或假值 |
 | `afterEnemies(game, report)` | 可选，敌人阶段收尾、超时检查前同步执行；例如钟声幽影增援 |
@@ -31,6 +32,8 @@
 
 4. 在 `lib/content/actions.mjs` 添加可用行动。新的执行操作仍需接入明确的处理器或 Workflow；剧本注册表并不自动注册任意命令。
 5. 增加 `lib/playtest.mjs` 定向场景和回归测试。若引入新的持久化字段或私密信息，检查迁移器、有效存档校验和联机投影。
+
+普通单机／联机剧本选项均来自 `SCENARIOS`，只隐藏 `playtestOnly` 内容，不再维护独立的联机剧本 ID 清单。无轮数上限使用 `limit: null`，素材草稿校验及展示同样支持；普通超时文案仍需注册，但无上限对局不会调用。新增正式剧本时提供合适的内置游戏集，并在 `lib/game-sets.mjs` 校验所需内容；`resolveScenarioGameSet` 统一处理默认剧本与定向优先，避免客户端和服务器各自决定牌池。血月的三项正式入口验收见[分项指南](bloodmoon-acceptance-guide.md)。
 
 ## 新增物品或主动能力
 

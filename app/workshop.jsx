@@ -436,7 +436,11 @@ export default function Workshop({ onClose, TileFace, game, onGameSets }) {
                 <div className="card-rules">
                   <strong>{edit.objective}</strong>
                   <p>{edit.haunt}</p>
-                  <small>基础倒计时：{edit.limit} 回合</small>
+                  <small>
+                    {edit.limit === null
+                      ? '无轮数上限'
+                      : `基础倒计时：${edit.limit} 回合`}
+                  </small>
                 </div>
               )}
               {edit.quantity && <p>基础数量：{edit.quantity}</p>}

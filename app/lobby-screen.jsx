@@ -11,7 +11,7 @@ import { HEROES, SCENARIOS } from '../lib/game-data.mjs';
 import { gameModeLabel } from '../lib/game-view.mjs';
 import { PlaytestPresetPicker } from './playtest-controls';
 import ExplorerEmblem from './explorer-emblem';
-import { GameSetPicker } from './game-sets';
+import { GameSetPicker, ScenarioPicker, gameSetupError } from './game-sets';
 
 export default function LobbyScreen({
   count,
@@ -30,7 +30,7 @@ export default function LobbyScreen({
   onGameSets,
 }) {
   const [dialog, setDialog] = useState(null);
-  const scenario = SCENARIOS.find((s) => s.id === choice);
+  const setupError = gameSetupError(choice, gameSets?.selected);
   return (
     <div className="entry-screen">
       <div className="entry-art" aria-hidden="true" />
@@ -67,10 +67,15 @@ export default function LobbyScreen({
               </span>
             ))}
           </div>
-          <GameSetPicker controller={gameSets} onManage={onGameSets} />
+          <ScenarioPicker value={choice} onChange={setChoice} />
+          <GameSetPicker
+            controller={gameSets}
+            onManage={onGameSets}
+            scenario={choice}
+          />
           <button
             className="gold-button entry-start"
-            disabled={gameSets && !gameSets.ready}
+            disabled={!!setupError || (gameSets && !gameSets.ready)}
             onClick={onStart}
           >
             <span>{saved ? '新开一局' : '进入宅邸'}</span>
@@ -92,19 +97,10 @@ export default function LobbyScreen({
               联机游戏
             </button>
           </div>
-          {choice !== 'mystery' && (
-            <button
-              className="entry-mode"
-              onClick={() => setDialog('test')}
-              title="修改定向剧本"
-            >
-              定向剧本 · {scenario.title}
-            </button>
-          )}
         </div>
       </section>
       <footer className="entry-footer">
-        <span>三层宅邸 · 四个午夜故事</span>
+        <span>三层宅邸 · 五个午夜故事</span>
         <div>
           <button onClick={() => setDialog('test')}>
             <FlaskConical size={15} />

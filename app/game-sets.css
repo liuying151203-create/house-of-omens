@@ -11,6 +11,7 @@
   gap: 6px;
 }
 .game-set-picker select,
+.game-set-editor select,
 .game-set-editor input:not([type='checkbox']) {
   padding: 9px 12px;
   border: 1px solid #756345;

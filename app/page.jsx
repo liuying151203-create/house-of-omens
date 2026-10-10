@@ -107,6 +107,7 @@ import { useNetwork, NetworkLobby, networkStatusLabel } from './network';
 import PlaytestControls from './playtest-controls';
 import {
   createHauntPlaytest,
+  playtestPresets,
   saveKeyFor,
   NORMAL_SAVE_KEY,
   PLAYTEST_SAVE_KEY,
@@ -1295,6 +1296,15 @@ export default function Home() {
     [storyOpen, setStoryOpen] = useState(true),
     [journalOpen, setJournalOpen] = useState(false);
   const [inspected, setInspected] = useState(null);
+  function selectScenario(id) {
+    setChoice(id);
+    setPlaytestFocus('basic');
+    if (
+      id === 'bloodmoon' &&
+      ['classic', 'expanded'].includes(gameSets.selectedId)
+    )
+      gameSets.select('bloodmoon');
+  }
   function manageGameSets(from = view) {
     setGameSetsReturn(from === 'sets' ? 'game' : from);
     setView('sets');
@@ -1691,6 +1701,7 @@ export default function Home() {
           <NetworkLobby
             net={net}
             scenario={choice}
+            setScenario={selectScenario}
             count={count}
             gameSets={gameSets}
             onGameSets={() => manageGameSets('network')}
@@ -1701,7 +1712,7 @@ export default function Home() {
             count={count}
             setCount={setCount}
             choice={choice}
-            setChoice={setChoice}
+            setChoice={selectScenario}
             saved={saved}
             savedPlaytest={savedPlaytest}
             playtestFocus={playtestFocus}
@@ -1725,7 +1736,11 @@ export default function Home() {
                   choice,
                   Date.now(),
                   count,
-                  choice === 'werewolf' ? playtestFocus : 'basic',
+                  playtestPresets(choice).some(
+                    (preset) => preset.id === playtestFocus,
+                  )
+                    ? playtestFocus
+                    : 'basic',
                 ),
               )
             }

@@ -54,10 +54,11 @@ const choose = (game, choice) =>
 const damageCount = (game) =>
   game.events.filter((event) => event.type === 'DamageApplied').length;
 
-test('bite stays outside existing game sets until its scenario is ready', () => {
+test('bite is selectable in dedicated sets without changing existing game sets', () => {
   for (const id of ['classic', 'expanded'])
     assert(!resolveGameSet(id).decks.omen.includes('bite-mark'));
-  assert(!GAME_SET_CATALOG.omen.some((card) => card.id === 'bite-mark'));
+  assert(GAME_SET_CATALOG.omen.some((card) => card.id === 'bite-mark'));
+  assert(resolveGameSet('bloodmoon').decks.omen.includes('bite-mark'));
   assert(!createGame('werewolf', 31).decks.omen.includes('bite-mark'));
 });
 

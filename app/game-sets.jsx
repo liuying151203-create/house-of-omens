@@ -10,7 +10,7 @@ import {
   validateGameSetPack,
   validateGameSetLibrary,
 } from '../lib/game-sets.mjs';
-import { FLOORS } from '../lib/game-data.mjs';
+import { FLOORS, SCENARIOS } from '../lib/game-data.mjs';
 
 export function useGameSets() {
   const [library, setLibrary] = useState({
@@ -101,6 +101,16 @@ export function GameSetPicker({ controller, onManage }) {
         编辑／导入游戏集
       </button>
       {controller.error && <output role="alert">{controller.error}</output>}
+      {controller.selected?.scenario && (
+        <small>
+          默认剧本：
+          {
+            SCENARIOS.find((entry) => entry.id === controller.selected.scenario)
+              ?.title
+          }
+          ；定向选择优先。
+        </small>
+      )}
     </div>
   );
 }
@@ -134,7 +144,7 @@ export default function GameSetManager({ controller, onClose, game }) {
   const [discardTarget, setDiscardTarget] = useState(null),
     [deleting, setDeleting] = useState(false);
   const upload = useRef(null);
-  const builtin = ['classic', 'expanded'].includes(draft.id);
+  const builtin = builtinGameSets().some((set) => set.id === draft.id);
   function load(set) {
     setDraft(structuredClone(set));
     setDirty(false);
@@ -210,9 +220,7 @@ export default function GameSetManager({ controller, onClose, game }) {
         <div>
           <span className="eyebrow">GAME SETS</span>
           <h1>游戏集</h1>
-          <p>
-            选择本局会抽到的卡牌。内置预设可复制后编辑，适用于所有现有剧本。
-          </p>
+          <p>选择本局会抽到的卡牌，可指定默认剧本。内置预设可复制后编辑。</p>
           {game && (
             <>
               <GameSetSummary gameSet={game.gameSet} />
@@ -295,6 +303,29 @@ export default function GameSetManager({ controller, onClose, game }) {
                   change({ ...draft, name: event.target.value })
                 }
               />
+            </label>
+            <label>
+              默认剧本
+              <select
+                aria-label="游戏集默认剧本"
+                disabled={builtin}
+                value={draft.scenario ?? ''}
+                onChange={(event) => {
+                  const next = { ...draft };
+                  if (event.target.value) next.scenario = event.target.value;
+                  else delete next.scenario;
+                  change(next);
+                }}
+              >
+                <option value="">随探索揭示</option>
+                {SCENARIOS.filter((entry) => entry.id !== 'mystery').map(
+                  (entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.title}
+                    </option>
+                  ),
+                )}
+              </select>
             </label>
             <button
               className="secondary-button"
@@ -419,7 +450,11 @@ export default function GameSetManager({ controller, onClose, game }) {
                 <span>
                   <strong>{card.name || card.title}</strong>
                   <small>
-                    {card.supply ? '通用扩展' : '经典内容'}
+                    {card.scenarioOnly
+                      ? '血月预兆'
+                      : card.supply
+                        ? '通用扩展'
+                        : '经典内容'}
                     {card.floors &&
                       ` · ${card.floors.map((floor) => FLOORS.find((entry) => entry.id === floor)?.name).join('／')}`}
                     {card.icon && ` · 抽${GAME_SET_CATEGORIES[card.icon]}`}

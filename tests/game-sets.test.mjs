@@ -6,6 +6,7 @@ import {
   validateGameSet,
   validateGameSetPack,
   validateGameSetLibrary,
+  resolveScenarioGameSet,
 } from '../lib/game-sets.mjs';
 import {
   createGame,
@@ -37,6 +38,68 @@ const custom = () => ({
   ...resolveGameSet('expanded'),
   id: 'set-test',
   name: '我的通用游戏集',
+});
+
+test('bloodmoon preset contains required finite resources and survives copy, import and library restore', () => {
+  const preset = resolveGameSet('bloodmoon');
+  assert.equal(preset.scenario, 'bloodmoon');
+  assert.deepEqual(preset.decks.item, [
+    'pistol',
+    'antidote',
+    'family-ring',
+    'saint-badge',
+    'bear-trap',
+  ]);
+  assert.deepEqual(preset.decks.omen, ['bell', 'book', 'bite-mark']);
+  for (const id of [
+    'bloodmoon-laboratory',
+    'bloodmoon-boiler',
+    'sterilization',
+    'stairs-down',
+  ])
+    assert(preset.decks.rooms.includes(id));
+  const copy = { ...preset, id: 'my-bloodmoon', name: '自定义血月' };
+  assert.deepEqual(validateGameSetPack({ version: 1, gameSets: [copy] }), [
+    copy,
+  ]);
+  assert.deepEqual(
+    validateGameSetLibrary({
+      version: 1,
+      gameSets: [copy],
+      selectedId: copy.id,
+    }).gameSets,
+    [copy],
+  );
+  copy.decks.item.pop();
+  assert.throws(() => validateGameSet(copy), /捕兽夹/);
+  assert(resolveGameSet('bloodmoon').decks.item.includes('bear-trap'));
+});
+
+test('scenario-aware validation checks mandatory cards, defaults and explicit scenario precedence', () => {
+  assert.equal(resolveScenarioGameSet('bloodmoon').gameSet.id, 'bloodmoon');
+  assert.equal(
+    resolveScenarioGameSet('mystery', 'bloodmoon').scenario,
+    'bloodmoon',
+  );
+  assert.equal(
+    resolveScenarioGameSet('werewolf', 'bloodmoon').scenario,
+    'werewolf',
+  );
+  assert.throws(
+    () => resolveScenarioGameSet('bloodmoon', 'classic'),
+    /必要卡牌/,
+  );
+  assert.throws(() => resolveScenarioGameSet('unknown', 'classic'), /剧本/);
+  const set = { ...resolveGameSet('bloodmoon'), id: 'auto-bloodmoon' };
+  delete set.scenario;
+  assert.equal(resolveScenarioGameSet('mystery', set).scenario, 'mystery');
+  set.decks.item = ['pistol'];
+  assert.throws(
+    () => resolveScenarioGameSet('mystery', set),
+    /解药.*家族戒指.*圣者徽章.*捕兽夹/,
+  );
+  set.scenario = 'arbitrary';
+  assert.throws(() => validateGameSet(set), /格式/);
 });
 
 test('classic preset keeps original decks, RNG and state for every scenario and execution mode', () => {

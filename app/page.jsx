@@ -34,6 +34,7 @@ import {
   Ghost,
   Save,
   Flame,
+  Moon,
   Clock,
   Plus,
   Minus,
@@ -141,6 +142,7 @@ function readPlaytestSave() {
 const serverSave = () => null;
 const iconMap = {
     mystery: Compass,
+    bloodmoon: Moon,
     werewolf: Flame,
     bells: Bell,
     mirror: Eye,
@@ -517,17 +519,33 @@ function Prompt({
               <div className="haunt-objective">
                 <strong>你的新目标</strong>
                 <p>{p.objective}</p>
-                <ul>
-                  {p.targets.map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-                <span>剩余 {p.remaining} 回合 · 地图已标记目标</span>
+                {p.targets?.length > 0 && (
+                  <ul>
+                    {p.targets.map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                )}
+                <span>
+                  {game.limit === null
+                    ? '无轮数上限'
+                    : `剩余 ${p.remaining} 回合 · 地图已标记目标`}
+                </span>
               </div>
               <p className="haunt-warning">
-                从现在起，敌人将在回合结束时行动。
-                <br />
-                任意属性降到骷髅位，角色都会死亡。
+                {game.scenario === 'bloodmoon' ? (
+                  <>
+                    狼人由玩家控制，保留原座位和角色回合。
+                    <br />
+                    初始狼人的普通身体伤害不会致死，银弹可将身体属性降到骷髅位。
+                  </>
+                ) : (
+                  <>
+                    从现在起，敌人将在回合结束时行动。
+                    <br />
+                    任意属性降到骷髅位，角色都会死亡。
+                  </>
+                )}
               </p>
             </>
           )}
@@ -1486,7 +1504,7 @@ export default function Home() {
     setPlaytestEpoch((v) => v + 1);
   }
   const sc = SCENARIOS.find((s) => s.id === (game?.scenario || choice)),
-    Icon = iconMap[sc.id],
+    Icon = iconMap[sc.id] || Compass,
     remaining = game ? living(game).filter((h) => !h.ended).length : 0;
   const localPlayer = net.room?.players?.find(
       (player) => player.id === net.room.you,

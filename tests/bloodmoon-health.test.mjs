@@ -12,6 +12,7 @@ import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { traitPositionBounds } from '../lib/content/bloodmoon-health.mjs';
 import { traitRuleView } from '../lib/rule-views.mjs';
 import { eventJournalText } from '../lib/event-journal.mjs';
+import { heroStatuses } from '../lib/hero-status.mjs';
 import {
   addItemInstance,
   transferItemInstance,
@@ -27,6 +28,10 @@ const clear = (game) => {
 const fixture = (focus = 'bloodmoon-control') =>
   clear(createHauntPlaytest('werewolf', 31, 3, focus));
 const restore = (game) => restoreGameSave(JSON.parse(JSON.stringify(game)));
+const weakness = (game) =>
+  heroStatuses(game, game.heroes[0]).find(
+    (status) => status.id === 'bloodmoon-knockdown',
+  );
 const allocate = (game, allocation) =>
   clear(
     act(game, {
@@ -104,6 +109,54 @@ test('knockdown blocks exactly the next owned turn, not movement or later turns,
   );
   game = clear(act(game, { type: 'endRound' }));
   assert(ability(game, 'combat.actor.attack'));
+});
+
+test('weakness badges follow the pending turn, active restriction and owned turn end through saves', () => {
+  let game = allocate(injure(fixture('bloodmoon-immortal'), 0, 2), {
+    might: 2,
+    speed: 0,
+  });
+  assert.equal(weakness(game).label, '虚弱');
+  assert.equal(weakness(game).tone, 'negative');
+  assert.match(weakness(game).description, /下次自己的回合不能主动攻击/);
+  assert.match(weakness(game).description, /解药不能清除/);
+  assert(
+    !game.heroes[0].statuses.some(
+      (status) => status.id === 'bloodmoon-knockdown',
+    ),
+  );
+  const notice = game.events.findLast(
+    (event) => event.type === 'AlphaKnockedDown',
+  );
+  assert.match(notice.text, /陷入虚弱/);
+  assert.doesNotMatch(notice.text, /击倒/);
+  game = clear(act(restore(game), { type: 'endRound' }));
+  assert.match(weakness(game).description, /本回合不能主动攻击/);
+  assert.equal(ability(game, 'combat.actor.attack'), undefined);
+  game = clear(
+    act(restore(game), { type: 'endHero', actorId: 0, round: game.round }),
+  );
+  assert(game.heroes[0].ended);
+  assert.equal(weakness(game), undefined);
+  game = clear(act(restore(game), { type: 'endRound' }));
+  assert.equal(weakness(game), undefined);
+  assert(ability(game, 'combat.actor.attack'));
+});
+
+test('a repeated injury keeps next-turn weakness after the current blocked turn ends', () => {
+  let game = allocate(injure(fixture('bloodmoon-immortal'), 0, 2), {
+    might: 2,
+    speed: 0,
+  });
+  game = clear(act(game, { type: 'endRound' }));
+  game = allocate(injure(game, 0, 1), { might: 1, speed: 0 });
+  assert.match(
+    weakness(game).description,
+    /本回合再次陷入虚弱.*下次自己的回合也不能主动攻击/,
+  );
+  game = clear(act(game, { type: 'endHero', actorId: 0, round: game.round }));
+  assert.match(weakness(game).description, /下次自己的回合不能主动攻击/);
+  assert.doesNotMatch(weakness(game).description, /本回合再次/);
 });
 test('a knockdown before alpha own turn blocks that next turn within the same global round', () => {
   let game = fixture('bloodmoon-pistol');

@@ -82,6 +82,20 @@ test('controlled alpha shows capped track positions without removing the eight-p
   assert.equal((html.match(/trait-unavailable/g) || []).length, 6);
   assert.match(html, /银弹削弱后不可使用/);
 });
+
+test('weakness uses the shared negative-status badge on both the personal panel and roster', () => {
+  const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-immortal');
+  game.queue = [];
+  game.heroes[0].skipNextAttack = true;
+  const props = { game, net: {}, send() {}, changes: [] };
+  for (const component of [Personal, Roster]) {
+    const html = render(component, props);
+    assert.match(html, /status-bloodmoon-knockdown/);
+    assert.match(html, /虚弱/);
+    assert.match(html, /lucide-shield-alert/);
+    assert.doesNotMatch(html, /击倒/);
+  }
+});
 test('gun details show loaded ammo and share actions with the main command strip', () => {
   let game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-silver-first');
   game.queue = [];

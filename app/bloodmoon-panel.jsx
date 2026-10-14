@@ -26,10 +26,6 @@ export default function BloodmoonPanel({ game }) {
       <p>
         初始狼人攻击落单英雄时最终点数加1。满月／血月初始狼人及所有次级狼人每回合可额外移动1点，仅用于靠近残血英雄；残血按力量或速度数值低于作祟开始时判断。
       </p>
-      {alpha.skipNextAttack && <p>下次狼人回合不能主动攻击。</p>}
-      {alpha.attackBlockedRound === game.round && (
-        <p>本回合狼人不能主动攻击，仍可移动和使用物品。</p>
-      )}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 # UI与流程调整指南
 
-更新时间：2026-10-14。此对话专门处理界面与过渡，当前仍在共享的项目目录和 `main` 上；未创建分支／独立工作区。前一轮UI改动已由用户提交，本轮文案精简尚未暂存、提交或推送。以下命令按阶段记录。
+更新时间：2026-10-14。此对话专门处理界面与过渡，当前仍在共享的项目目录和 `main` 上；未创建分支／独立工作区。此前UI改动已由用户提交，本轮狼人头像改动尚未暂存、提交或推送。以下命令按阶段记录。
 
 用户选择“更清爽的扁平暗色界面”。第一轮先完成可客观验证的流程修复与展示层基础，再根据实际试玩调整布局和节奏。老狼人、新血月及游戏集的数值、胜负和内容保持原有规则。
 
@@ -120,6 +120,24 @@ git add app/card-notice.jsx app/damage-planner.jsx app/dice-request.jsx app/flow
 git commit -m "fix(ui): simplify copy and merge duplicate journal records / 精简文案并合并重复手记"
 git add docs/ui-adjustment-guide.md
 git commit -m "docs(playtest): add concise copy acceptance checks / 补充精简文案验收检查"
+```
+
+## 狼人头像验收
+
+用户选择已有的狼头图标，不使用生成头像。`ExplorerEmblem` 根据公开的狼人阵营或战斗身份切换外观，地图棋子、移动中的人物、底部人物面板和队伍名单共用同一个头像组件。初始狼人、感染转化的次级狼人及旧狼人剧本中已转化的角色显示狼头；死亡角色显示骷髅，其他剧本的叛徒保留原标识。角色名字、个人颜色和人物标记保留，方便区分多个狼人。
+
+使用项目现有 `ItemGlyph` 的 `wolf` 图形，与敌人图标同源，SVG路径已经嵌入代码，不需要新增图片、外部请求或依赖。素材作者为Lorc，来源为[Game-icons.net狼头图标](https://game-icons.net/1x1/lorc/wolf-head.html)，采用CC BY 3.0；项目已有来源记录和授权说明。
+
+1. “血月之夜 → 可控狼人与轨道（独立测试）”中检查初始狼人的地图和人物面板头像为狼头。
+2. “血月之夜 → 感染Ⅱ检定与净化”中，第二名英雄在狼化前仍用人物肖像。放弃净化并使理智3+失败后，检查其地图、人物面板和队伍名单均切换为狼头，姓名和标记保留。
+3. 检查其他英雄仍使用原肖像，狼人死亡后显示骷髅。旧狼人剧本的转化角色显示狼头，其他作祟剧本的叛徒标识保持原样。
+4. 实际验收地图缩放、窄屏和多人同室时的辨识度；已完成的代码与渲染测试不能替代浏览器视觉验收。
+
+相关20项测试通过，覆盖真实感染转化与各人物显示入口；修改文件的静态检查和生产构建通过。原生人物肖像继续用于离线构建的内嵌图片，新增狼人图形直接复用现有SVG路径。提交命令未执行：
+
+```powershell
+git add app/explorer-emblem.jsx app/ui-flow.css tests/explorer-ui.test.mjs docs/ui-adjustment-guide.md
+git commit -m "fix(ui): show wolf avatars after transformation / 狼化后显示狼头头像"
 ```
 
 ## 后续重点

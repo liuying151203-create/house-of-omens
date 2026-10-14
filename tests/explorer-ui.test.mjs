@@ -13,6 +13,8 @@ import {
 } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
+import { resolveInfectionCheck } from '../lib/content/bloodmoon-infection.mjs';
+import itemArt from '../lib/item-art.json' with { type: 'json' };
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const bundle = new URL(
@@ -131,6 +133,56 @@ test('map explorer tokens are buttons for the matching status sheet', () => {
   assert.match(html, new RegExp(`查看${hero.name}的状态`));
   assert.match(html, /selected-pawn/);
   assert.match(html, /portraits/);
+});
+
+test('an infection conversion switches every shared hero avatar to the existing wolf head', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-conversion');
+  game.queue = [];
+  game.active = 1;
+  const hero = game.heroes[1];
+  assert.match(
+    render(MapPawn, { game, hero, active: true }),
+    /emblem-portrait/,
+  );
+  resolveInfectionCheck(game, hero, 0, { record() {}, log() {} });
+  assert.equal(hero.combatRole, 'wolf');
+  assert.equal(hero.traitor, false);
+  for (const [component, props] of [
+    [MapPawn, { game, hero, active: true }],
+    [Personal, { game, net: {}, send() {}, changes: [] }],
+    [Roster, { game, net: {}, send() {}, changes: [] }],
+  ]) {
+    const html = render(component, props);
+    assert.match(html, /emblem-wolf/);
+    assert(html.includes(itemArt.wolf.paths[0]));
+    assert(html.includes(hero.name));
+    // 人物标记仍在共享头像中；队伍中的其他英雄保留自己的肖像。
+    assert(html.includes(hero.mark));
+    if (component !== Roster)
+      assert.doesNotMatch(html, /portraits\/gu-ye\.png/);
+  }
+});
+
+test('initial wolves, legacy conversions and dead wolves use the correct avatar without changing other traitors', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-control');
+  const alpha = game.heroes[0];
+  assert.match(render(MapPawn, { game, hero: alpha }), /emblem-wolf/);
+  const legacy = {
+    ...alpha,
+    combatRole: undefined,
+    traitor: true,
+    faction: 'wolves',
+  };
+  assert.match(render(MapPawn, { game, hero: legacy }), /emblem-wolf/);
+  const otherTraitor = { ...legacy, faction: 'traitors' };
+  assert.doesNotMatch(
+    render(MapPawn, { game, hero: otherTraitor }),
+    /emblem-wolf/,
+  );
+  assert.match(render(MapPawn, { game, hero: otherTraitor }), /lucide-ghost/);
+  const dead = render(MapPawn, { game, hero: { ...alpha, dead: true } });
+  assert.doesNotMatch(dead, /emblem-wolf|emblem-portrait/);
+  assert.match(dead, /lucide-skull/);
 });
 
 test('LAN explorer surfaces identify the local nickname and controlled pawn', () => {

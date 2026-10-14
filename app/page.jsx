@@ -1,6 +1,8 @@
 'use client';
 import EnemyGlyph from './enemy-glyph';
 import MapPawn from './map-pawn';
+import ExplorerEmblem from './explorer-emblem';
+import MapPresentation, { useMapPresentation } from './map-presentation';
 import Traits from './attribute-tracks';
 import LobbyScreen from './lobby-screen';
 import {
@@ -48,6 +50,7 @@ import {
   X,
   Settings2,
   FlaskConical,
+  LockKeyhole,
 } from 'lucide-react';
 import {
   Dialog,
@@ -251,7 +254,14 @@ function Prompt({
   const p = pending(game);
   if (!p || p.kind === 'placement') return null;
   if (p.kind === 'contentResume' || p.kind === 'enemyTurn')
-    return <InternalContinuation key={p.uid} send={send} locked={locked} />;
+    return (
+      <InternalContinuation
+        key={p.uid}
+        requestId={p.uid}
+        send={send}
+        locked={locked}
+      />
+    );
   if (p.kind === 'diceRequest' || p.ringRolls || p.kind === 'ringResult')
     return (
       <DiceRequest
@@ -642,6 +652,7 @@ function Board({
   setZoom,
   locked = false,
   enemyMotion,
+  mapPresentation,
   onInspect,
   room,
 }) {
@@ -686,7 +697,8 @@ function Board({
     maxY = Math.max(...cells.map((r) => r.y)) + 1,
     cols = maxX - minX + 1,
     rows = maxY - minY + 1;
-  const focusId = enemyMotion?.frame?.pos || hero.pos;
+  const focusId =
+    mapPresentation?.step?.pos || enemyMotion?.frame?.pos || hero.pos;
   const focus =
     rooms.find((r) => r.id === focusId) ||
     rooms.find((r) => r.starter) ||
@@ -714,7 +726,7 @@ function Board({
     },
     [minX, maxX, minY, maxY, focusX, focusY, zoom],
   );
-  const motionPosition = enemyMotion?.frame?.pos;
+  const motionPosition = mapPresentation?.step?.pos || enemyMotion?.frame?.pos;
   useLayoutEffect(() => {
     const viewport = ref.current;
     const previous = cameraLayout.current;
@@ -945,6 +957,36 @@ function Board({
           }}
         >
           <span className="map-north">↑ 北</span>
+          {mapPresentation?.step?.kind === 'move' &&
+            (() => {
+              const step = mapPresentation.step;
+              const at = roomAt(game, step.pos),
+                from = roomAt(game, step.from);
+              const traveller = game.heroes.find((h) => h.id === step.heroId);
+              if (!traveller || at.floor !== floor) return null;
+              const sameFloor = at.floor === from.floor;
+              return (
+                <span
+                  key={step.key}
+                  className="travelling-hero"
+                  aria-label={`${traveller.name}从${from.name}移动到${at.name}`}
+                  style={{
+                    gridColumn: at.x - minX + 1,
+                    gridRow: at.y - minY + 1,
+                    '--pawn-color': traveller.color,
+                    '--move-duration': `${step.duration}ms`,
+                    '--step-x': sameFloor
+                      ? (from.x - at.x) * (zoom + zoom / 11) + 'px'
+                      : '0px',
+                    '--step-y': sameFloor
+                      ? (from.y - at.y) * (zoom + zoom / 11) + 'px'
+                      : '0px',
+                  }}
+                >
+                  <ExplorerEmblem hero={traveller} token />
+                </span>
+              );
+            })()}
           {enemyMotion?.frame &&
             (() => {
               const step = enemyMotion.frame;
@@ -974,7 +1016,14 @@ function Board({
             })()}
           {rooms.map((r) => {
             const occupants = game.heroes.filter(
-                (h) => h.pos === r.id && !h.dead && !h.traitor,
+                (h) =>
+                  h.pos === r.id &&
+                  !h.dead &&
+                  !h.traitor &&
+                  !(
+                    mapPresentation?.step?.kind === 'move' &&
+                    mapPresentation.step.heroId === h.id
+                  ),
               ),
               enemies = publicEnemies(game).filter(
                 (e) => e.pos === r.id && e.id !== enemyMotion?.frame?.enemyId,
@@ -987,6 +1036,10 @@ function Board({
                   'room-cell ' +
                   (game.roomMotion?.roomId === r.id
                     ? 'room-arrival room-arrival-' + game.roomMotion.kind
+                    : '') +
+                  (mapPresentation?.step?.kind === 'trigger' &&
+                  mapPresentation.step.pos === r.id
+                    ? ' room-triggered'
                     : '')
                 }
                 key={
@@ -998,7 +1051,7 @@ function Board({
               >
                 <button
                   data-current={here}
-                  data-motion={enemyMotion?.frame?.pos === r.id}
+                  data-motion={motionPosition === r.id}
                   disabled={!legal.move.includes(r.id)}
                   onClick={() => send({ type: 'move', pos: r.id })}
                   className={
@@ -1057,6 +1110,12 @@ function Board({
                   ))}
                 </span>
                 <RoomStatusIcons game={game} room={r} />
+                {mapPresentation?.step?.kind === 'trigger' &&
+                  mapPresentation.step.pos === r.id && (
+                    <span className="map-trigger-marker" aria-hidden="true">
+                      <LockKeyhole size={24} />
+                    </span>
+                  )}
               </div>
             );
           })}
@@ -1331,6 +1390,12 @@ export default function Home() {
   const togglePanel = (name) =>
     setPanel((open) => (open === name ? null : name));
   const enemyMotion = useEnemyMotion(game, playtestEpoch);
+  const mapPresentation = useMapPresentation(
+    enemyMotion.game,
+    playtestEpoch,
+    enemyMotion.moving,
+  );
+  const presenting = enemyMotion.moving || mapPresentation.busy;
   useEffect(() => {
     const close = (e) => {
       if (e.key === 'Escape') {
@@ -1360,7 +1425,7 @@ export default function Home() {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-  const attributeFeedback = useAttributeChanges(game, enemyMotion.moving);
+  const attributeFeedback = useAttributeChanges(game, presenting);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -1474,7 +1539,7 @@ export default function Home() {
     }
   }
   function send(a) {
-    if (enemyMotion.moving && a.type !== 'viewFloor') return;
+    if (presenting && a.type !== 'viewFloor') return;
     if (
       ![
         'viewFloor',
@@ -1766,17 +1831,19 @@ export default function Home() {
           />
         ) : (
           <>
-            <AttributeFeedback
-              feedback={{
-                ...attributeFeedback,
-                changes: attributeFeedback.changes.filter((c) =>
-                  canInspectHero(game, game.heroes[c.heroId], net.room),
-                ),
-                notices: attributeFeedback.notices.filter((notice) =>
-                  canInspectHero(game, game.heroes[notice.heroId], net.room),
-                ),
-              }}
-            />
+            {!presenting && (
+              <AttributeFeedback
+                feedback={{
+                  ...attributeFeedback,
+                  changes: attributeFeedback.changes.filter((c) =>
+                    canInspectHero(game, game.heroes[c.heroId], net.room),
+                  ),
+                  notices: attributeFeedback.notices.filter((notice) =>
+                    canInspectHero(game, game.heroes[notice.heroId], net.room),
+                  ),
+                }}
+              />
+            )}
             <nav className="floating-dock" aria-label="探索工具">
               <button
                 className="roster-toggle"
@@ -1812,13 +1879,18 @@ export default function Home() {
               </section>
             )}
             <EnemyMotion playback={enemyMotion} />
+            <MapPresentation presentation={mapPresentation} />
             {game.cardNotice && (
-              <CardNotice key={game.cardNotice.uid} notice={game.cardNotice} />
+              <CardNotice
+                key={game.cardNotice.uid}
+                notice={game.cardNotice}
+                suspended={presenting}
+              />
             )}
             <DeckSupply
               game={game}
               net={net}
-              moving={enemyMotion.moving}
+              moving={presenting}
               onEndRound={() =>
                 remaining > 0
                   ? setConfirm('round')
@@ -1830,7 +1902,7 @@ export default function Home() {
               net={net}
               send={send}
               waiting={waiting}
-              moving={enemyMotion.moving}
+              moving={presenting}
               Traits={Traits}
               changes={attributeFeedback.changes}
               commands={
@@ -1839,7 +1911,7 @@ export default function Home() {
                   send={send}
                   net={net}
                   waiting={waiting}
-                  moving={enemyMotion.moving}
+                  moving={presenting}
                 />
               }
             />
@@ -1900,12 +1972,13 @@ export default function Home() {
               <section className="board-panel">
                 <Board
                   key={playtestEpoch}
-                  game={enemyMotion.game}
+                  game={mapPresentation.game}
                   enemyMotion={enemyMotion}
+                  mapPresentation={mapPresentation}
                   send={send}
                   zoom={zoom}
                   setZoom={setZoom}
-                  locked={waiting || net.busy || enemyMotion.moving}
+                  locked={waiting || net.busy || presenting}
                   onInspect={(id) => {
                     setInspected(id);
                     setPartyOpen(true);
@@ -2149,7 +2222,7 @@ export default function Home() {
                 </aside>
               </div>
             </div>
-            {!enemyMotion.moving && (
+            {!presenting && (
               <Prompt
                 key={playtestEpoch}
                 game={game}
@@ -2173,7 +2246,10 @@ export default function Home() {
                 }
               />
             )}
-            <Dialog open={game.phase === 'over'} onOpenChange={() => {}}>
+            <Dialog
+              open={game.phase === 'over' && !presenting}
+              onOpenChange={() => {}}
+            >
               <DialogContent
                 className="story-dialog result-dialog"
                 showCloseButton={false}

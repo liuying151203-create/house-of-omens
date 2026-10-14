@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 
-export default function CardNotice({ notice }) {
+export default function CardNotice({ notice, suspended = false }) {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     const timer = setTimeout(() => setVisible(false), 6500);
     return () => clearTimeout(timer);
   }, []);
-  if (!visible) return null;
+  if (!visible || suspended) return null;
   return (
     <aside className="card-notice" aria-label="卡牌生效提示">
       <output>

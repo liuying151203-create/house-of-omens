@@ -27,7 +27,16 @@ export function useAttributeChanges(game, suspended = false) {
       return;
     }
     const changes = attributeChangesFromEvents(game, lastEventId.current),
-      notices = ruleNoticesFromEvents(game, lastEventId.current);
+      notices = ruleNoticesFromEvents(game, lastEventId.current).filter(
+        (notice) =>
+          // 捕兽夹在地图流程中独立播报，不在伤害窗口打开时再播一次。
+          !game.events.some(
+            (event) =>
+              event.id === notice.eventId &&
+              event.type === 'TrapTriggered' &&
+              event.heroId !== undefined,
+          ),
+      );
     lastEventId.current = latestEventId;
     if (!changes.length && !notices.length) return;
     const timer = setTimeout(

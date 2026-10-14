@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Minus, Plus, Check } from 'lucide-react';
 import { traitRuleView } from '@/lib/rule-views.mjs';
 import { traitPositionBounds } from '../lib/content/bloodmoon-health.mjs';
+import { damageExplanation } from '../lib/damage-presentation.mjs';
 export default function DamagePlanner({ game, p, send }) {
   const keys =
       p.traits ||
@@ -26,6 +27,7 @@ export default function DamagePlanner({ game, p, send }) {
       </p>
     );
   const left = p.remaining - keys.reduce((n, k) => n + allocation[k], 0),
+    explanation = damageExplanation(game, p),
     bounds = Object.fromEntries(
       keys.map((key) => [
         key,
@@ -37,6 +39,15 @@ export default function DamagePlanner({ game, p, send }) {
     );
   return (
     <div className="damage-planner">
+      {explanation && (
+        <aside className="damage-cause" aria-label="伤害原因与规则">
+          <strong>{explanation.title}</strong>
+          {explanation.text && <p>{explanation.text}</p>}
+          {explanation.rule && (
+            <p className="damage-source-rule">{explanation.rule}</p>
+          )}
+        </aside>
+      )}
       <div className="damage-counter">
         {h.name} · 还需分配 <strong>{left}</strong> / {p.remaining} 点
       </div>

@@ -10,7 +10,7 @@ export default function FlowTransition({ request, send, locked }) {
       roundStart: '回合切换',
       turnStart: '角色交接',
       trapResult: '陷阱触发',
-    }[request.kind] || '事件播报';
+    }[request.kind] || '';
   return (
     <div className="flow-event-lock">
       <EventBroadcast
@@ -25,7 +25,7 @@ export default function FlowTransition({ request, send, locked }) {
 
 export function EventBroadcast({
   request,
-  label = '事件播报',
+  label = '',
   duration,
   locked = false,
 }) {
@@ -35,7 +35,7 @@ export function EventBroadcast({
       aria-live="polite"
       aria-atomic="true"
     >
-      <small>{label}</small>
+      {label && <small>{label}</small>}
       <strong>{request.title}</strong>
       {request.text && <p>{request.text}</p>}
       {locked && <span className="flow-event-wait">等待当前玩家…</span>}

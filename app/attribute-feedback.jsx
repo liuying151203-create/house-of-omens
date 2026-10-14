@@ -60,7 +60,6 @@ export default function AttributeFeedback({ feedback }) {
   if (!feedback.changes.length && !feedback.notices.length) return null;
   return (
     <output className="attribute-feedback" key={feedback.id} aria-live="polite">
-      <strong>事件播报</strong>
       {feedback.changes.map((c) => (
         <span
           key={c.eventId || `${c.heroId}-${c.trait}`}

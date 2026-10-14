@@ -17,6 +17,7 @@ import { projectGameForPlayer } from '../lib/engine/projection.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { roomBadges } from '../lib/room-badges.mjs';
 import { createRoomService } from '../scripts/room-server.mjs';
+import { POTION_USAGE_RULE } from '../lib/content/bloodmoon-items.mjs';
 
 const settle = (game) => drivePendingRequests(game, act);
 const restore = (game) => restoreGameSave(JSON.parse(JSON.stringify(game)));
@@ -101,6 +102,32 @@ test('crafting uses its own attempt, persists production limits after consumptio
     game = choose(game, 'speed-potion');
     assert.deepEqual(game.bloodmoon.crafted, ['might-potion', 'speed-potion']);
   }
+});
+
+test('crafting states shared potion rules once and keeps each option attribute and production limit', () => {
+  let game = start();
+  game = act(game, ability(game, 'craft').command);
+  const request = game.queue[0];
+  assert(request.text.includes('知识 5+'));
+  assert(request.text.includes(POTION_USAGE_RULE));
+  assert.equal(
+    JSON.stringify(request.outcomes).includes('下次回合开始'),
+    false,
+  );
+  assert.match(
+    request.outcomes[0].effect,
+    /力量药剂（力量轨道）.*速度药剂（速度轨道）.*神智药剂（理智轨道）/,
+  );
+  assert.match(request.outcomes[1].effect, /本轮制药机会已使用/);
+  game = dice(game, 2);
+  const choice = game.queue[0];
+  assert.equal(choice.kind, 'choiceRequest');
+  assert(choice.text.includes(POTION_USAGE_RULE));
+  assert.match(choice.text, /消耗后不能重制/);
+  assert.deepEqual(
+    choice.options.map((entry) => entry.detail),
+    ['力量轨道', '速度轨道', '理智轨道'],
+  );
 });
 
 test('failed production spends an attempt; smelting follows the material across trades and cannot exceed two types', () => {

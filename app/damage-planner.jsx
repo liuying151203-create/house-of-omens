@@ -68,9 +68,6 @@ export default function DamagePlanner({ game, p, send }) {
               <span>
                 {view.value} → <b>{after === 0 ? '☠' : view.track[after]}</b>
               </span>
-              <small>
-                分配{allocation[k]}点，下降{view.current - after}格
-              </small>
             </div>
             <div className="damage-plan-controls">
               <button

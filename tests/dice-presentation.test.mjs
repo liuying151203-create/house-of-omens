@@ -100,7 +100,7 @@ test('disabling animation reveals totals and leaves confirmation to the player',
   );
   assert.doesNotMatch(
     html,
-    /点数已揭晓，稍后自动结算|检定已自动结算|骰子已停稳/,
+    /点数已揭晓，稍后自动结算|检定已自动结算|骰子已停稳|已投掷|结果会保留到你确认/,
   );
 });
 
@@ -171,4 +171,5 @@ test('the rerolled result remains in the dice window before the next choice', ()
   assert.match(html, /5 点/);
   assert.match(html, /继续检定/);
   assert.doesNotMatch(html, /自动继续原检定/);
+  assert.doesNotMatch(html, /新点数已计入|确认结果后继续原检定/);
 });

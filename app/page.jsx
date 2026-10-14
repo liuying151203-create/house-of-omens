@@ -100,7 +100,7 @@ import {
 } from '../lib/game-view.mjs';
 import { moonlit, windowsOf } from '../lib/werewolf.mjs';
 import { roomRuleView, traitRuleView } from '../lib/rule-views.mjs';
-import { eventJournalEntries } from '../lib/event-journal.mjs';
+import { explorationJournal } from '../lib/event-journal.mjs';
 import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import FlowTransition, { InternalContinuation } from './flow-transition';
@@ -418,7 +418,7 @@ function Prompt({
                         traitRuleView(game, game.heroes[p.heroId], c.trait)
                           .label
                       }
-                      检定 · 目标 {c.threshold}+
+                      {c.threshold}+
                     </strong>
                     <p>成功：{c.success.text}</p>
                     <p>失败：{c.failure.text}</p>
@@ -438,10 +438,16 @@ function Prompt({
               {c.explorationText && (
                 <p className="exploration-rule">{c.explorationText}</p>
               )}
-              <span className="card-owner">
-                由 {h.name} 结算 ·{' '}
-                {c.stopsMovement ? '抽卡后本回合停止移动' : '此牌不停止移动'}
-              </span>
+              {(net?.room || c.stopsMovement) && (
+                <span className="card-owner">
+                  {[
+                    net?.room ? h.name : '',
+                    c.stopsMovement ? '本回合停止移动' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              )}
             </div>
           )}
           {p.rollReceipt && (
@@ -1494,6 +1500,10 @@ export default function Home() {
     [],
   );
   const p = game ? pending(game) : null;
+  const journal = useMemo(
+    () => (game ? explorationJournal(game) : null),
+    [game],
+  );
   useEffect(() => {
     if (sound && p?.kind === 'haunt' && audio.current) {
       const ctx = audio.current;
@@ -2175,20 +2185,9 @@ export default function Home() {
                       <X size={18} />
                     </button>
                   </div>
-                  <output className="live-feedback" key={game.feedbackId}>
-                    <Sparkles size={16} />
-                    {game.feedback}
-                  </output>
                   <div className="journal">
-                    <div className="mini-heading">
-                      <span>
-                        <BookOpen size={15} />
-                        最近结算
-                      </span>
-                      <span>最新</span>
-                    </div>
                     <div className="journal-entries">
-                      {eventJournalEntries(game).map((l, i) => (
+                      {journal.entries.map((l, i) => (
                         <div
                           className={
                             'journal-entry ' + (i === 0 ? 'latest' : '')
@@ -2203,21 +2202,23 @@ export default function Home() {
                         </div>
                       ))}
                     </div>
-                    <div className="mini-heading">
-                      <span>
-                        <BookOpen size={15} />
-                        过程记录
-                      </span>
-                    </div>
-                    <div className="journal-entries">
-                      {game.logs.map((l) => (
-                        <div className="journal-entry" key={l.id}>
-                          <span className="journal-dot" />
-                          <small>第{l.round}回合</small>
-                          <p>{l.text}</p>
+                    {journal.extraLogs.length > 0 && (
+                      <details
+                        className="journal-extra-records"
+                        open={journal.entries.length === 0}
+                      >
+                        <summary>其他记录</summary>
+                        <div className="journal-entries">
+                          {journal.extraLogs.map((l) => (
+                            <div className="journal-entry" key={l.id}>
+                              <span className="journal-dot" />
+                              <small>第{l.round}回合</small>
+                              <p>{l.text}</p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </details>
+                    )}
                   </div>
                 </aside>
               </div>

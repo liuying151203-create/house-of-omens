@@ -89,10 +89,15 @@ test('an already-rolled enemy snapshot still starts both dice animations before 
   assert.doesNotMatch(html, /点数已揭晓/);
 });
 
-test('disabling animation reveals totals with an explicit pause before automatic settlement', () => {
+test('disabling animation reveals totals and leaves confirmation to the player', () => {
   const html = render([0, 1, 2], false);
   assert.doesNotMatch(html, /is-rolling/);
   assert.equal((html.match(/class="side-total"/g) || []).length, 2);
+  assert.match(html, /确认骰子结果/);
+  assert.doesNotMatch(
+    html.match(/<button[^>]*class="gold-button"[^>]*>/)?.[0] || '',
+    /disabled/,
+  );
   assert.doesNotMatch(
     html,
     /点数已揭晓，稍后自动结算|检定已自动结算|骰子已停稳/,

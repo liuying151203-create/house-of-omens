@@ -9,8 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { rollOwner } from '@/lib/roll-ownership.mjs';
 import RingReroll from './ring-reroll';
-const ROLL_ANIMATION_MS = 950,
-  RESULT_HOLD_MS = 1400;
+const ROLL_ANIMATION_MS = 750;
 function EmojiDice({ dice, count, rollEventId, motion, onSettled }) {
   const signature = dice
       ? `${rollEventId || 'legacy'}:${dice.join(',')}`
@@ -155,23 +154,20 @@ function RollDiceRequest({
   useEffect(() => {
     if (!autoIds || net?.busy) return;
     const timer = setTimeout(
-      () => sendRef.current({ type: 'rollAll', sideIds: autoIds.split(',') }),
+      () =>
+        sendRef.current({
+          type: 'rollAll',
+          requestId: p.uid,
+          sideIds: autoIds.split(','),
+        }),
       750,
     );
     return () => clearTimeout(timer);
-  }, [autoIds, net?.busy]);
+  }, [autoIds, net?.busy, p.uid]);
   const finished = p.rolls.every((r) => r.dice),
     ready =
       finished && (!motion || p.rolls.every((r) => settled.includes(r.id)));
   const confirmer = !room || (room.seats[p.heroId] || room.hostId) === room.you;
-  useEffect(() => {
-    if (!ready || !confirmer || net?.busy) return;
-    const timer = setTimeout(
-      () => sendRef.current({ type: 'resolveDice', requestId: p.uid }),
-      RESULT_HOLD_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [ready, confirmer, net?.busy, p.uid]);
   return (
     <Dialog open={true} onOpenChange={() => {}}>
       <DialogContent
@@ -189,6 +185,7 @@ function RollDiceRequest({
           <button
             className="text-button"
             aria-pressed={autoRoll}
+            title="只自动掷骰，结果仍需确认"
             onClick={toggleAuto}
           >
             自动投掷 {autoRoll ? '开' : '关'}
@@ -267,7 +264,13 @@ function RollDiceRequest({
                             ? '投掷这一组'
                             : '等待对方投掷'
                       }
-                      onClick={() => send({ type: 'rollDice', sideId: r.id })}
+                      onClick={() =>
+                        send({
+                          type: 'rollDice',
+                          requestId: p.uid,
+                          sideId: r.id,
+                        })
+                      }
                     >
                       <Dices size={18} />
                       <span>{r.computer ? '自动' : own ? '投掷' : '等待'}</span>
@@ -294,11 +297,26 @@ function RollDiceRequest({
             );
           })}
         </div>
-        {finished && !ready && (
-          <output className="dice-auto-status" aria-live="polite">
-            等待骰子停稳
-          </output>
-        )}
+        <div className="dice-confirmation">
+          {finished && (
+            <output className="dice-auto-status" aria-live="polite">
+              {!ready
+                ? '等待骰子停稳'
+                : confirmer
+                  ? '结果会保留到你确认，再处理重掷、伤害或其他后续效果。'
+                  : '等待负责此检定的玩家确认结果'}
+            </output>
+          )}
+          <button
+            type="button"
+            className="gold-button"
+            disabled={!ready || !confirmer || net?.busy}
+            onClick={() => send({ type: 'resolveDice', requestId: p.uid })}
+          >
+            <Check size={18} />
+            确认骰子结果
+          </button>
+        </div>
         {testTools}
       </DialogContent>
     </Dialog>

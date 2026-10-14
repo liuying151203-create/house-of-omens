@@ -1,0 +1,262 @@
+/* 扁平暗色展示层：集中覆盖旧主题，布局和规则行为沿用现有组件。 */
+:root {
+  --ui-surface: #17212c;
+  --ui-surface-raised: #1d2a37;
+  --ui-border: #354353;
+  --ui-text: #e8edf4;
+  --ui-muted: #afbdcd;
+  --ui-accent: #85b7ff;
+}
+.app.playing {
+  background: #101720;
+  color: var(--ui-text);
+  font-family: system-ui, 'Microsoft YaHei', sans-serif;
+}
+.playing .topbar {
+  background: #131c27;
+  border-bottom: 1px solid var(--ui-border);
+  box-shadow: none;
+}
+.playing .floating-window,
+.playing .map-camera-tools,
+.playing .supply-dock,
+.playing .explorer-vitals,
+.playing .roster-inspector {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  box-shadow: 0 8px 20px #0003;
+  color: var(--ui-text);
+}
+.playing .attribute-feedback {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+  box-shadow: 0 8px 20px #0003;
+}
+.playing .floating-heading > strong,
+.playing .story-top h2 {
+  font-family: inherit;
+  color: var(--ui-text);
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.story-dialog[data-slot='dialog-content'] {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  color: var(--ui-text);
+  box-shadow: 0 20px 60px #0005;
+  animation: ui-dialog-in 140ms ease-out;
+}
+[data-slot='dialog-overlay'] {
+  background: #050a1166;
+  backdrop-filter: none;
+}
+.story-dialog [data-slot='dialog-title'] {
+  font-family: system-ui, 'Microsoft YaHei', sans-serif;
+  color: var(--ui-text);
+  line-height: 1.4;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.story-dialog [data-slot='dialog-description'],
+.story-dialog .card-rules p,
+.story-dialog .reaction-options small {
+  color: var(--ui-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.story-dialog .card-rules,
+.story-dialog .roll-outcomes,
+.story-dialog .ring-result,
+.story-dialog .roll-side {
+  background: #111a24;
+  border-color: var(--ui-border);
+  border-radius: 8px;
+  color: var(--ui-text);
+  box-shadow: none;
+}
+.story-dialog .roll-outcomes dt,
+.story-dialog .ring-result b,
+.story-dialog .eyebrow {
+  color: var(--ui-accent);
+}
+.story-dialog .roll-outcomes dd,
+.story-dialog .ring-result small {
+  color: var(--ui-text);
+}
+.playing .gold-button,
+.story-dialog .gold-button {
+  background: #35629b;
+  border: 1px solid #5788c5;
+  color: #f4f8ff;
+  text-shadow: none;
+  box-shadow: none;
+  border-radius: 7px;
+}
+.playing .gold-button:hover:not(:disabled),
+.story-dialog .gold-button:hover:not(:disabled) {
+  background: #4273af;
+}
+.playing .gold-button:focus-visible,
+.story-dialog .gold-button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+.playing .gold-button:disabled,
+.story-dialog .gold-button:disabled {
+  background: #263442;
+  border-color: var(--ui-border);
+  color: #91a0b0;
+  opacity: 1;
+}
+.story-dialog .dice-confirmation {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  margin-top: 8px;
+  background: var(--ui-surface);
+  border-top: 1px solid var(--ui-border);
+}
+.dice-confirmation .dice-auto-status {
+  flex: 1 1 220px;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.story-dialog .dice-confirmation .gold-button {
+  min-width: 170px;
+  width: auto;
+  margin: 0;
+}
+.flow-event-broadcast {
+  top: 72px;
+  width: min(360px, calc(100vw - 32px));
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px #0003;
+  color: var(--ui-text);
+}
+.flow-event-broadcast small,
+.flow-transition-progress::before {
+  color: var(--ui-accent);
+}
+.flow-event-broadcast p,
+.flow-event-wait {
+  color: var(--ui-muted);
+}
+.flow-transition-progress {
+  background: #2b3b4e;
+  border-radius: 2px;
+}
+.flow-transition-progress::before {
+  background: var(--ui-accent);
+}
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 680px) {
+  .story-dialog .dice-confirmation .gold-button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-dialog[data-slot='dialog-content'],
+  .flow-event-broadcast {
+    animation: none;
+  }
+}
+/* 入房效果沿同一条队列播放：移动、地图触发，再开放交互窗口。 */
+.travelling-hero {
+  z-index: 12;
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--pawn-color, var(--ui-accent));
+  border-radius: 50%;
+  background: var(--ui-surface-raised);
+  pointer-events: none;
+  animation: map-hero-step var(--move-duration) ease-in-out both;
+}
+@keyframes map-hero-step {
+  from {
+    transform: translate(var(--step-x), var(--step-y));
+  }
+  85%,
+  to {
+    transform: translate(0, 0);
+  }
+}
+.room-triggered::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 3px solid #ee9f79;
+  border-radius: 8px;
+  pointer-events: none;
+  animation: map-trigger-pulse 600ms ease-in-out 3;
+}
+.map-trigger-marker {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffbf99;
+  pointer-events: none;
+  z-index: 13;
+}
+.map-trigger-marker svg {
+  padding: 5px;
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: #38271f;
+}
+@keyframes map-trigger-pulse {
+  50% {
+    border-color: #ee9f7933;
+  }
+}
+.damage-cause {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-border);
+  border-left: 3px solid #ee9f79;
+  border-radius: 6px;
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+}
+.damage-cause strong {
+  font-size: 14px;
+}
+.damage-cause p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.damage-cause .damage-source-rule {
+  color: var(--ui-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .travelling-hero,
+  .room-triggered::after {
+    animation: none;
+  }
+}

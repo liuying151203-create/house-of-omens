@@ -74,7 +74,7 @@ test('new map tiles are isolated, discoverable from an explicit pool and connect
   assert(connections(fixture, 'bloodmoon-boiler').includes('sterilization'));
 });
 
-test('crafting uses its own attempt, persists production limits after consumption, and survives choice restore', () => {
+test('crafting consumes the shared interaction, persists production limits, and survives choice restore', () => {
   for (const factory of [createGame, createSimulationGame]) {
     let game = start(factory);
     addItemInstance(game.heroes[0], 'family-ring', 'material');
@@ -85,8 +85,8 @@ test('crafting uses its own attempt, persists production limits after consumptio
     assert.equal(game.queue[0].title, '选择制备药剂');
     game = choose(restore(game), 'might-potion');
     assert.deepEqual(game.bloodmoon.crafted, ['might-potion']);
-    assert.equal(game.heroes[0].interacted, false);
-    assert(ability(game, 'smelt'), 'smelting is independent of crafting');
+    assert.equal(game.heroes[0].interacted, true);
+    assert.equal(ability(game, 'smelt'), undefined);
     const potion = actions(game).itemAbilities.find(
       (entry) => entry.cardId === 'might-potion',
     );
@@ -109,6 +109,9 @@ test('failed production spends an attempt; smelting follows the material across 
   addItemInstance(game.heroes[0], 'saint-badge', 'smelt:badge');
   game = dice(act(game, ability(game, 'craft').command), 0);
   assert(!ability(game, 'craft'));
+  assert.equal(game.heroes[0].interacted, true);
+  assert.equal(ability(game, 'smelt'), undefined);
+  game = settle(act(game, { type: 'endRound' }));
   game = dice(act(game, ability(game, 'smelt').command), 0);
   assert(game.heroes[0].items.includes('saint-badge'));
   assert(!ability(game, 'smelt'));
@@ -283,7 +286,7 @@ test('steam activates after the owner turn, tests each room independently, stops
   game.heroes[1].pos = 'bloodmoon-laboratory';
   game.heroes[2].pos = 'sterilization';
   game = act(game, ability(game, 'valve').command);
-  assert.equal(game.heroes[0].interacted, false);
+  assert.equal(game.heroes[0].interacted, true);
   assert.equal(game.bloodmoon.steam[0].active, false);
   assert(!ability(game, 'valve'));
   game = act(game, { type: 'endHero' });
@@ -334,7 +337,7 @@ test('traps are faction-private and stop an enemy at the intermediate room, not 
     ];
     game = act(game, ability(game, 'trap').command);
     assert(!game.heroes[0].items.includes('bear-trap'));
-    assert.equal(game.heroes[0].interacted, false);
+    assert.equal(game.heroes[0].interacted, true);
     game.heroes[2].faction = 'wolves';
     const room = { hostId: 'host', seats: ['hero', 'hero', 'wolf'] };
     assert.equal(

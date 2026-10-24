@@ -12,17 +12,17 @@
 2. 在 `lib/content/scenarios/` 新建剧本模块，并在 `index.mjs` 的列表中注册。注册表会拒绝重复 ID、缺失初始化、缺失超时文案和类型错误的回调。
 3. 按需实现以下契约；可参考现有四个剧本。
 
-| 字段 | 契约 |
-| --- | --- |
-| `id` | 必填，与 `SCENARIOS` 和存档中的 ID 一致 |
-| `setup(game, metadata, context)` | 必填，初始化目标、敌人和提示；只能同步完成，不在这里创建自行等待的异步任务 |
-| `timeoutReason` | 必填，倒计时耗尽的失败文案 |
-| `hauntRules` | 可选，`{ priority, matches(omenId, room) }` 列表；优先级越大越先匹配，同优先级按注册顺序匹配；省略时仅支持定向入口 |
-| `canStartHaunt(game)` | 可选，返回 `false` 时继续探索，不检定或初始化该定向剧本；同时提供 `hauntRequirement` 中文提示，例如血月必须先有存活的咬痕持有者 |
-| `victory(game)` | 可选，返回胜利原因或假值；由引擎现有状态检查点调用，不是每次渲染都调用 |
-| `enemyDefeated(game, enemy)` | 可选，敌人移除后返回胜利原因或假值 |
-| `afterEnemies(game, report)` | 可选，敌人阶段收尾、超时检查前同步执行；例如钟声幽影增援 |
-| `winnerFaction(won)` | 可选，将胜负映射为阵营 ID，由统一结束入口写入结果 |
+| 字段                             | 契约                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                             | 必填，与 `SCENARIOS` 和存档中的 ID 一致                                                                                         |
+| `setup(game, metadata, context)` | 必填，初始化目标、敌人和提示；只能同步完成，不在这里创建自行等待的异步任务                                                      |
+| `timeoutReason`                  | 必填，倒计时耗尽的失败文案                                                                                                      |
+| `hauntRules`                     | 可选，`{ priority, matches(omenId, room) }` 列表；优先级越大越先匹配，同优先级按注册顺序匹配；省略时仅支持定向入口              |
+| `canStartHaunt(game)`            | 可选，返回 `false` 时继续探索，不检定或初始化该定向剧本；同时提供 `hauntRequirement` 中文提示，例如血月必须先有存活的咬痕持有者 |
+| `victory(game)`                  | 可选，返回胜利原因或假值；由引擎现有状态检查点调用，不是每次渲染都调用                                                          |
+| `enemyDefeated(game, enemy)`     | 可选，敌人移除后返回胜利原因或假值                                                                                              |
+| `afterEnemies(game, report)`     | 可选，敌人阶段收尾、超时检查前同步执行；例如钟声幽影增援                                                                        |
+| `winnerFaction(won)`             | 可选，将胜负映射为阵营 ID，由统一结束入口写入结果                                                                               |
 
 `setup` 的 context 提供 `shuffle`、`random`、`pathTo`、`roomAt`、`living`、`ensureActive`、`log`、`announce`、`ENTRANCE`、`FLOORS`；现有狼人还使用 `turnWolf` 和 `WOLF_RULES`。需要扩大服务边界时，在引擎显式传入，不导入整个引擎。
 
@@ -45,7 +45,7 @@
 
 扩展物品／房间可声明来源标签 `supply`。经典游戏集仅收录没有该字段的定义；通用扩展及自定义游戏集可选择这些新内容，`bloodmoon` 不表示剧本限制。仅由机制生产的物品声明 `deckEligible: false`，例如银弹。新增内容先注册规则，再由游戏集引用 ID，不能直接执行素材草稿。接口见 [游戏集指南](game-sets-guide.md)。新实验室及锅炉房已接入制药／熔铸与生产台账，详情见 [血月房间与机关指南](bloodmoon-content-guide.md)。
 
-药剂通过 `boostTrait` 能力同时提升属性并添加 `trait-boost` 增益状态，与物品消耗一并原子提交。增益记录来源物品实例、对应属性和 `expiresRound`，由 `TurnStarting` 在使用者下次回合开始时按状态实例结算：当前属性回退 1 格、最低保留第 1 格，再移除增益。不要保存使用前属性快照来恢复，否则会覆盖期间的伤害；也不要挂到旧狼人专用的感染轮次结算。此增益不是负面状态，不允许解药清除。
+药剂通过 `boostTrait` 能力向右移动对应属性 2 格，与物品消耗一并原子提交。它不创建状态、不记录到期轮次，也不会自动回退；轨道上限仍由通用属性规则统一约束。
 
 物品执行仍通过 `item.use` 的原子 Effect 批次统一提交效果、使用标记、充能与消耗。新能力返回 Effect，不直接修改人物或背包。需要反应窗口或可能取消的多步骤支付时，先设计暂停、确认和退款契约，再接入可恢复 Workflow。
 

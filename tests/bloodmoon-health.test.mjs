@@ -274,7 +274,7 @@ test('first silver can also kill directly; death never awards a surviving-hit we
     0,
   );
 });
-test('permanent caps constrain generic healing, rest, potions, expiry and changed moon values', () => {
+test('permanent caps constrain generic healing, rest, permanent potions and changed moon values', () => {
   let game = fixture('bloodmoon-recovery-cap');
   const alpha = game.heroes[0];
   alpha.stats.might = alpha.stats.speed = 3;
@@ -297,7 +297,8 @@ test('permanent caps constrain generic healing, rest, potions, expiry and change
   );
   assert.equal(game.heroes[0].stats.speed, 4);
   game = clear(act(restore(game), { type: 'endRound' }));
-  assert.equal(game.heroes[0].stats.speed, 3);
+  assert.equal(game.heroes[0].stats.speed, 4);
+  game.heroes[0].stats.speed = 3;
   game = act(game, { type: 'rest', trait: 'speed' });
   assert.equal(game.heroes[0].stats.speed, 4);
   game = clear(act(game, { type: 'endRound' }));
@@ -313,18 +314,13 @@ test('permanent caps constrain generic healing, rest, potions, expiry and change
   ]);
   assert.equal(game.heroes[0].stats.speed, 4);
 });
-test('blocked alpha cannot fire a legal ordinary shot but may load, unload or move', () => {
+test('wolves cannot fire a pistol but may load, unload or move', () => {
   let game = fixture('bloodmoon-pistol');
   game.heroes[1].pos = 'foyer';
   game.heroes[0].pos = 'shoot-room-2';
   assert(transferItemInstance(game.heroes[0], game.heroes[1], 'test-pistol'));
   addItemInstance(game.heroes[1], 'silver-bullet', 'test-alpha-bullet');
   game = clear(act(game, { type: 'select', id: 1 }));
-  assert(
-    ability(game, 'firearm.shoot'),
-    'ray is legal before blocking the attack',
-  );
-  game.heroes[1].attackBlockedRound = game.round;
   assert.equal(ability(game, 'firearm.shoot'), undefined);
   assert(ability(game, 'firearm.load'));
   game = act(game, ability(game, 'firearm.load').command);

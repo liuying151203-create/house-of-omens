@@ -148,7 +148,7 @@ test('potions can be transferred and dropped then picked up with their original 
   assert.equal(itemInstances(game.heroes[1])[0].instanceId, 'potion:transfer');
 });
 
-test('potion buffs survive other turns and saves, expire once at the owner next turn, and cannot be cleansed', () => {
+test('potion track increases survive later turns and saves without creating an expiring status', () => {
   for (const factory of [createGame, createSimulationGame]) {
     let game = drivePendingRequests(factory('werewolf', 23, 3), act);
     game = act(game, { type: 'select', id: 1 });
@@ -162,135 +162,40 @@ test('potion buffs survive other turns and saves, expire once at the owner next 
         act,
       );
     }
-    const buffs = game.heroes[1].statuses;
-    assert.equal(buffs.length, 3);
-    assert.equal(new Set(buffs.map((status) => status.instanceId)).size, 3);
-    assert(buffs.every((status) => !canCleanseStatus(status)));
-    assert(
-      heroStatuses(game, game.heroes[1]).every((status) =>
-        /下次回合开始/.test(status.description),
-      ),
-    );
+    const boosted = structuredClone(game.heroes[1].stats);
+    assert.equal(game.heroes[1].statuses.length, 0);
+    for (const trait of ['might', 'speed', 'sanity'])
+      assert.equal(boosted[trait], original[trait] + 2);
     game = act(game, { type: 'select', id: 0 });
     game = act(game, { type: 'select', id: 1 });
-    assert.deepEqual(
-      game.heroes[1].statuses,
-      buffs,
-      'reselecting within one round does not expire buffs',
-    );
+    assert.deepEqual(game.heroes[1].stats, boosted);
     game = drivePendingRequests(act(game, { type: 'endRound' }), act);
     assert.equal(game.active, 0);
-    assert.deepEqual(
-      game.heroes[1].statuses,
-      buffs,
-      'another hero starting the next round does not expire buffs',
-    );
     game = restoreGameSave(JSON.parse(JSON.stringify(game)));
     assert(game);
     game = drivePendingRequests(act(game, { type: 'select', id: 1 }), act);
     assert.equal(game.heroes[1].statuses.length, 0);
-    for (const trait of ['might', 'speed', 'sanity'])
-      assert.equal(game.heroes[1].stats[trait], original[trait] + 1);
+    assert.deepEqual(game.heroes[1].stats, boosted);
     assert.equal(game.heroes[1].moves, movement(game.heroes[1], game));
-    assert.equal(
-      game.events.filter(
-        (event) => event.type === 'StatusRemoved' && event.reason === 'expired',
-      ).length,
-      3,
-    );
-    const expiredStats = structuredClone(game.heroes[1].stats);
-    game = restoreGameSave(JSON.parse(JSON.stringify(game)));
-    game = drivePendingRequests(act(game, { type: 'endRound' }), act);
-    game = drivePendingRequests(act(game, { type: 'select', id: 1 }), act);
-    assert.deepEqual(
-      game.heroes[1].stats,
-      expiredStats,
-      'restoring an expired buff cannot roll back again',
-    );
   }
 });
 
-test('potion expiry subtracts from the current track position and never kills, including at the right cap', () => {
-  for (const factory of [createGame, createSimulationGame]) {
-    for (const card of BLOODMOON_ITEMS.filter(
-      (entry) => entry.use === 'boostTrait',
-    )) {
-      for (const position of [1, 2, 'cap']) {
-        let game = drivePendingRequests(
-          createHauntPlaytest('werewolf', 23, 3),
-          act,
-        );
-        game.executionMode = factory('werewolf', 23, 3).executionMode;
-        for (const enemy of game.enemies) {
-          enemy.pos = 'basement';
-          enemy.speed = 0;
-        }
-        const trait = card.useTrait,
-          cap = game.heroes[0].tracks[trait].length - 1;
-        if (position === 'cap') game.heroes[0].stats[trait] = cap;
-        addItemInstance(game.heroes[0], card.id, `expiry:${card.id}`);
-        game = drivePendingRequests(
-          act(game, ability(game, card.id).command),
-          act,
-        );
-        if (position !== 'cap') game.heroes[0].stats[trait] = position;
-        game = drivePendingRequests(act(game, { type: 'endRound' }), act);
-        assert.equal(
-          game.heroes[0].stats[trait],
-          position === 'cap' ? cap - 1 : 1,
-        );
-        assert.equal(game.heroes[0].dead, false);
-        assert.equal(game.heroes[0].statuses.length, 0);
-      }
-    }
-  }
-});
-
-test('potion expiration reactions can pause and restore without repeating the rollback', () => {
+test('restoring an old temporary potion marker keeps the applied increase and removes the marker', () => {
   let game = start();
-  game = act(game, { type: 'select', id: 1 });
-  addItemInstance(game.heroes[1], 'might-potion', 'potion:reaction');
-  game = drivePendingRequests(
-    act(game, ability(game, 'might-potion').command),
-    act,
+  game.heroes[0].stats.might += 2;
+  const boosted = game.heroes[0].stats.might;
+  game.heroes[0].statuses.push({
+    id: 'trait-boost',
+    instanceId: 'legacy-potion-status',
+    trait: 'might',
+    expiresRound: game.round + 1,
+  });
+  game = restoreGameSave(JSON.parse(JSON.stringify(game)));
+  assert(game);
+  assert.equal(game.heroes[0].stats.might, boosted);
+  assert(
+    !game.heroes[0].statuses.some((status) => status.id === 'trait-boost'),
   );
-  const boosted = game.heroes[1].stats.might;
-  game = drivePendingRequests(act(game, { type: 'endRound' }), act);
-  game.ruleTriggers = ['TurnStarting', 'StatusExpired'].map((when) => ({
-    id: `test:${when}`,
-    sourceId: `test:${when}`,
-    when,
-    priority: 30,
-    effects: [
-      {
-        op: 'reaction.request',
-        params: {
-          heroId: 1,
-          title: '测试到期反应',
-          options: [
-            { id: 'continue', label: '继续', effects: [] },
-            { id: 'skip', label: '跳过', effects: [] },
-          ],
-        },
-      },
-    ],
-  }));
-  game = act(game, { type: 'select', id: 1 });
-  assert.equal(
-    game.queue[0].workflow.locals.reaction.resume.event.when,
-    'TurnStarting',
-  );
-  assert.equal(game.heroes[1].stats.might, boosted);
-  game = choose(restoreGameSave(JSON.parse(JSON.stringify(game))), 'continue');
-  assert.equal(
-    game.queue[0].workflow.locals.reaction.resume.event.when,
-    'StatusExpired',
-  );
-  assert.equal(game.heroes[1].stats.might, boosted - 1);
-  assert.equal(game.heroes[1].statuses.length, 0);
-  game = choose(restoreGameSave(JSON.parse(JSON.stringify(game))), 'continue');
-  assert.equal(game.queue.length, 0);
-  assert.equal(game.heroes[1].stats.might, boosted - 1);
 });
 
 test('antidote selects up to two statuses, persists choices and commits removal and consumption together', () => {

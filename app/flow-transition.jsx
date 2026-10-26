@@ -2,12 +2,21 @@
 import { broadcastDuration } from '../lib/presentation-requests.mjs';
 import { useRequestAdvance } from './use-request-advance.mjs';
 
-export default function FlowTransition({ request, send, locked }) {
+export default function FlowTransition({
+  request,
+  send,
+  locked,
+  blocksActions = true,
+}) {
   const duration = broadcastDuration(request);
   useRequestAdvance(request.uid, send, duration, locked);
   return (
-    <div className="flow-event-lock">
-      <EventBroadcast request={request} duration={duration} locked={locked} />
+    <div className={blocksActions ? 'flow-event-lock' : 'flow-event-passive'}>
+      <EventBroadcast
+        request={request}
+        duration={duration}
+        locked={blocksActions && locked}
+      />
     </div>
   );
 }

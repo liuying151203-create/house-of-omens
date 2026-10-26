@@ -104,7 +104,10 @@ import { explorationJournal } from '../lib/event-journal.mjs';
 import DiceRequest from './dice-request';
 import EnemyMotion, { useEnemyMotion } from './enemy-motion';
 import FlowTransition, { InternalContinuation } from './flow-transition';
-import { isBroadcastRequest } from '../lib/presentation-requests.mjs';
+import {
+  isBroadcastRequest,
+  blockingRequest,
+} from '../lib/presentation-requests.mjs';
 import { resolveCard as cardDefinition } from '../lib/card-rules.mjs';
 import DamagePlanner from './damage-planner';
 import { useNetwork, NetworkLobby, networkStatusLabel } from './network';
@@ -283,6 +286,7 @@ function Prompt({
         key={p.uid}
         request={p}
         send={send}
+        blocksActions={!!blockingRequest(game)}
         locked={locked || p.kind === 'privateRequest'}
       />
     );
@@ -1589,12 +1593,13 @@ export default function Home() {
           .filter((hero) => isHeroMine(net.room, hero.id))
           .map((hero) => hero.name)
       : [];
+  const actionRequest = game ? blockingRequest(game) : null;
   const waiting =
     !!net.room?.game &&
-    (p && p.heroId === undefined
+    (actionRequest && actionRequest.heroId === undefined
       ? net.room.you !== net.room.hostId
-      : (net.room.seats[p?.heroId ?? game?.active] || net.room.hostId) !==
-        net.room.you);
+      : (net.room.seats[actionRequest?.heroId ?? game?.active] ||
+          net.room.hostId) !== net.room.you);
   useEffect(() => {
     if (!net.session || !p?.canResolveTimeout || !Number.isFinite(p.deadlineAt))
       return;

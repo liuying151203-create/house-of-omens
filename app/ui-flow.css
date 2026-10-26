@@ -154,6 +154,12 @@
   width: auto;
   margin: 0;
 }
+.flow-event-passive {
+  position: fixed;
+  z-index: 85;
+  inset: 0;
+  pointer-events: none;
+}
 .flow-event-broadcast {
   top: 72px;
   width: min(360px, calc(100vw - 32px));

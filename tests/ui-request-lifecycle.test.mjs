@@ -259,6 +259,36 @@ test('internal continuations remain silent and a waiting player never advances t
   cleanup();
 });
 
+test('completed broadcasts have no interaction shield or waiting message and keep a scoped expiry', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const request = {
+    uid: 42,
+    kind: 'itemUse',
+    title: '使用咖啡',
+    text: '移动力已增加。',
+  };
+  const commands = [];
+  const html = render(Broadcast, {
+    request,
+    blocksActions: false,
+    locked: false,
+    send: (command) => commands.push(command),
+  });
+  const cleanup = mountEffects();
+  assert.match(html, /flow-event-passive/);
+  assert.doesNotMatch(html, /flow-event-lock|等待当前玩家/);
+  t.mock.timers.tick(broadcastDuration(request));
+  assert.deepEqual(commands, [{ type: 'advance', requestId: request.uid }]);
+  cleanup();
+  const other = render(Broadcast, {
+    request,
+    blocksActions: false,
+    locked: true,
+    send() {},
+  });
+  assert.doesNotMatch(other, /等待当前玩家/);
+});
+
 test('the engine rejects delayed throw and advance commands after a request changes', () => {
   let game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-control');
   while (pending(game))

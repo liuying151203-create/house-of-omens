@@ -119,3 +119,25 @@ test('Home keeps legacy haunt prompts working and uses a default icon for future
     renderedScenarios.pop();
   }
 });
+
+test('Home permits ending a turn during a completed notice but locks turn transitions', () => {
+  const game = act(createGame('mirror', 31, 3), { type: 'advance' });
+  game.queue = [
+    {
+      uid: ++game.serial,
+      kind: 'notice',
+      title: '结算完成',
+      text: '效果已生效。',
+    },
+  ];
+  const passive = render(game);
+  assert.match(passive, /flow-event-passive/);
+  const roundButton = (html) =>
+    html.match(/<button[^>]*title="提前结束整轮需要确认"[^>]*>/)?.[0];
+  assert(roundButton(passive));
+  assert.doesNotMatch(roundButton(passive), /disabled/);
+  game.queue[0].kind = 'turnStart';
+  const blocking = render(game);
+  assert.match(blocking, /flow-event-lock/);
+  assert.match(roundButton(blocking), /disabled/);
+});

@@ -194,3 +194,36 @@ test('unknown room state versions fail closed', () => {
     null,
   );
 });
+
+test('the active guest can act during a global completed notice and a different notice owner cannot take their turn', () => {
+  const { room, host, guest } = setup();
+  const seated = updateRoomState(room, guest.key, {
+    type: 'seat',
+    seat: 0,
+    revision: guest.revision,
+  });
+  for (const heroId of [undefined, 1]) {
+    const game = floorNoticeGame(heroId);
+    if (heroId === undefined) delete game.queue[0].heroId;
+    room.game = game;
+    const revision = room.revision;
+    assert.throws(
+      () =>
+        updateRoomState(room, host.key, {
+          type: 'action',
+          action: { type: 'endHero' },
+          revision,
+        }),
+      (error) => error.status === 403,
+    );
+    const next = updateRoomState(room, guest.key, {
+      type: 'action',
+      action: { type: 'endHero' },
+      revision,
+    });
+    assert(next.game.heroes[0].ended);
+    assert.equal(pending(next.game).kind, 'turnStart');
+    assert.equal(next.revision, revision + 1);
+  }
+  assert(seated);
+});

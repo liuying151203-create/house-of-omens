@@ -3,6 +3,7 @@ import EnemyGlyph from './enemy-glyph';
 import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
 import { roomRuleView } from '../lib/rule-views.mjs';
 import { factionActions } from '../lib/game-engine.mjs';
+import { blockingRequest } from '../lib/presentation-requests.mjs';
 export default function WerewolfPanel({
   game,
   send,
@@ -18,7 +19,7 @@ export default function WerewolfPanel({
       h.id,
     );
   const disabled =
-    !!game.queue.length ||
+    !!blockingRequest(game) ||
     h.ended ||
     h.dead ||
     h.traitor ||
@@ -117,7 +118,7 @@ export default function WerewolfPanel({
                   <select
                     aria-label={e.name + '的追猎目标'}
                     value={e.huntTarget ?? ''}
-                    disabled={!!game.queue.length || net.busy}
+                    disabled={!!blockingRequest(game) || net.busy}
                     onChange={(ev) =>
                       send({
                         type: 'wolfOrder',

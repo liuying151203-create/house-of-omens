@@ -12,6 +12,7 @@ import { wolfMight } from '../lib/werewolf.mjs';
 import HeroInventory from './hero-inventory';
 import ExplorerEmblem from './explorer-emblem';
 import { pursuitAvailable } from '../lib/content/bloodmoon-pursuit.mjs';
+import { blockingRequest } from '../lib/presentation-requests.mjs';
 
 export default function PersonalPanel({
   game,
@@ -35,7 +36,7 @@ export default function PersonalPanel({
     waiting ||
     net.busy ||
     moving ||
-    !!game.queue.length ||
+    !!blockingRequest(game) ||
     hero.ended ||
     hero.dead ||
     hero.traitor ||

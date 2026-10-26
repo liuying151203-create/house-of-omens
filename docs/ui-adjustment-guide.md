@@ -140,6 +140,38 @@ git add app/explorer-emblem.jsx app/ui-flow.css tests/explorer-ui.test.mjs docs/
 git commit -m "fix(ui): show wolf avatars after transformation / 狼化后显示狼头头像"
 ```
 
+## 按流程决定播报期间是否允许行动
+
+普通结果通知与流程过渡共用外观，但操作权限由 `lib/presentation-requests.mjs` 统一判断，地图、行动栏、物品栏、结束整轮按钮和联机服务沿用同一判断。
+
+- **允许行动**：队列只剩已完成的结果通知，没有后续伤害、投骰、选择、工作流续接，也没有尚未完成的敌人阶段。常见于使用咖啡／绷带、已完成的属性变化或无后续工作的检定结果。通知不拦截鼠标，到时自动消失；新行动可替换通知，每条结果仍保留在探索手记。
+- **暂停行动**：换人、换轮、捕兽夹触发、私密交互等待，以及后面还有结算步骤的播报。人物移动与机关触发的本地过渡继续保持“移动 → 触发 → 伤害分配”的顺序；骰子与戒指结果仍需手动确认。
+- **联机权限**：已完成通知期间由当前行动者继续操作，不根据通知中提到的角色切换操作权。其他玩家的私密已完成通知不发送内容或阻塞占位；尚未处理的私密选择和伤害继续显示等待占位。新行动替换通知后，旧通知计时器只能携带旧编号，不能推进新的投骰或选择。
+- **存档兼容**：沿用现有队列及事件格式，恢复旧通知后同样按队列剩余工作判断权限。行动前逐条完成只读通知的原有收尾检查并保存手记，没有删除日志。
+
+试玩检查：
+
+1. 在旧狼人“作祟开局”测试中使用浓缩咖啡，在“使用浓缩咖啡”通知消失前点击相邻可达房间；移动应立即响应，手记保留使用效果与移动记录。
+2. 使用绷带后，在没有其他待结算步骤时直接结束个人回合；通知不应阻挡，随后“轮到某某”的过渡仍会短暂暂停操作。
+3. 重测“血月之夜 → 追猎途中捕兽夹”：移动和触发期间仍不开放行动，伤害由玩家分配；确认后若还有后续流程，也不能提前行动。
+4. 检定后需要分配伤害、选择药剂或进入作祟时，结果播报不能被移动或结束行动跳过；戒指骰面仍保留到主动确认。
+5. 联机当前行动者在普通通知期间可以操作，其他玩家不能代替其结束行动；私密结果不可见，等待伤害／选择时仍不能行动。
+
+本轮新增7项回归测试，覆盖真实物品通知期间移动、存档队列与手记、必要过渡锁定、私密投影、当前玩家权限、页面按钮以及通知倒计时编号。完整406项测试、修改文件的静态检查和生产构建通过。本地Worker验证的WebSocket同步、存储迁移、过期、关闭新建后的恢复与血月正式开局／恢复也通过；没有部署远端。浏览器实际点击与动画仍需按上面步骤验收。
+
+### 提交记录与命令
+
+播报优化代码已提交为 `b86c14a`，提交信息为 `fix(flow): allow actions during completed notices / 已完成通知期间允许行动`。狼人普通伤害规则已独立提交，本轮没有混入该项改动，也没有推送远端。以下保留本轮的精确文件范围与提交命令，文档单独提交；不再依赖输出目录里的临时补丁。
+
+```powershell
+git status --short
+git add app/deck-supply.jsx app/explorer-actions.jsx app/flow-transition.jsx app/page.jsx app/personal-panel.jsx app/ui-flow.css app/werewolf-panel.jsx lib/content/actions.mjs lib/engine/projection.mjs lib/game-engine.mjs lib/network/room-domain.mjs lib/presentation-requests.mjs tests/broadcast-actions.test.mjs tests/home-runtime.test.mjs tests/room-domain.test.mjs tests/ui-request-lifecycle.test.mjs
+git diff --staged --stat
+git commit -m "fix(flow): allow actions during completed notices / 已完成通知期间允许行动"
+git add docs/quick-playtest.md docs/ui-adjustment-guide.md
+git commit -m "docs(playtest): explain contextual notice blocking / 说明播报期间的行动限制"
+```
+
 ## 后续重点
 
 - 弹窗连续切换是否仍有遮罩重挂、布局跳动或焦点跳转，尤其是投骰 → 戒指 → 伤害／药剂选择。

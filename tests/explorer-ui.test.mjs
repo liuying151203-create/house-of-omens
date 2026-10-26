@@ -369,6 +369,41 @@ test('a hidden LAN damage request degrades safely without reading private tracks
   assert.match(html, /伤害详情仅对负责此角色的玩家可见/);
 });
 
+test('ordinary alpha damage blocks assigning points to an exhausted track while the other can decrease', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-control');
+  game.heroes[0].stats.might = 1;
+  game.heroes[0].stats.speed = 4;
+  const request = {
+    uid: 99,
+    kind: 'damage',
+    heroId: 0,
+    damageType: 'physical',
+    remaining: 2,
+  };
+  const html = render(Damage, { game, p: request, send() {} });
+  assert.match(html, /aria-label="增加力量承受的伤害"[^>]*disabled/);
+  assert.doesNotMatch(html, /aria-label="增加速度承受的伤害"[^>]*disabled/);
+  assert.match(html, /两项都到第1格后，多余伤害才失效/);
+  assert.match(html, /还需分配 <strong>2<\/strong>/);
+  const silver = render(Damage, {
+    game,
+    p: { ...request, causeTag: 'silverShot' },
+    send() {},
+  });
+  assert.doesNotMatch(silver, /aria-label="增加力量承受的伤害"[^>]*disabled/);
+  assert.doesNotMatch(silver, /两项都到第1格后，多余伤害才失效/);
+  game.heroes[0].stats.speed = 1;
+  const exhausted = render(Damage, { game, p: request, send() {} });
+  assert.doesNotMatch(
+    exhausted,
+    /aria-label="增加力量承受的伤害"[^>]*disabled/,
+  );
+  assert.doesNotMatch(
+    exhausted,
+    /aria-label="增加速度承受的伤害"[^>]*disabled/,
+  );
+});
+
 test('contextual commands expose room actions without scenario narration or deck counts', () => {
   const game = act(createHauntPlaytest('werewolf', 23, 4, 'treatment'), {
     type: 'advance',

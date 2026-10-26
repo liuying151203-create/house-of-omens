@@ -2,7 +2,10 @@
 import { useState } from 'react';
 import { Minus, Plus, Check } from 'lucide-react';
 import { traitRuleView } from '@/lib/rule-views.mjs';
-import { traitPositionBounds } from '../lib/content/bloodmoon-health.mjs';
+import {
+  traitPositionBounds,
+  ordinaryDamageLimits,
+} from '../lib/content/bloodmoon-health.mjs';
 import { damageExplanation } from '../lib/damage-presentation.mjs';
 export default function DamagePlanner({ game, p, send }) {
   const keys =
@@ -27,6 +30,9 @@ export default function DamagePlanner({ game, p, send }) {
       </p>
     );
   const left = p.remaining - keys.reduce((n, k) => n + allocation[k], 0),
+    limits = ordinaryDamageLimits(game, h, p),
+    invalidAllocation =
+      limits && keys.some((key) => allocation[key] > limits[key]),
     explanation = damageExplanation(game, p),
     bounds = Object.fromEntries(
       keys.map((key) => [
@@ -51,6 +57,11 @@ export default function DamagePlanner({ game, p, send }) {
       <div className="damage-counter">
         {h.name} · 还需分配 <strong>{left}</strong> / {p.remaining} 点
       </div>
+      {limits && (
+        <p className="damage-source-rule">
+          力量或速度仍能下降时，必须先扣减这些格数；两项都到第1格后，多余伤害才失效。
+        </p>
+      )}
 
       {keys.map((k) => {
         const view = views[k],
@@ -74,7 +85,10 @@ export default function DamagePlanner({ game, p, send }) {
                 className="icon-button damage-minus"
                 aria-label={'增加' + view.label + '承受的伤害'}
                 title="增加此项伤害；分满时从另一项转移一点"
-                disabled={left === 0 && (!other || allocation[other] === 0)}
+                disabled={
+                  (limits && allocation[k] >= limits[k]) ||
+                  (left === 0 && (!other || allocation[other] === 0))
+                }
                 onClick={() =>
                   setAllocation((v) => {
                     return {
@@ -129,7 +143,7 @@ export default function DamagePlanner({ game, p, send }) {
       )}
       <button
         className="gold-button"
-        disabled={left !== 0}
+        disabled={left !== 0 || invalidAllocation}
         onClick={() =>
           send({ type: 'allocateDamage', requestId: p.uid, allocation })
         }

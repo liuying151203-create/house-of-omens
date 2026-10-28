@@ -127,7 +127,7 @@ test('badge can block an infection upgrade before any first-II attribute movemen
   assert(!pending(game));
 });
 
-test('cleansing and reinfection retain historical movements without applying first-II twice', () => {
+test('cleansing and reinfection apply infection II movements again', () => {
   const game = gain(fixture(), 2);
   const before = { ...game.heroes[1].stats };
   executeRuleEffects(game, [
@@ -137,7 +137,9 @@ test('cleansing and reinfection retain historical movements without applying fir
     },
   ]);
   gain(game, 2);
-  assert.deepEqual(game.heroes[1].stats, before);
+  assert.equal(game.heroes[1].stats.might, before.might + 2);
+  assert.equal(game.heroes[1].stats.speed, before.speed + 2);
+  assert.equal(game.heroes[1].stats.sanity, before.sanity - 1);
   assert.equal(
     game.events.filter((event) => event.type === 'InfectionGained').length,
     2,

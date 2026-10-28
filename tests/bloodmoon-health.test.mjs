@@ -322,14 +322,15 @@ test('secondary wolves and heroes keep ordinary lethal tracks', () => {
     assert.equal(game.heroes[id].skipNextAttack, undefined);
   }
 });
-test('trial mental floor keeps alpha alive without setting the physical knockdown penalty', () => {
+test('mental damage kills alpha and awards heroes victory', () => {
   const game = allocate(injure(fixture(), 0, 12, 'mental'), {
     sanity: 6,
     knowledge: 6,
   });
-  assert.equal(game.heroes[0].stats.sanity, 1);
-  assert.equal(game.heroes[0].stats.knowledge, 1);
-  assert(!game.heroes[0].dead);
+  assert.equal(game.heroes[0].stats.sanity, 0);
+  assert(game.heroes[0].dead);
+  assert.equal(game.phase, 'over');
+  assert.equal(game.result.winnerFaction, 'heroes');
   assert.equal(game.heroes[0].skipNextAttack, undefined);
 });
 test('hero trap recognizes controlled alpha entry, consumes once and feeds ordinary immortality', () => {

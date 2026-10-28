@@ -47,7 +47,7 @@ test('rays require straight same-floor connected doors, range and empty interven
   assert.equal(shotRay(game, 'foyer', 'shoot-room-3'), null);
   game.heroes[1].pos = 'shoot-room-3';
   assert.equal(shotRay(game, 'foyer', 'shoot-room-3', Infinity).length, 4);
-  assert.equal(shotRay(game, 'foyer', 'foyer'), null);
+  assert.deepEqual(shotRay(game, 'foyer', 'foyer'), ['foyer']);
   assert.equal(shotRay(game, 'foyer', 'upper', Infinity), null);
   game.rooms.find((room) => room.id === 'shoot-room-1').rotation = 1;
   assert.equal(shotRay(game, 'foyer', 'shoot-room-3', Infinity), null);
@@ -258,4 +258,21 @@ test('LAN shooter may not roll target dice or allocate target injury', () => {
     allocation: { might: 1, speed: 1 },
   });
   assert.notEqual(pending(room.game)?.kind, 'damage');
+});
+
+test('silver in inventory fires directly at a same-room alpha and consumes one bullet', () => {
+  let game = fixture('bloodmoon-silver-first');
+  game.heroes[1].pos = game.heroes[0].pos;
+  const action = actions(game).abilities.find(
+    (entry) => entry.silver && entry.bulletId,
+  );
+  assert(action);
+  game = act(game, action.command);
+  assert.equal(pending(game).causeTag, 'silverShot');
+  assert.equal(pending(game).remaining, 7);
+  assert(
+    !itemInstances(game.heroes[0]).some(
+      (item) => item.instanceId === action.bulletId,
+    ),
+  );
 });

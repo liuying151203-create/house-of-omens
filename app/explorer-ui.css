@@ -1923,3 +1923,256 @@
     bottom: 170px;
   }
 }
+
+@media (max-width: 760px) {
+  /* 空物品槽只用于桌面排版；手机上不为占位框保留空间。 */
+  .explorer-satchel:has(.empty-belt-label) {
+    display: none;
+  }
+  .explorer-satchel .empty-slot {
+    display: none;
+  }
+  .explorer-vitals {
+    max-width: 380px;
+  }
+  .explorer-controls:has(.empty-belt-label) .finish-turn {
+    grid-column: 2;
+    width: 56px;
+    height: 56px;
+    margin: 0;
+  }
+  .explorer-controls:has(.empty-belt-label) .finish-turn span {
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .explorer-readout .attribute-tracks .trait-track > span,
+  .roster-inspector .attribute-tracks .trait-track > span {
+    flex: 0 0 clamp(16px, 4.7vw, 20px);
+    width: clamp(16px, 4.7vw, 20px);
+    height: clamp(16px, 4.7vw, 20px);
+    aspect-ratio: 1;
+  }
+  .party-rail .party-member,
+  .party-rail .party-member.member-active,
+  .party-rail .party-member:hover,
+  .party-rail .party-member[aria-expanded='true'] {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid #a0b8bd33;
+    border-radius: 0;
+  }
+  .party-rail .party-member.member-active {
+    border-left-color: var(--explorer-color);
+  }
+  .party-rail .party-member > .explorer-emblem,
+  .party-rail .party-member > .enemy-emblem {
+    grid-row: 1 / 4;
+  }
+  .map-stage .party-panel .party-rail .attribute-tracks {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 9px;
+  }
+  .party-rail .attribute-tracks .trait-row {
+    display: block;
+  }
+  .party-rail .attribute-tracks .trait-caption {
+    display: flex;
+    gap: 3px;
+    font-size: 12px;
+  }
+  .party-rail .attribute-tracks .trait-track {
+    display: none;
+  }
+  .party-rail .member-status {
+    grid-column: 2;
+    flex-wrap: wrap;
+  }
+  .party-rail .party-member {
+    text-shadow:
+      0 1px 3px #000,
+      0 0 7px #000;
+  }
+  .map-stage .right-info-rail > .floating-window {
+    flex: 0 1 auto;
+    padding: 12px;
+    gap: 10px;
+    border-radius: 10px;
+    background: #14232bf5;
+  }
+  .right-info-rail .story-top > .eyebrow,
+  .right-info-rail .story-top .english-title,
+  .right-info-rail .story-top > svg {
+    display: none;
+  }
+  .right-info-rail .story-top h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+  .right-info-rail .objective-card {
+    padding: 10px;
+  }
+  .right-info-rail .journal-entries {
+    max-height: none;
+  }
+}
+
+/* 全员列表保留图标与关键数值，完整轨道和规则放在人物详情中。 */
+.floating-dock .roster-toggle {
+  justify-content: center;
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+}
+.party-rail .rail-faction > h3 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.party-rail .party-member,
+.party-rail .party-member.member-active,
+.party-rail .party-member.member-mine,
+.party-rail .party-member:hover,
+.party-rail .party-member[aria-expanded='true'] {
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 4px 8px;
+  padding: 6px 4px;
+  min-height: 0;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-shadow:
+    0 1px 3px #000,
+    0 0 7px #000;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+.party-rail .party-member.member-active {
+  border-left-color: var(--explorer-color);
+}
+.party-rail .party-member:hover,
+.party-rail .party-member[aria-expanded='true'] {
+  transform: translateX(3px);
+}
+.party-rail .party-member > .explorer-emblem,
+.party-rail .party-member > .enemy-emblem {
+  grid-row: 1 / 4;
+}
+.party-rail .member-summary > strong {
+  grid-column: 2;
+}
+.roster-stat-icons,
+.roster-symbols,
+.roster-symbol-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.roster-stat-icons,
+.roster-symbols {
+  grid-column: 2;
+}
+.roster-symbols {
+  gap: 8px;
+}
+.roster-symbol-group {
+  gap: 4px;
+  color: #aabbb8;
+}
+.roster-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #d9ddd4;
+  touch-action: pan-y;
+}
+.roster-hint b {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+.roster-stat-might {
+  color: #dc9e8b;
+}
+.roster-stat-speed {
+  color: #bbcf9c;
+}
+.roster-stat-sanity {
+  color: #baadd9;
+}
+.roster-stat-knowledge {
+  color: #9bc8d5;
+}
+.roster-item {
+  color: #e5d29b;
+}
+.roster-status {
+  color: #dcaca4;
+}
+.roster-icon-tip {
+  position: fixed;
+  z-index: 100;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
+  max-height: min(40vh, 240px);
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid #a6b8b65c;
+  border-radius: 6px;
+  background: #14232bf5;
+  color: #edf0e9;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px #0008;
+  pointer-events: none;
+}
+.roster-inspector {
+  animation: roster-detail-enter 200ms ease-out;
+}
+.roster-inspector.roster-inspector-closing {
+  animation: roster-detail-exit 160ms ease-in forwards;
+  pointer-events: none;
+}
+@keyframes roster-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes roster-detail-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .party-rail .party-member {
+    transition: none;
+  }
+  .roster-inspector,
+  .roster-inspector.roster-inspector-closing {
+    animation: none;
+  }
+}

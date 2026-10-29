@@ -1,7 +1,8 @@
 import EnemyGlyph from './enemy-glyph';
 import AttributeTracks from './attribute-tracks';
 import HeroStatusBadges from './hero-status-badges';
-import { useCallback, useEffect, useState } from 'react';
+import RosterSummary from './roster-summary';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Footprints, LockKeyhole, MapPin, ArrowRight } from 'lucide-react';
 import HeroInventory from './hero-inventory';
@@ -13,8 +14,6 @@ import {
   heroController,
   isHeroMine,
 } from '../lib/game-view.mjs';
-import { statusOf } from '../lib/werewolf.mjs';
-import { FLOORS } from '../lib/game-data.mjs';
 
 export default function FactionRoster({
   game,
@@ -28,19 +27,34 @@ export default function FactionRoster({
   onInspectedChange,
 }) {
   const [localInspected, setLocalInspected] = useState(null);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef(null);
   const inspected =
     controlledInspected === undefined ? localInspected : controlledInspected;
   const setInspected = useCallback(
     (value) => (onInspectedChange || setLocalInspected)(value),
     [onInspectedChange],
   );
+  const closeInspector = useCallback(() => {
+    clearTimeout(closeTimer.current);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setInspected(null);
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = setTimeout(() => {
+      setInspected(null);
+      setClosing(false);
+    }, 160);
+  }, [setInspected]);
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
   useEffect(() => {
     const close = (e) => {
-      if (e.key === 'Escape') setInspected(null);
+      if (e.key === 'Escape' && inspected) closeInspector();
     };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
-  }, [setInspected]);
+  }, [closeInspector, inspected]);
   const groups = rosterGroups(game);
   const person = groups
     .flatMap((g) => g.heroes)
@@ -48,9 +62,6 @@ export default function FactionRoster({
   const enemy = groups
     .flatMap((g) => g.enemies)
     .find((e) => inspected === 'enemy-' + e.id);
-  const floorName = (pos) =>
-    FLOORS.find((f) => f.id === game.rooms.find((r) => r.id === pos)?.floor)
-      ?.name || '未知位置';
   const status = (h) =>
     h.dead
       ? '已死亡'
@@ -107,11 +118,14 @@ export default function FactionRoster({
                 style={{ '--explorer-color': h.color }}
                 aria-label={'查看' + h.name + '的状态与物品'}
                 aria-expanded={inspected === 'hero-' + h.id}
-                onClick={() =>
-                  setInspected(
-                    inspected === 'hero-' + h.id ? null : 'hero-' + h.id,
-                  )
-                }
+                onClick={() => {
+                  if (inspected === 'hero-' + h.id) closeInspector();
+                  else {
+                    clearTimeout(closeTimer.current);
+                    setClosing(false);
+                    setInspected('hero-' + h.id);
+                  }
+                }}
               >
                 <ExplorerEmblem hero={h} small />
                 <span className="member-summary">
@@ -125,27 +139,8 @@ export default function FactionRoster({
                         </em>
                       )}
                     </span>
-                    <small>{floorName(h.pos)}</small>
                   </strong>
-                  {publicStats && (
-                    <AttributeTracks
-                      game={game}
-                      hero={h}
-                      changes={changes.filter((c) => c.heroId === h.id)}
-                    />
-                  )}
-                  <span
-                    className={
-                      'member-status ' +
-                      (statusOf(h, 'infection') ? 'infected-status' : '')
-                    }
-                  >
-                    {h.id === game.active && !h.dead && !h.traitor ? (
-                      <i aria-label="当前行动人物" />
-                    ) : null}
-                    {status(h)}
-                    <HeroStatusBadges game={game} hero={h} inline />
-                  </span>
+                  <RosterSummary game={game} hero={h} visible={publicStats} />
                 </span>
               </button>
             );
@@ -156,17 +151,19 @@ export default function FactionRoster({
               key={e.id}
               aria-label={'查看' + e.name}
               aria-expanded={inspected === 'enemy-' + e.id}
-              onClick={() =>
-                setInspected(
-                  inspected === 'enemy-' + e.id ? null : 'enemy-' + e.id,
-                )
-              }
+              onClick={() => {
+                if (inspected === 'enemy-' + e.id) closeInspector();
+                else {
+                  clearTimeout(closeTimer.current);
+                  setClosing(false);
+                  setInspected('enemy-' + e.id);
+                }
+              }}
             >
               <span className="enemy-emblem">{<EnemyGlyph enemy={e} />}</span>
               <span className="member-summary">
                 <strong>{e.name}</strong>
-                <AttributeTracks enemy={e} />
-                <span className="member-status">{floorName(e.pos)}</span>
+                <RosterSummary game={game} enemy={e} />
               </span>
             </button>
           ))}
@@ -188,7 +185,9 @@ export default function FactionRoster({
         (person || enemy) &&
         createPortal(
           <aside
-            className="roster-inspector"
+            className={
+              'roster-inspector' + (closing ? ' roster-inspector-closing' : '')
+            }
             aria-label={(person?.name || enemy.name) + '的详细资料'}
           >
             <header>
@@ -204,7 +203,7 @@ export default function FactionRoster({
               <button
                 className="icon-button"
                 aria-label="关闭人物资料"
-                onClick={() => setInspected(null)}
+                onClick={closeInspector}
               >
                 <X size={18} />
               </button>

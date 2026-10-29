@@ -1871,6 +1871,8 @@ export default function Home() {
             <nav className="floating-dock" aria-label="探索工具">
               <button
                 className="roster-toggle"
+                aria-label="全员状态"
+                title="全员状态"
                 aria-expanded={partyOpen}
                 aria-controls="party-details"
                 onClick={() => {
@@ -1885,7 +1887,6 @@ export default function Home() {
                 }}
               >
                 <Users size={19} />
-                <span>全员状态</span>
               </button>
             </nav>
             {panel === 'test' && (

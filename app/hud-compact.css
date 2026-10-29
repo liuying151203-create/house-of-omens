@@ -1,9 +1,9 @@
 /* 牌堆数量贴近顶部信息区；结束整轮保留独立操作入口。 */
 .map-stage .deck-supply {
-  top: 136px;
-  right: 22px;
+  top: 84px;
+  right: auto;
   bottom: auto;
-  left: auto;
+  left: 22px;
   width: auto;
   padding: 0;
   border: 0;
@@ -17,7 +17,7 @@
 .map-stage .supply-counts {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
 }
 .map-stage .supply-counts > span {
@@ -43,10 +43,28 @@
   background: #17212c;
 }
 .map-stage .floor-party {
-  padding-top: 1px;
+  padding-top: 0;
+}
+.map-stage .floor-tabs [data-slot='tabs-list'] {
+  min-height: 36px;
+}
+.map-stage .floor-tabs [data-slot='tabs-trigger'] {
+  padding-block: 5px;
+}
+.map-stage .map-camera-tools {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.floating-dock .roster-toggle {
+  top: 126px;
+}
+.map-stage .party-panel.floating-window {
+  top: 176px;
 }
 @media (max-width: 760px) {
   .map-stage {
+    --hud-top: 104px;
     --hud-tools-width: 80px;
     --hud-tools-columns: 2;
   }
@@ -54,12 +72,22 @@
     display: none;
   }
   .map-stage .deck-supply {
-    top: 163px;
-    right: 12px;
+    top: 68px;
+    right: auto;
+    left: 12px;
   }
   .map-stage .deck-supply > button {
     left: auto;
     right: 128px;
     bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .floating-dock .roster-toggle {
+    top: 172px;
+  }
+  .map-stage .party-panel.floating-window {
+    top: 220px;
+  }
+  .map-stage .right-info-rail {
+    top: 172px;
   }
 }

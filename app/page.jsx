@@ -1461,6 +1461,7 @@ export default function Home() {
     [journalOpen, setJournalOpen] = useState(false);
   const [inspected, setInspected] = useState(null);
   const [confirmHero, setConfirmHero] = useState(null);
+  const [journalExpanded, setJournalExpanded] = useState(false);
   function selectScenario(id) {
     setChoice(id);
     setPlaytestFocus('basic');
@@ -2141,6 +2142,7 @@ export default function Home() {
                   aria-expanded={journalOpen}
                   aria-controls="journal-details"
                   onClick={() => {
+                    setJournalExpanded(false);
                     if (
                       !journalOpen &&
                       window.matchMedia('(max-width: 760px)').matches
@@ -2301,56 +2303,83 @@ export default function Home() {
                   </div>
                 </aside>
                 <aside
-                  className="journal-panel floating-window"
+                  className={
+                    'journal-panel floating-window ' +
+                    (journalExpanded
+                      ? 'journal-expanded'
+                      : 'journal-preview-panel')
+                  }
                   id="journal-details"
                   hidden={!journalOpen}
                   aria-label="探索手记"
                 >
-                  <div className="floating-heading">
-                    <strong>探索手记</strong>
-                    <button
-                      className="icon-button"
-                      aria-label="收起探索手记"
-                      onClick={() => setJournalOpen(false)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="journal">
-                    <div className="journal-entries">
-                      {journal.entries.map((l, i) => (
-                        <div
-                          className={
-                            'journal-entry ' + (i === 0 ? 'latest' : '')
-                          }
-                          key={l.id}
+                  {journalExpanded ? (
+                    <>
+                      <div className="floating-heading">
+                        <strong>探索手记</strong>
+                        <button
+                          className="icon-button"
+                          aria-label="收起探索手记"
+                          onClick={() => setJournalOpen(false)}
                         >
-                          <span className="journal-dot" />
-                          <small>
-                            第{l.round}回合 · {l.category}
-                          </small>
-                          <p>{l.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {journal.extraLogs.length > 0 && (
-                      <details
-                        className="journal-extra-records"
-                        open={journal.entries.length === 0}
-                      >
-                        <summary>其他记录</summary>
+                          <X size={18} />
+                        </button>
+                      </div>
+                      <div className="journal">
                         <div className="journal-entries">
-                          {journal.extraLogs.map((l) => (
-                            <div className="journal-entry" key={l.id}>
+                          {journal.entries.map((l, i) => (
+                            <div
+                              className={
+                                'journal-entry ' + (i === 0 ? 'latest' : '')
+                              }
+                              key={l.id}
+                            >
                               <span className="journal-dot" />
-                              <small>第{l.round}回合</small>
+                              <small>
+                                第{l.round}回合 · {l.category}
+                              </small>
                               <p>{l.text}</p>
                             </div>
                           ))}
                         </div>
-                      </details>
-                    )}
-                  </div>
+                        {journal.extraLogs.length > 0 && (
+                          <details
+                            className="journal-extra-records"
+                            open={journal.entries.length === 0}
+                          >
+                            <summary>其他记录</summary>
+                            <div className="journal-entries">
+                              {journal.extraLogs.map((l) => (
+                                <div className="journal-entry" key={l.id}>
+                                  <span className="journal-dot" />
+                                  <small>第{l.round}回合</small>
+                                  <p>{l.text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <button
+                      className="journal-preview-text"
+                      onClick={() => setJournalExpanded(true)}
+                      aria-label="展开探索手记"
+                    >
+                      {(journal.entries.length
+                        ? journal.entries
+                        : journal.extraLogs
+                      )
+                        .slice(0, 3)
+                        .map((entry) => (
+                          <span key={entry.id}>{entry.text}</span>
+                        ))}
+                      {!journal.entries.length && !journal.extraLogs.length && (
+                        <span>暂无记录</span>
+                      )}
+                    </button>
+                  )}
                 </aside>
               </div>
             </div>

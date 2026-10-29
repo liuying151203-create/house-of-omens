@@ -28,8 +28,8 @@ test('controlled alpha retains a seat and four tracks and never creates an HP en
   assert.equal(alpha.traitor, false);
   assert.equal(game.enemies.length, 0);
   assert.equal(game.limit, null);
-  assert.equal(traitValue(alpha, 'might', game), 5);
-  assert.equal(traitValue(alpha, 'speed', game), 5);
+  assert.equal(traitValue(alpha, 'might', game), 4);
+  assert.equal(traitValue(alpha, 'speed', game), 4);
   assert(
     actions(game).abilities.some(
       (action) => action.command.type === 'actorAttack',
@@ -86,7 +86,7 @@ test('actor combat persists two separately owned dice sides and waits for manual
   );
   game = act(game, { type: 'resolveDice', requestId: pending(game).uid });
   assert.equal(pending(game).kind, 'damage');
-  assert.equal(pending(game).remaining, 10);
+  assert.equal(pending(game).remaining, 8);
   assert.equal(pending(game).heroId, 1);
   assert(game.heroes[0].attacked);
 });

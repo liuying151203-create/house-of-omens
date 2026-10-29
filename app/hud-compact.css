@@ -1,0 +1,56 @@
+/* 牌堆数量贴近顶部信息区；结束整轮保留独立操作入口。 */
+.map-stage .deck-supply {
+  top: 136px;
+  right: 22px;
+  bottom: auto;
+  left: auto;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.map-stage .supply-title,
+.map-stage .supply-counts > span > span {
+  display: none;
+}
+.map-stage .supply-counts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.map-stage .supply-counts > span {
+  display: inline-flex;
+  gap: 4px;
+  color: #c0ccca;
+  text-shadow: 0 1px 4px #000;
+}
+.map-stage .supply-counts > span > svg {
+  display: block;
+}
+.map-stage .supply-counts b {
+  margin: 0;
+}
+.map-stage .deck-supply > button {
+  position: fixed;
+  left: 22px;
+  bottom: 18px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid #a6b8b636;
+  background: #17212c;
+}
+.map-stage .floor-party {
+  padding-top: 1px;
+}
+@media (max-width: 760px) {
+  .map-stage .deck-supply {
+    top: 163px;
+    right: 12px;
+  }
+  .map-stage .deck-supply > button {
+    left: 12px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}

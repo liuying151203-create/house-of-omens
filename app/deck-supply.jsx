@@ -1,10 +1,11 @@
-import { Layers, CircleAlert, Package, Eye, ArrowRight } from 'lucide-react';
+import { Layers, CircleAlert, Package, ArrowRight } from 'lucide-react';
+import OmenGlyph from './omen-glyph';
 import { blockingRequest } from '../lib/presentation-requests.mjs';
 const decks = [
   ['rooms', '房间', Layers],
   ['event', '事件', CircleAlert],
   ['item', '物品', Package],
-  ['omen', '预兆', Eye],
+  ['omen', '预兆', OmenGlyph],
 ];
 export default function DeckSupply({ game, net, moving, onEndRound }) {
   const host = !net.session || net.room?.you === net.room?.hostId;
@@ -13,7 +14,12 @@ export default function DeckSupply({ game, net, moving, onEndRound }) {
       <span className="supply-title">剩余牌堆</span>
       <div className="supply-counts">
         {decks.map(([key, name, Icon]) => (
-          <span className={'supply-' + key} key={key} title={name + '牌堆'}>
+          <span
+            className={'supply-' + key}
+            key={key}
+            title={name + '牌堆'}
+            aria-label={`${name}牌堆剩余${game.decks[key].length}张`}
+          >
             <Icon size={14} />
             <span>{name}</span>
             <b>{game.decks[key].length}</b>

@@ -1,4 +1,5 @@
 import art from '../lib/item-art.json';
+import OmenGlyph from './omen-glyph';
 import {
   Coffee,
   BriefcaseMedical,
@@ -67,6 +68,6 @@ export default function ItemGlyph({ id, omen = false, size = 26 }) {
         ))}
       </svg>
     );
-  const Icon = glyphs[id] || (omen ? Eye : Package);
+  const Icon = glyphs[id] || (omen ? OmenGlyph : Package);
   return <Icon size={size} aria-hidden="true" />;
 }

@@ -1,5 +1,6 @@
 'use client';
 import EnemyGlyph from './enemy-glyph';
+import OmenGlyph from './omen-glyph';
 import MapPawn from './map-pawn';
 import ExplorerEmblem from './explorer-emblem';
 import MapPresentation, { useMapPresentation } from './map-presentation';
@@ -18,7 +19,8 @@ import {
 } from 'react';
 import {
   ArrowRight,
-  BookOpen,
+  ScrollText,
+  NotebookPen,
   Bell,
   Eye,
   Waves,
@@ -154,7 +156,7 @@ const iconMap = {
     mirror: Eye,
     flood: Waves,
   },
-  cardIcons = { event: CircleAlert, item: Package, omen: Eye };
+  cardIcons = { event: CircleAlert, item: Package, omen: OmenGlyph };
 const targetLabels = {
   moonSeal: '月印',
   moonRitual: '解咒入口',
@@ -2042,7 +2044,7 @@ export default function Home() {
                     setStoryOpen((open) => !open);
                   }}
                 >
-                  <BookOpen size={19} />
+                  <ScrollText size={19} />
                   <span>
                     章节 · 作祟
                     {game.phase === 'haunt' && (
@@ -2070,7 +2072,7 @@ export default function Home() {
                     setJournalOpen((open) => !open);
                   }}
                 >
-                  <BookOpen size={19} />
+                  <NotebookPen size={19} />
                   <span>探索手记</span>
                 </button>
                 <aside
@@ -2138,7 +2140,7 @@ export default function Home() {
                     {game.phase === 'explore' ? (
                       <>
                         <div className="omen-track">
-                          <Eye size={23} />
+                          <OmenGlyph size={23} />
                           <strong>{game.omens}</strong>
                           <span>张预兆</span>
                         </div>

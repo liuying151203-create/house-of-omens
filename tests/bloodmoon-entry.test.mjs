@@ -76,6 +76,22 @@ test('bloodmoon formal creation freezes its preset and still starts in explorati
   );
 });
 
+test('bloodmoon exploration rounds start without initializing moon combat', () => {
+  for (const create of [createGame, createSimulationGame]) {
+    let game = settle(create('bloodmoon', 31, 3));
+    for (let round = 2; round <= 3; round++) {
+      game = settle(act(game, { type: 'endRound' }));
+      assert.equal(game.round, round);
+      assert.equal(game.phase, 'explore');
+      assert.equal(game.bloodmoonCombat, undefined);
+      assert.equal(
+        game.events.filter((event) => event.type === 'MoonPhaseChanged').length,
+        0,
+      );
+    }
+  }
+});
+
 test('ordinary three-to-six-player games reach bloodmoon by legal room exploration and card actions', () => {
   for (const count of [3, 4, 5, 6]) {
     let game = createGame('bloodmoon', 31, count);

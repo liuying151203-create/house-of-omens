@@ -1844,6 +1844,32 @@ button {
     right: 16px;
     gap: 9px;
   }
+  .theme-c .team-strip button {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  /* 点击区保持 44px，圆形描边跟随头像本身，不受按钮尺寸影响。 */
+  .theme-c .team-strip .portrait,
+  .theme-c .team-strip .item-symbol {
+    width: 32px;
+    height: 32px;
+    aspect-ratio: 1;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .theme-c .team-strip button.active {
+    border: 0;
+    background: transparent;
+  }
+  .theme-c .team-strip button.active img {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
   .theme-c .board {
     grid-template-rows: 140px 1fr 245px;
   }

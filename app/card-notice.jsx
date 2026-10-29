@@ -13,7 +13,7 @@ export default function CardNotice({ notice, suspended = false }) {
       <output>
         <strong>
           <Check size={15} />
-          {notice.title} · 已生效
+          {notice.title}
         </strong>
         <p>{notice.text}</p>
         {notice.changes?.filter(Boolean).map((change, i) => (

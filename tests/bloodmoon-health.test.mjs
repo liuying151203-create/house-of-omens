@@ -12,10 +12,13 @@ import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { traitPositionBounds } from '../lib/content/bloodmoon-health.mjs';
 import { traitRuleView } from '../lib/rule-views.mjs';
 import { eventJournalText } from '../lib/event-journal.mjs';
+import { heroStatuses } from '../lib/hero-status.mjs';
 import {
   addItemInstance,
   transferItemInstance,
 } from '../lib/item-instances.mjs';
+import { createRoomService } from '../scripts/room-server.mjs';
+import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 const clear = (game) => {
   for (let i = 0; pending(game) && game.phase !== 'over' && i < 30; i++) {
     if (['diceRequest', 'damage', 'choiceRequest'].includes(pending(game).kind))
@@ -27,6 +30,10 @@ const clear = (game) => {
 const fixture = (focus = 'bloodmoon-control') =>
   clear(createHauntPlaytest('werewolf', 31, 3, focus));
 const restore = (game) => restoreGameSave(JSON.parse(JSON.stringify(game)));
+const weakness = (game) =>
+  heroStatuses(game, game.heroes[0]).find(
+    (status) => status.id === 'bloodmoon-knockdown',
+  );
 const allocate = (game, allocation) =>
   clear(
     act(game, {
@@ -54,6 +61,132 @@ function silverShot(focus = 'bloodmoon-silver-first') {
   game = act(game, ability(game, 'firearm.load').command);
   return act(game, ability(game, 'firearm.shoot').command);
 }
+
+test('ordinary damage cannot overflow one body track while the other can still decrease', () => {
+  let game = injure(fixture(), 0, 4);
+  const before = structuredClone(game);
+  game = act(game, {
+    type: 'allocateDamage',
+    requestId: pending(game).uid,
+    allocation: { might: 4, speed: 0 },
+  });
+  assert.deepEqual(game.heroes[0].stats, before.heroes[0].stats);
+  assert.deepEqual(
+    game,
+    before,
+    '非法分配不得消耗请求、触发虚弱或写入伤害记录',
+  );
+  game = allocate(restore(game), { might: 3, speed: 1 });
+  assert.equal(game.heroes[0].stats.might, 1);
+  assert.equal(game.heroes[0].stats.speed, 3);
+  const event = game.events.findLast((entry) => entry.type === 'DamageApplied');
+  assert.equal(event.actualAmount, 4);
+  assert.equal(event.discardedAmount, 0);
+  assert.equal(game.heroes[0].skipNextAttack, undefined);
+});
+
+test('unavoidable ordinary overflow only expires after both body tracks reach one', () => {
+  let game = injure(fixture(), 0, 7);
+  const before = structuredClone(game);
+  const rejected = act(game, {
+    type: 'allocateDamage',
+    requestId: pending(game).uid,
+    allocation: { might: 7, speed: 0 },
+  });
+  assert.deepEqual(rejected.heroes[0].stats, before.heroes[0].stats);
+  assert.deepEqual(rejected, before);
+  game = allocate(restore(game), { might: 4, speed: 3 });
+  assert.equal(game.heroes[0].stats.might, 1);
+  assert.equal(game.heroes[0].stats.speed, 1);
+  assert(game.heroes[0].skipNextAttack);
+  const event = game.events.findLast((entry) => entry.type === 'DamageApplied');
+  assert.equal(event.actualAmount, 6);
+  assert.equal(event.discardedAmount, 1);
+  assert.equal(
+    game.events.filter((entry) => entry.type === 'AlphaKnockedDown').length,
+    1,
+  );
+});
+
+test('incremental damage cannot waste points on an exhausted body track before the other is exhausted', () => {
+  let game = fixture();
+  game.heroes[0].stats.might = 1;
+  game.heroes[0].stats.speed = 3;
+  game = injure(game, 0, 3);
+  const before = structuredClone(game);
+  game = act(game, { type: 'allocate', trait: 'might' });
+  assert.deepEqual(game, before);
+  for (let step = 0; step < 2; step++)
+    game = act(restore(game), { type: 'allocate', trait: 'speed' });
+  assert.equal(pending(game).remaining, 1);
+  assert.equal(game.heroes[0].stats.speed, 1);
+  game = clear(act(restore(game), { type: 'allocate', trait: 'might' }));
+  const event = game.events.findLast((entry) => entry.type === 'DamageApplied');
+  assert.equal(event.actualAmount, 2);
+  assert.equal(event.discardedAmount, 1);
+  assert(game.heroes[0].skipNextAttack);
+});
+
+test('automatic ordinary damage plans exhaust available body positions instead of relying on immortality', () => {
+  for (const might of [1, 2, 4, 7])
+    for (const speed of [1, 2, 4, 7])
+      for (const amount of [1, 4, 7, 15]) {
+        let game = fixture();
+        game.heroes[0].stats.might = might;
+        game.heroes[0].stats.speed = speed;
+        game = injure(game, 0, amount);
+        const command = automaticRequestCommand(game);
+        game = clear(act(game, command));
+        assert.equal(
+          pending(game),
+          null,
+          `自动分配不得卡住：${might}/${speed}, ${amount}点`,
+        );
+        assert.equal(
+          game.events.findLast((entry) => entry.type === 'DamageApplied')
+            .actualAmount,
+          Math.min(amount, might + speed - 2),
+        );
+      }
+});
+
+test('LAN rejects a wolf owner attempting avoidable overflow without changing the revision', () => {
+  const api = createRoomService({
+    gameFactory: () => injure(fixture('bloodmoon-pistol'), 1, 4),
+  });
+  const host = api.create({ scenario: 'werewolf', count: 3 });
+  const guest = api.join({ code: host.code });
+  let room = api.update(host.code, host.key, {
+    type: 'start',
+    revision: guest.revision,
+  });
+  const requestId = pending(room.game).uid;
+  assert.throws(
+    () =>
+      api.update(host.code, guest.key, {
+        type: 'action',
+        revision: room.revision,
+        action: {
+          type: 'allocateDamage',
+          requestId,
+          allocation: { might: 4, speed: 0 },
+        },
+      }),
+    (error) => error.status === 400,
+  );
+  assert.equal(api.read(host.code, guest.key).revision, room.revision);
+  room = api.update(host.code, guest.key, {
+    type: 'action',
+    revision: room.revision,
+    action: {
+      type: 'allocateDamage',
+      requestId,
+      allocation: { might: 3, speed: 1 },
+    },
+  });
+  assert.equal(room.game.heroes[1].stats.might, 1);
+  assert.equal(room.game.heroes[1].stats.speed, 3);
+});
 
 test('ordinary lethal damage floors alpha body traits at one, discards excess and does not kill', () => {
   let game = fixture();
@@ -105,9 +238,58 @@ test('knockdown blocks exactly the next owned turn, not movement or later turns,
   game = clear(act(game, { type: 'endRound' }));
   assert(ability(game, 'combat.actor.attack'));
 });
+
+test('weakness badges follow the pending turn, active restriction and owned turn end through saves', () => {
+  let game = allocate(injure(fixture('bloodmoon-immortal'), 0, 2), {
+    might: 2,
+    speed: 0,
+  });
+  assert.equal(weakness(game).label, '虚弱');
+  assert.equal(weakness(game).tone, 'negative');
+  assert.match(weakness(game).description, /下次自己的回合不能主动攻击/);
+  assert.match(weakness(game).description, /解药不能清除/);
+  assert(
+    !game.heroes[0].statuses.some(
+      (status) => status.id === 'bloodmoon-knockdown',
+    ),
+  );
+  const notice = game.events.findLast(
+    (event) => event.type === 'AlphaKnockedDown',
+  );
+  assert.match(notice.text, /陷入虚弱/);
+  assert.doesNotMatch(notice.text, /击倒/);
+  game = clear(act(restore(game), { type: 'endRound' }));
+  assert.match(weakness(game).description, /本回合不能主动攻击/);
+  assert.equal(ability(game, 'combat.actor.attack'), undefined);
+  game = clear(
+    act(restore(game), { type: 'endHero', actorId: 0, round: game.round }),
+  );
+  assert(game.heroes[0].ended);
+  assert.equal(weakness(game), undefined);
+  game = clear(act(restore(game), { type: 'endRound' }));
+  assert.equal(weakness(game), undefined);
+  assert(ability(game, 'combat.actor.attack'));
+});
+
+test('a repeated injury keeps next-turn weakness after the current blocked turn ends', () => {
+  let game = allocate(injure(fixture('bloodmoon-immortal'), 0, 2), {
+    might: 2,
+    speed: 0,
+  });
+  game = clear(act(game, { type: 'endRound' }));
+  game = allocate(injure(game, 0, 1), { might: 1, speed: 0 });
+  assert.match(
+    weakness(game).description,
+    /本回合再次陷入虚弱.*下次自己的回合也不能主动攻击/,
+  );
+  game = clear(act(game, { type: 'endHero', actorId: 0, round: game.round }));
+  assert.match(weakness(game).description, /下次自己的回合不能主动攻击/);
+  assert.doesNotMatch(weakness(game).description, /本回合再次/);
+});
 test('a knockdown before alpha own turn blocks that next turn within the same global round', () => {
   let game = fixture('bloodmoon-pistol');
   game.heroes[1].stats.might = 1;
+  game.heroes[1].stats.speed = 1;
   delete game.heroes[1].turnStartedRound;
   game = allocate(injure(game, 1, 1), { might: 1, speed: 0 });
   assert.notEqual(game.heroes[1].attackBlockedRound, game.round);
@@ -170,6 +352,24 @@ test('hero trap recognizes controlled alpha entry, consumes once and feeds ordin
     game.events.filter((event) => event.type === 'TrapTriggered').length,
     1,
   );
+});
+
+test('the manual overflow preset uses a real trap and forces all available damage to be paid', () => {
+  let game = clear(
+    act(fixture('bloodmoon-immortal-allocation'), {
+      type: 'move',
+      pos: 'entrance',
+    }),
+  );
+  assert.equal(pending(game).causeTag, 'trapHit');
+  assert.equal(pending(game).remaining, 2);
+  const invalid = allocate(restore(game), { might: 2, speed: 0 });
+  assert.equal(pending(invalid).kind, 'damage');
+  assert.equal(invalid.heroes[0].stats.might, 2);
+  game = allocate(restore(game), { might: 1, speed: 1 });
+  assert.equal(game.heroes[0].stats.might, 1);
+  assert.equal(game.heroes[0].stats.speed, 3);
+  assert.equal(game.heroes[0].skipNextAttack, undefined);
 });
 test('first surviving silver shot clamps both body caps only after the manual damage flow', () => {
   let game = silverShot();

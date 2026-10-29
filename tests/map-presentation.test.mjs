@@ -13,7 +13,6 @@ import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 import { eventJournalEntries } from '../lib/event-journal.mjs';
 import { damageExplanation } from '../lib/damage-presentation.mjs';
-import { ITEMS } from '../lib/game-data.mjs';
 import { BOILER_STEAM_CHECK } from '../lib/content/bloodmoon-rooms.mjs';
 
 function fixture() {
@@ -22,13 +21,13 @@ function fixture() {
   return game;
 }
 
-test('steam damage shows its shared check rules rather than unrelated room text', () => {
+test('steam damage shows its shared failure effect without repeating the full check rules', () => {
   const explanation = damageExplanation(fixture(), {
     causeTag: 'steam',
     heroId: 0,
   });
   assert.match(explanation.title, /锅炉房蒸汽/);
-  assert.equal(explanation.rule, BOILER_STEAM_CHECK.description);
+  assert.equal(explanation.rule, undefined);
   assert(explanation.text.includes(BOILER_STEAM_CHECK.failure));
 });
 
@@ -98,11 +97,8 @@ test('restoring a trap damage request explains the current trigger without repla
     game.heroes[0].pos,
   );
   const explanation = damageExplanation(game, pending(game));
-  assert.match(explanation.text, /踩中敌方捕兽夹.*已销毁.*移动已停止/);
-  assert.equal(
-    explanation.rule,
-    ITEMS.find((item) => item.id === 'bear-trap').effect,
-  );
+  assert.match(explanation.text, /踩中敌方捕兽夹.*停止移动/);
+  assert.equal(explanation.rule, undefined);
 });
 
 test('the same presentation gate orders ordinary room checks, card requests and floor travel', () => {

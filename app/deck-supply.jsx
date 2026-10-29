@@ -1,4 +1,5 @@
 import { Layers, CircleAlert, Package, Eye, ArrowRight } from 'lucide-react';
+import { blockingRequest } from '../lib/presentation-requests.mjs';
 const decks = [
   ['rooms', '房间', Layers],
   ['event', '事件', CircleAlert],
@@ -22,7 +23,7 @@ export default function DeckSupply({ game, net, moving, onEndRound }) {
       <button
         disabled={
           !host ||
-          !!game.queue.length ||
+          !!blockingRequest(game) ||
           moving ||
           net.busy ||
           game.phase === 'over'

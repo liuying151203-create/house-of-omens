@@ -43,7 +43,10 @@ export default function HeroStatusBadges({ game, hero, inline = false }) {
   return (
     <span className="hero-status-badges">
       {badges.map((badge) => {
-        const Icon = badge.id === 'infection' ? ShieldAlert : ShieldCheck;
+        const Icon =
+          badge.id === 'infection' || badge.tone === 'negative'
+            ? ShieldAlert
+            : ShieldCheck;
         const children = (
           <>
             <Icon size={13} />

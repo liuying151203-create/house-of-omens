@@ -87,9 +87,12 @@ function RingDiceRequest({ game, send, motion, toggleMotion, locked }) {
             </button>
           </div>
         )}
-        <span className="eyebrow">检定后 · 家族戒指</span>
         <DialogTitle>{p.title}</DialogTitle>
-        <DialogDescription>{p.text}</DialogDescription>
+        <DialogDescription
+          className={p.kind === 'ringResult' ? 'sr-only' : undefined}
+        >
+          {p.kind === 'ringResult' ? p.title : p.text}
+        </DialogDescription>
         {p.kind === 'ringResult' ? (
           <div className="ring-result" aria-live="polite">
             <strong>{p.groupLabel}</strong>
@@ -112,7 +115,6 @@ function RingDiceRequest({ game, send, motion, toggleMotion, locked }) {
             <p>
               本组结果：<b>{p.total} 点</b>
             </p>
-            <small>确认结果后继续原检定。</small>
             <button
               type="button"
               className="gold-button"
@@ -230,14 +232,15 @@ function RollDiceRequest({
                     {r.count} 枚{r.bonus ? ` · 加值 +${r.bonus}` : ''}
                   </span>
                 </div>
-                <small>
-                  {r.computer
-                    ? '电脑控制'
-                    : owner
-                      ? owner.name + (own ? ' · 你' : '')
-                      : '由你投掷'}
-                  {done ? ' · 已投掷' : ''}
-                </small>
+                {room && (
+                  <small>
+                    {r.computer
+                      ? '电脑'
+                      : owner
+                        ? owner.name + (own ? ' · 你' : '')
+                        : '等待玩家'}
+                  </small>
+                )}
                 <div className="dice-with-action">
                   <EmojiDice
                     dice={displayedDice}
@@ -284,8 +287,6 @@ function RollDiceRequest({
                       {displayedDice.reduce((a, b) => a + b, 0) +
                         (r.bonus || 0)}
                     </strong>
-                    {r.bonus > 0 && <small>含加值 +{r.bonus}</small>}
-                    <Check size={17} />
                   </div>
                 ) : displayedDice ? (
                   <span className="roll-wait">骰子翻滚中…</span>
@@ -298,13 +299,11 @@ function RollDiceRequest({
           })}
         </div>
         <div className="dice-confirmation">
-          {finished && (
+          {finished && (!ready || !confirmer) && (
             <output className="dice-auto-status" aria-live="polite">
               {!ready
                 ? '等待骰子停稳'
-                : confirmer
-                  ? '结果会保留到你确认，再处理重掷、伤害或其他后续效果。'
-                  : '等待负责此检定的玩家确认结果'}
+                : `等待${room?.players.find((player) => player.id === (room.seats[p.heroId] || room.hostId))?.name || '对方'}确认`}
             </output>
           )}
           <button

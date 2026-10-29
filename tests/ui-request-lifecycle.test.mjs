@@ -105,6 +105,7 @@ test('map trigger reuses the read-only broadcast and damage explains its card wi
   assert.match(broadcast, /flow-event-lock/);
   assert.match(broadcast, /<output[^>]*aria-live="polite"/);
   assert.match(broadcast, /捕兽夹合拢/);
+  assert.doesNotMatch(broadcast, /陷阱触发|事件播报/);
   assert.doesNotMatch(broadcast, /<button|<dialog|role="dialog"/);
   const commands = [];
   const damage = render(DamagePlanner, {
@@ -114,8 +115,9 @@ test('map trigger reuses the read-only broadcast and damage explains its card wi
   });
   assert.match(damage, /伤害原因与规则/);
   assert.match(damage, /踩中敌方捕兽夹/);
-  assert.match(damage, /首名移动进入的敌人承受2点身体伤害/);
-  assert.equal((damage.match(/分配0点，下降0格/g) || []).length, 2);
+  assert.match(damage, /本回合停止移动/);
+  assert.doesNotMatch(damage, /首名移动进入|分配0点，下降0格/);
+  assert.equal((damage.match(/class="before after "/g) || []).length, 2);
   assert.match(damage, /还需分配 <strong>2<\/strong>/);
   assert.match(damage, /<button[^>]*class="gold-button"[^>]*disabled/);
   assert.deepEqual(commands, []);
@@ -194,7 +196,7 @@ test('another player can inspect rolled dice but cannot confirm the result', () 
       },
     }),
   );
-  assert.match(html, /等待负责此检定的玩家确认结果/);
+  assert.match(html, /等待对方确认/);
   assert.match(
     html.match(/<button[^>]*class="gold-button"[^>]*>/)?.[0] || '',
     /disabled/,
@@ -255,6 +257,36 @@ test('internal continuations remain silent and a waiting player never advances t
   t.mock.timers.tick(0);
   assert.deepEqual(commands, [{ type: 'advance', requestId: 40 }]);
   cleanup();
+});
+
+test('completed broadcasts have no interaction shield or waiting message and keep a scoped expiry', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const request = {
+    uid: 42,
+    kind: 'itemUse',
+    title: '使用咖啡',
+    text: '移动力已增加。',
+  };
+  const commands = [];
+  const html = render(Broadcast, {
+    request,
+    blocksActions: false,
+    locked: false,
+    send: (command) => commands.push(command),
+  });
+  const cleanup = mountEffects();
+  assert.match(html, /flow-event-passive/);
+  assert.doesNotMatch(html, /flow-event-lock|等待当前玩家/);
+  t.mock.timers.tick(broadcastDuration(request));
+  assert.deepEqual(commands, [{ type: 'advance', requestId: request.uid }]);
+  cleanup();
+  const other = render(Broadcast, {
+    request,
+    blocksActions: false,
+    locked: true,
+    send() {},
+  });
+  assert.doesNotMatch(other, /等待当前玩家/);
 });
 
 test('the engine rejects delayed throw and advance commands after a request changes', () => {

@@ -13,6 +13,8 @@ import {
 } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
+import { resolveInfectionCheck } from '../lib/content/bloodmoon-infection.mjs';
+import itemArt from '../lib/item-art.json' with { type: 'json' };
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const bundle = new URL(
@@ -82,6 +84,20 @@ test('controlled alpha shows capped track positions without removing the eight-p
   assert.equal((html.match(/trait-unavailable/g) || []).length, 6);
   assert.match(html, /银弹削弱后不可使用/);
 });
+
+test('weakness uses the shared negative-status badge on both the personal panel and roster', () => {
+  const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-immortal');
+  game.queue = [];
+  game.heroes[0].skipNextAttack = true;
+  const props = { game, net: {}, send() {}, changes: [] };
+  for (const component of [Personal, Roster]) {
+    const html = render(component, props);
+    assert.match(html, /status-bloodmoon-knockdown/);
+    assert.match(html, /虚弱/);
+    assert.match(html, /lucide-shield-alert/);
+    assert.doesNotMatch(html, /击倒/);
+  }
+});
 test('gun details show loaded ammo and share actions with the main command strip', () => {
   let game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-silver-first');
   game.queue = [];
@@ -117,6 +133,56 @@ test('map explorer tokens are buttons for the matching status sheet', () => {
   assert.match(html, new RegExp(`查看${hero.name}的状态`));
   assert.match(html, /selected-pawn/);
   assert.match(html, /portraits/);
+});
+
+test('an infection conversion switches every shared hero avatar to the existing wolf head', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-conversion');
+  game.queue = [];
+  game.active = 1;
+  const hero = game.heroes[1];
+  assert.match(
+    render(MapPawn, { game, hero, active: true }),
+    /emblem-portrait/,
+  );
+  resolveInfectionCheck(game, hero, 0, { record() {}, log() {} });
+  assert.equal(hero.combatRole, 'wolf');
+  assert.equal(hero.traitor, false);
+  for (const [component, props] of [
+    [MapPawn, { game, hero, active: true }],
+    [Personal, { game, net: {}, send() {}, changes: [] }],
+    [Roster, { game, net: {}, send() {}, changes: [] }],
+  ]) {
+    const html = render(component, props);
+    assert.match(html, /emblem-wolf/);
+    assert(html.includes(itemArt.wolf.paths[0]));
+    assert(html.includes(hero.name));
+    // 人物标记仍在共享头像中；队伍中的其他英雄保留自己的肖像。
+    assert(html.includes(hero.mark));
+    if (component !== Roster)
+      assert.doesNotMatch(html, /portraits\/gu-ye\.png/);
+  }
+});
+
+test('initial wolves, legacy conversions and dead wolves use the correct avatar without changing other traitors', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-control');
+  const alpha = game.heroes[0];
+  assert.match(render(MapPawn, { game, hero: alpha }), /emblem-wolf/);
+  const legacy = {
+    ...alpha,
+    combatRole: undefined,
+    traitor: true,
+    faction: 'wolves',
+  };
+  assert.match(render(MapPawn, { game, hero: legacy }), /emblem-wolf/);
+  const otherTraitor = { ...legacy, faction: 'traitors' };
+  assert.doesNotMatch(
+    render(MapPawn, { game, hero: otherTraitor }),
+    /emblem-wolf/,
+  );
+  assert.match(render(MapPawn, { game, hero: otherTraitor }), /lucide-ghost/);
+  const dead = render(MapPawn, { game, hero: { ...alpha, dead: true } });
+  assert.doesNotMatch(dead, /emblem-wolf|emblem-portrait/);
+  assert.match(dead, /lucide-skull/);
 });
 
 test('LAN explorer surfaces identify the local nickname and controlled pawn', () => {
@@ -301,6 +367,41 @@ test('a hidden LAN damage request degrades safely without reading private tracks
     send() {},
   });
   assert.match(html, /伤害详情仅对负责此角色的玩家可见/);
+});
+
+test('ordinary alpha damage blocks assigning points to an exhausted track while the other can decrease', () => {
+  const game = createHauntPlaytest('bloodmoon', 31, 3, 'bloodmoon-control');
+  game.heroes[0].stats.might = 1;
+  game.heroes[0].stats.speed = 4;
+  const request = {
+    uid: 99,
+    kind: 'damage',
+    heroId: 0,
+    damageType: 'physical',
+    remaining: 2,
+  };
+  const html = render(Damage, { game, p: request, send() {} });
+  assert.match(html, /aria-label="增加力量承受的伤害"[^>]*disabled/);
+  assert.doesNotMatch(html, /aria-label="增加速度承受的伤害"[^>]*disabled/);
+  assert.match(html, /两项都到第1格后，多余伤害才失效/);
+  assert.match(html, /还需分配 <strong>2<\/strong>/);
+  const silver = render(Damage, {
+    game,
+    p: { ...request, causeTag: 'silverShot' },
+    send() {},
+  });
+  assert.doesNotMatch(silver, /aria-label="增加力量承受的伤害"[^>]*disabled/);
+  assert.doesNotMatch(silver, /两项都到第1格后，多余伤害才失效/);
+  game.heroes[0].stats.speed = 1;
+  const exhausted = render(Damage, { game, p: request, send() {} });
+  assert.doesNotMatch(
+    exhausted,
+    /aria-label="增加力量承受的伤害"[^>]*disabled/,
+  );
+  assert.doesNotMatch(
+    exhausted,
+    /aria-label="增加速度承受的伤害"[^>]*disabled/,
+  );
 });
 
 test('contextual commands expose room actions without scenario narration or deck counts', () => {

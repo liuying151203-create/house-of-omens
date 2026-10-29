@@ -65,12 +65,10 @@ export default function RingReroll({ request, send, motion, locked = false }) {
         disabled={selected !== null || locked}
         onClick={() => choose('skip')}
       >
-        放弃，本次不使用戒指
+        不重掷
       </button>
       {selected !== null && selected !== 'skip' && (
-        <output aria-live="polite">
-          戒指正在重掷…新结果会留在此窗口，确认后继续原检定。
-        </output>
+        <output aria-live="polite">重掷中…</output>
       )}
     </div>
   );

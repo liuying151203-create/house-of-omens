@@ -7,6 +7,22 @@
   --ui-muted: #afbdcd;
   --ui-accent: #85b7ff;
 }
+.explorer-emblem.emblem-wolf {
+  background: #17212c;
+  border-radius: 7px;
+  box-shadow: none;
+}
+.explorer-emblem.emblem-wolf > .item-art {
+  width: 76%;
+  height: 65%;
+}
+.explorer-emblem.emblem-wolf.emblem-token {
+  border-radius: 50%;
+}
+.explorer-emblem.emblem-wolf.emblem-token > .item-art {
+  width: 75%;
+  height: 75%;
+}
 .app.playing {
   background: #101720;
   color: var(--ui-text);
@@ -137,6 +153,12 @@
   min-width: 170px;
   width: auto;
   margin: 0;
+}
+.flow-event-passive {
+  position: fixed;
+  z-index: 85;
+  inset: 0;
+  pointer-events: none;
 }
 .flow-event-broadcast {
   top: 72px;

@@ -41,7 +41,6 @@ export default function MapPresentation({ presentation }) {
         <EventBroadcast
           key={step.key}
           request={step}
-          label="陷阱触发"
           duration={step.duration}
         />
       )}

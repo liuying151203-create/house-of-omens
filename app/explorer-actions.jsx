@@ -14,11 +14,12 @@ import {
   FLOORS,
 } from '../lib/game-engine.mjs';
 import { publicEnemies } from '../lib/game-view.mjs';
+import { blockingRequest } from '../lib/presentation-requests.mjs';
 
 export default function ExplorerActions({ game, send, net, waiting, moving }) {
   const hero = game.heroes[game.active];
   const busy =
-    !!game.queue.length || net.busy || moving || game.phase === 'over';
+    !!blockingRequest(game) || net.busy || moving || game.phase === 'over';
   const disabled = busy || waiting || hero.dead || hero.traitor || hero.ended;
   const legal =
     hero.privateStats || !hero.stats || !hero.tracks

@@ -1472,6 +1472,8 @@ export default function Home() {
   const [inspected, setInspected] = useState(null);
   const [confirmHero, setConfirmHero] = useState(null);
   const [journalExpanded, setJournalExpanded] = useState(false);
+  const journalPanelRef = useRef(null);
+  const journalFollowLatest = useRef(true);
   function selectScenario(id) {
     setChoice(id);
     setPlaytestFocus('basic');
@@ -1606,6 +1608,16 @@ export default function Home() {
     () => (game ? explorationJournal(game) : null),
     [game],
   );
+  useLayoutEffect(() => {
+    const panel = journalPanelRef.current;
+    if (journalOpen && journalExpanded && panel && journalFollowLatest.current)
+      panel.scrollTop = panel.scrollHeight;
+  }, [
+    journalOpen,
+    journalExpanded,
+    journal?.entries[0]?.id,
+    journal?.extraLogs[0]?.id,
+  ]);
   useEffect(() => {
     if (sound && p?.kind === 'haunt' && audio.current) {
       const ctx = audio.current;
@@ -2152,6 +2164,7 @@ export default function Home() {
                   aria-expanded={journalOpen}
                   aria-controls="journal-details"
                   onClick={() => {
+                    journalFollowLatest.current = true;
                     setJournalExpanded(false);
                     if (
                       !journalOpen &&
@@ -2322,6 +2335,13 @@ export default function Home() {
                   id="journal-details"
                   hidden={!journalOpen}
                   aria-label="探索手记"
+                  ref={journalPanelRef}
+                  onScroll={(event) => {
+                    const panel = event.currentTarget;
+                    journalFollowLatest.current =
+                      panel.scrollHeight - panel.scrollTop - panel.clientHeight <
+                      20;
+                  }}
                 >
                   {journalExpanded ? (
                     <>
@@ -2336,11 +2356,29 @@ export default function Home() {
                         </button>
                       </div>
                       <div className="journal">
+                        {journal.extraLogs.length > 0 && (
+                          <details
+                            className="journal-extra-records"
+                            open={journal.entries.length === 0}
+                          >
+                            <summary>其他记录</summary>
+                            <div className="journal-entries">
+                              {[...journal.extraLogs].reverse().map((l) => (
+                                <div className="journal-entry" key={l.id}>
+                                  <span className="journal-dot" />
+                                  <small>第{l.round}回合</small>
+                                  <p>{l.text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
                         <div className="journal-entries">
-                          {journal.entries.map((l, i) => (
+                          {[...journal.entries].reverse().map((l) => (
                             <div
                               className={
-                                'journal-entry ' + (i === 0 ? 'latest' : '')
+                                'journal-entry ' +
+                                (l.id === journal.entries[0]?.id ? 'latest' : '')
                               }
                               key={l.id}
                             >
@@ -2352,29 +2390,15 @@ export default function Home() {
                             </div>
                           ))}
                         </div>
-                        {journal.extraLogs.length > 0 && (
-                          <details
-                            className="journal-extra-records"
-                            open={journal.entries.length === 0}
-                          >
-                            <summary>其他记录</summary>
-                            <div className="journal-entries">
-                              {journal.extraLogs.map((l) => (
-                                <div className="journal-entry" key={l.id}>
-                                  <span className="journal-dot" />
-                                  <small>第{l.round}回合</small>
-                                  <p>{l.text}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        )}
                       </div>
                     </>
                   ) : (
                     <button
                       className="journal-preview-text"
-                      onClick={() => setJournalExpanded(true)}
+                      onClick={() => {
+                        journalFollowLatest.current = true;
+                        setJournalExpanded(true);
+                      }}
                       aria-label="展开探索手记"
                     >
                       {(journal.entries.length
@@ -2382,6 +2406,7 @@ export default function Home() {
                         : journal.extraLogs
                       )
                         .slice(0, 3)
+                        .reverse()
                         .map((entry) => (
                           <span key={entry.id}>{entry.text}</span>
                         ))}

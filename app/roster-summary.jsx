@@ -192,7 +192,7 @@ export default function RosterSummary({
   return (
     <>
       <span className="roster-stat-icons">
-        {activity && (
+        {activity && activity.kind !== 'turn' && (
           <Hint label={activity.label} className="roster-activity">
             {createElement(activityIcons[activity.kind], {
               size: 14,

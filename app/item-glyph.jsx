@@ -24,6 +24,7 @@ import {
   LockKeyhole,
 } from 'lucide-react';
 const glyphs = {
+  'knowledge-bread': BookOpen,
   'family-ring': CircleDot,
   'saint-badge': ShieldCheck,
   'bear-trap': LockKeyhole,

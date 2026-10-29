@@ -17,6 +17,9 @@
   pointer-events: auto;
   min-width: 0;
 }
+.explorer-panel-toggle {
+  display: none;
+}
 .explorer-emblem {
   --explorer-color: #c1b184;
   position: relative;
@@ -1705,6 +1708,41 @@
   padding: 0;
   margin: 0;
 }
+
+@media (max-width: 760px) {
+  .explorer-panel-toggle {
+    display: block;
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-height: 36px;
+    padding: 6px 14px;
+    border: 1px solid #8c9d9b66;
+    border-radius: 8px;
+    background: #15232cf2;
+    color: #e1dfd6;
+    font-size: 13px;
+  }
+  .explorer-controls-compact .explorer-vitals {
+    grid-column: 1;
+    padding: 8px 10px;
+  }
+  .explorer-controls-compact .explorer-identity {
+    width: auto;
+    flex-basis: auto;
+  }
+  .explorer-controls-compact .explorer-identity .explorer-emblem,
+  .explorer-controls-compact .explorer-readout .attribute-tracks,
+  .explorer-controls-compact .explorer-satchel {
+    display: none;
+  }
+  .explorer-controls-compact .explorer-readout > header {
+    margin-bottom: 0;
+  }
+  .explorer-controls-compact .finish-turn {
+    grid-column: 2;
+    align-self: end;
+  }
+}
 .attribute-tracks .trait-row {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
@@ -1854,4 +1892,34 @@
   font-size: 14px;
   line-height: 1.6;
   margin: 0;
+}
+
+/* 手机端按需查看侧栏，避免两列窄面板同时挤占地图。 */
+@media (max-width: 760px) {
+  .explorer-controls {
+    bottom: calc(94px + env(safe-area-inset-bottom));
+  }
+  .deck-supply {
+    width: calc(100vw - 132px);
+    bottom: max(5px, env(safe-area-inset-bottom));
+  }
+  .supply-counts > span {
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .supply-counts > span > span,
+  .supply-counts b {
+    font-size: 11px;
+  }
+  .map-stage .party-panel.floating-window,
+  .map-stage .right-info-rail {
+    width: min(320px, calc(100vw - 24px));
+  }
+  .right-info-rail .chapter-toggle {
+    align-self: flex-end;
+  }
+  .map-stage:has(.explorer-controls-compact) .party-panel.floating-window,
+  .map-stage:has(.explorer-controls-compact) .right-info-rail {
+    bottom: 170px;
+  }
 }

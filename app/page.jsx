@@ -1407,6 +1407,15 @@ export default function Home() {
   );
   const presenting = enemyMotion.moving || mapPresentation.busy;
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.matchMedia('(max-width: 760px)').matches) {
+        setPartyOpen(false);
+        setStoryOpen(false);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
     const close = (e) => {
       if (e.key === 'Escape') {
         setPanel(null);
@@ -1864,7 +1873,16 @@ export default function Home() {
                 className="roster-toggle"
                 aria-expanded={partyOpen}
                 aria-controls="party-details"
-                onClick={() => setPartyOpen((open) => !open)}
+                onClick={() => {
+                  if (
+                    !partyOpen &&
+                    window.matchMedia('(max-width: 760px)').matches
+                  ) {
+                    setStoryOpen(false);
+                    setJournalOpen(false);
+                  }
+                  setPartyOpen((open) => !open);
+                }}
               >
                 <Users size={19} />
                 <span>全员状态</span>
@@ -1997,6 +2015,10 @@ export default function Home() {
                   onInspect={(id) => {
                     setInspected(id);
                     setPartyOpen(true);
+                    if (window.matchMedia('(max-width: 760px)').matches) {
+                      setStoryOpen(false);
+                      setJournalOpen(false);
+                    }
                   }}
                   room={net.room}
                 />
@@ -2006,7 +2028,17 @@ export default function Home() {
                   className="chapter-toggle"
                   aria-expanded={storyOpen}
                   aria-controls="story-details"
-                  onClick={() => setStoryOpen((open) => !open)}
+                  onClick={() => {
+                    if (
+                      !storyOpen &&
+                      window.matchMedia('(max-width: 760px)').matches
+                    ) {
+                      setPartyOpen(false);
+                      setJournalOpen(false);
+                      setInspected(null);
+                    }
+                    setStoryOpen((open) => !open);
+                  }}
                 >
                   <BookOpen size={19} />
                   <span>
@@ -2024,7 +2056,17 @@ export default function Home() {
                   className="journal-toggle"
                   aria-expanded={journalOpen}
                   aria-controls="journal-details"
-                  onClick={() => setJournalOpen((open) => !open)}
+                  onClick={() => {
+                    if (
+                      !journalOpen &&
+                      window.matchMedia('(max-width: 760px)').matches
+                    ) {
+                      setPartyOpen(false);
+                      setStoryOpen(false);
+                      setInspected(null);
+                    }
+                    setJournalOpen((open) => !open);
+                  }}
                 >
                   <BookOpen size={19} />
                   <span>探索手记</span>

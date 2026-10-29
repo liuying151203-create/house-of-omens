@@ -1,4 +1,5 @@
 import AttributeTracks from './attribute-tracks';
+import { useEffect, useState } from 'react';
 import HeroStatusBadges from './hero-status-badges';
 import { Check, Footprints, Package } from 'lucide-react';
 import {
@@ -23,6 +24,13 @@ export default function PersonalPanel({
   changes,
   commands,
 }) {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.matchMedia('(max-width: 760px)').matches) setCompact(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const hero = personalHero(game, net.room);
   if (!hero)
     return (
@@ -46,10 +54,20 @@ export default function PersonalPanel({
   const controller = heroController(net.room, hero.id);
   return (
     <div
-      className="explorer-controls"
+      className={
+        'explorer-controls' + (compact ? ' explorer-controls-compact' : '')
+      }
       style={{ '--explorer-color': hero.color }}
     >
       {commands}
+      <button
+        type="button"
+        className="explorer-panel-toggle"
+        aria-expanded={!compact}
+        onClick={() => setCompact((value) => !value)}
+      >
+        {compact ? '展开人物与物品' : '收起人物与物品'}
+      </button>
       <aside className="explorer-vitals" aria-label="当前控制人物的状态">
         <div className="explorer-identity">
           <ExplorerEmblem hero={hero} />

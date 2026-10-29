@@ -1,4 +1,4 @@
-import { Layers, CircleAlert, Package, ArrowRight } from 'lucide-react';
+import { Layers, CircleAlert, Package } from 'lucide-react';
 import OmenGlyph from './omen-glyph';
 import { blockingRequest } from '../lib/presentation-requests.mjs';
 import { canOfferRoundEnd } from '../lib/round-control.mjs';
@@ -41,7 +41,6 @@ export default function DeckSupply({ game, net, moving, onEndRound }) {
         title={host ? '提前结束整轮需要确认' : '仅房主可结束整轮'}
       >
         结束整轮
-        <ArrowRight size={14} />
       </button>
     </aside>
   );

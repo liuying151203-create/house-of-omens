@@ -1,0 +1,193 @@
+/* 已结算的只读提示不占用下方地图的点击区域。 */
+.attribute-feedback,
+.card-notice {
+  pointer-events: none;
+}
+.card-notice > button {
+  pointer-events: auto;
+}
+
+/* 人物与敌人棋子随房间比例缩放，楼层头像保持独立尺寸。 */
+.map-stage .modular-map .room-tokens {
+  bottom: calc(var(--map-pawn-size) * 0.8);
+  gap: calc(var(--map-pawn-size) * 0.08);
+}
+.map-stage .modular-map .pawn,
+.map-stage .modular-map .enemy-pawn,
+.map-stage .modular-map .travelling-hero,
+.map-stage .modular-map .travelling-enemy {
+  width: var(--map-pawn-size);
+  height: var(--map-pawn-size);
+  min-width: 0;
+  flex: 0 0 var(--map-pawn-size);
+}
+.map-stage .modular-map .enemy-pawn > svg {
+  width: 75%;
+  height: 75%;
+}
+.map-stage .modular-map .travelling-enemy > svg {
+  width: 75%;
+  height: 75%;
+}
+.map-stage .modular-map .my-pawn-mark,
+.map-stage .modular-map .infection-badge {
+  min-width: calc(var(--map-pawn-size) * 0.48);
+  height: calc(var(--map-pawn-size) * 0.48);
+  font-size: calc(var(--map-pawn-size) * 0.3);
+  line-height: 1;
+  padding: 0;
+}
+.map-stage .overview-map .room-tokens {
+  display: flex !important;
+}
+
+/* 楼层人物头像跨在标签下边缘，仍可单独点击。 */
+.map-stage .map-navigation .floor-tabs {
+  position: relative;
+  top: auto;
+  left: auto;
+}
+.map-stage .floor-occupants {
+  position: absolute;
+  top: 31px;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+}
+.map-stage .floor-party {
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0;
+}
+.map-stage .floor-party .floor-hero {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  flex-basis: 20px;
+}
+.map-stage .floor-party .floor-hero + .floor-hero {
+  margin-left: -7px;
+}
+.map-stage .right-info-rail .chapter-toggle {
+  align-self: flex-end;
+  width: auto;
+}
+
+/* 两端控件处于同一底部基线。 */
+.explorer-controls {
+  bottom: 18px;
+}
+.explorer-satchel {
+  order: 3;
+}
+.personal-summary-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.personal-summary-button:focus-visible {
+  outline: 2px solid #d4bf87;
+  outline-offset: 3px;
+}
+.explorer-movement {
+  width: max-content;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 1px solid #8ea8a24d;
+  border-radius: 5px;
+  background: #17242bd9;
+}
+.explorer-movement > span {
+  display: none;
+}
+.explorer-movement b {
+  font-size: 15px;
+}
+.personal-inline-detail {
+  order: 2;
+  flex: 0 1 auto;
+  min-width: 0;
+  width: min(300px, calc(100vw - 130px));
+  max-height: min(45dvh, 360px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #607681;
+  border-radius: 8px;
+  background: #14232bf5;
+  color: #e1dfd6;
+  animation: roster-detail-enter 200ms ease-out;
+}
+.personal-inline-detail p {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.attribute-tracks .trait-track > .trait-start {
+  position: relative;
+  border-bottom: 0;
+}
+.attribute-tracks .trait-track > .trait-start::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--track-color);
+  box-shadow: 0 0 0 1px #14232b;
+}
+.attribute-tracks .trait-track > .trait-start.trait-current::after {
+  background: #14232b;
+  box-shadow: 0 0 0 1px var(--track-color);
+}
+.map-stage .deck-supply > button {
+  height: 44px;
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  .map-stage {
+    --hud-top: 68px;
+    --hud-floor-width: calc(100vw - 228px);
+  }
+  .map-stage .map-navigation {
+    left: 140px;
+    transform: none;
+  }
+  .map-stage .floor-title {
+    font-size: 11px;
+  }
+  .map-stage .supply-counts {
+    gap: 4px;
+  }
+  .map-stage .supply-counts > span {
+    gap: 2px;
+  }
+  .map-stage .supply-counts > span > svg {
+    width: 12px;
+    height: 12px;
+  }
+  .map-stage .supply-counts b {
+    font-size: 11px;
+  }
+  .explorer-controls {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .map-stage .deck-supply > button {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .personal-inline-detail {
+    position: absolute;
+    left: 100px;
+    bottom: calc(100% + 8px);
+    width: min(260px, calc(100vw - 130px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .personal-inline-detail {
+    animation: none;
+  }
+}

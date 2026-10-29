@@ -795,16 +795,21 @@ function Board({
   useEffect(() => {
     const viewport = ref.current;
     let width = viewport.clientWidth,
-      height = viewport.clientHeight;
+      height = viewport.clientHeight,
+      frame = 0;
     const observer = new ResizeObserver(() => {
       if (width === viewport.clientWidth && height === viewport.clientHeight)
         return;
       width = viewport.clientWidth;
       height = viewport.clientHeight;
-      centerMap(cameraOverview.current);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => centerMap(cameraOverview.current));
     });
     observer.observe(viewport);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [centerMap]);
   useEffect(() => {
     const cancel = (event) => {
@@ -1038,6 +1043,7 @@ function Board({
         <div
           className={'modular-map ' + (zoom < 55 ? 'overview-map' : '')}
           style={{
+            '--map-pawn-size': `${Math.max(1, zoom * 0.25)}px`,
             gap: zoom / 11,
             gridTemplateColumns: `repeat(${cols},${zoom}px)`,
             gridTemplateRows: `repeat(${rows},${zoom}px)`,

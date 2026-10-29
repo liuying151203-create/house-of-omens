@@ -283,7 +283,9 @@ export default function FactionRoster({
                     ))}
                   </section>
                 )}
-                <h4>持有物品与预兆</h4>
+                {visible && (person.items?.length || person.omens?.length) ? (
+                  <h4>持有物品与预兆</h4>
+                ) : null}
                 <HeroInventory game={game} hero={person} room={net.room} />
                 {mine && !person.dead && !person.traitor && (
                   <button

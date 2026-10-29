@@ -1,7 +1,7 @@
 import AttributeTracks from './attribute-tracks';
 import { useEffect, useState } from 'react';
 import HeroStatusBadges from './hero-status-badges';
-import { Footprints, Package } from 'lucide-react';
+import { Navigation, Package } from 'lucide-react';
 import {
   personalHero,
   locationLabel,
@@ -28,6 +28,7 @@ export default function PersonalPanel({
   onEndHero,
 }) {
   const [compact, setCompact] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => {
       if (window.matchMedia('(max-width: 760px)').matches) setCompact(true);
@@ -95,17 +96,32 @@ export default function PersonalPanel({
           <small>{hero.role}</small>
         </div>
         <div className="explorer-readout">
-          {(inspectable || enemy) && (
-            <RosterSummary
-              game={game}
-              hero={inspectable ? hero : undefined}
-              enemy={inspectable ? undefined : enemy}
-              visible={inspectable}
-            />
-          )}
+          <button
+            type="button"
+            className="personal-summary-button"
+            aria-label={expanded ? '收起人物状态轨道' : '展开人物状态轨道'}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {(inspectable || enemy) && (
+              <RosterSummary
+                game={game}
+                hero={inspectable ? hero : undefined}
+                enemy={inspectable ? undefined : enemy}
+                visible={inspectable}
+              />
+            )}
+          </button>
           <header>
-            <span className="explorer-movement">
-              <Footprints size={15} />
+            <span
+              className="explorer-movement"
+              title={
+                hero.dead || hero.traitor || hero.stopped || hero.ended
+                  ? '当前无法移动'
+                  : `剩余移动力 ${hero.moves}`
+              }
+            >
+              <Navigation size={15} />
               <b>
                 {hero.dead || hero.traitor || hero.stopped || hero.ended
                   ? '—'
@@ -160,6 +176,23 @@ export default function PersonalPanel({
           </footer>
         </div>
       </aside>
+      {expanded && (
+        <aside className="personal-inline-detail" aria-label="人物状态轨道">
+          {inspectable ? (
+            <AttributeTracks
+              game={game}
+              hero={hero}
+              changes={changes.filter((c) => c.heroId === hero.id)}
+            />
+          ) : enemy ? (
+            <AttributeTracks
+              enemy={{ ...enemy, might: wolfMight(game, enemy) }}
+            />
+          ) : null}
+          <p>{locationLabel(game, enemy?.pos || hero.pos)}</p>
+          <HeroStatusBadges game={game} hero={hero} />
+        </aside>
+      )}
       <aside className="explorer-satchel" aria-label="随身物品与预兆">
         <header>
           <span>

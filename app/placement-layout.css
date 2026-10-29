@@ -1,0 +1,49 @@
+/* 房间牌、说明和操作分层排列，避免横向拉伸。 */
+.map-stage .placement-dock {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(60dvh, 520px);
+  overflow: auto;
+  padding: 14px;
+}
+.map-stage .placement-dock .dock-tile {
+  width: 108px;
+  height: 108px;
+}
+.map-stage .placement-dock .dock-tile .tile-card-icon {
+  left: 5px;
+  bottom: 5px;
+  width: 19px;
+  height: 19px;
+}
+.map-stage .placement-dock .dock-tile .room-name {
+  left: 27px;
+  right: 4px;
+  bottom: 7px;
+  width: auto;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+.map-stage .placement-dock .dock-actions {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.map-stage .placement-dock .dock-actions > button {
+  flex: 1 1 auto;
+}
+@media (max-width: 760px) {
+  .map-stage .placement-dock {
+    bottom: max(120px, 20dvh);
+    grid-template-columns: 90px minmax(0, 1fr);
+    padding: 12px;
+  }
+  .map-stage .placement-dock .dock-tile {
+    width: 90px;
+    height: 90px;
+  }
+}

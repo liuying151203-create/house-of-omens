@@ -2028,15 +2028,24 @@
   padding: 0;
 }
 .party-rail .rail-faction > h3 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0 4px 4px;
+  margin: 0 0 4px;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
   border: 0;
+  justify-content: flex-start;
+  gap: 5px;
+}
+.party-rail .rail-faction > h3 > span {
+  margin-left: auto;
+}
+.rail-wolves > h3,
+.rail-traitors > h3 {
+  color: #dfa4a4;
 }
 .party-rail .party-member,
 .party-rail .party-member.member-active,
@@ -2146,6 +2155,26 @@
 .roster-inspector.roster-inspector-closing {
   animation: roster-detail-exit 160ms ease-in forwards;
   pointer-events: none;
+}
+.roster-inspector > header {
+  gap: 10px;
+}
+.roster-inspector > header > strong {
+  flex: 1;
+}
+.inspector-status-details {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.inspector-status-details strong {
+  color: #e8d8ae;
+  font-size: 13px;
+}
+.inspector-status-details p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
 }
 @keyframes roster-detail-enter {
   from {

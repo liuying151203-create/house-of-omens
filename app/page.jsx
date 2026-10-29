@@ -1987,6 +1987,7 @@ export default function Home() {
                   net={net}
                   waiting={waiting}
                   pending={p}
+                  mapStep={mapPresentation.step}
                   Traits={Traits}
                   changes={attributeFeedback.changes}
                   inspected={inspected}

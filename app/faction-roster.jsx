@@ -4,7 +4,17 @@ import HeroStatusBadges from './hero-status-badges';
 import RosterSummary from './roster-summary';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Footprints, LockKeyhole, MapPin, ArrowRight } from 'lucide-react';
+import {
+  X,
+  Footprints,
+  LockKeyhole,
+  MapPin,
+  ArrowRight,
+  Shield,
+  Moon,
+  Skull,
+  Swords,
+} from 'lucide-react';
 import HeroInventory from './hero-inventory';
 import ExplorerEmblem from './explorer-emblem';
 import {
@@ -14,6 +24,7 @@ import {
   heroController,
   isHeroMine,
 } from '../lib/game-view.mjs';
+import { heroStatuses } from '../lib/hero-status.mjs';
 
 export default function FactionRoster({
   game,
@@ -25,6 +36,7 @@ export default function FactionRoster({
   open = true,
   inspected: controlledInspected,
   onInspectedChange,
+  mapStep,
 }) {
   const [localInspected, setLocalInspected] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -95,6 +107,15 @@ export default function FactionRoster({
           aria-label={group.name}
         >
           <h3>
+            {group.id === 'heroes' ? (
+              <Shield size={14} />
+            ) : group.id === 'wolves' ? (
+              <Moon size={14} />
+            ) : group.id === 'dead' ? (
+              <Skull size={14} />
+            ) : (
+              <Swords size={14} />
+            )}
             {group.name}
             <span>
               {group.heroes.length +
@@ -140,7 +161,13 @@ export default function FactionRoster({
                       )}
                     </span>
                   </strong>
-                  <RosterSummary game={game} hero={h} visible={publicStats} />
+                  <RosterSummary
+                    game={game}
+                    hero={h}
+                    visible={publicStats}
+                    request={pending}
+                    mapStep={mapStep}
+                  />
                 </span>
               </button>
             );
@@ -191,6 +218,13 @@ export default function FactionRoster({
             aria-label={(person?.name || enemy.name) + '的详细资料'}
           >
             <header>
+              {person ? (
+                <ExplorerEmblem hero={person} small />
+              ) : (
+                <span className="enemy-emblem">
+                  <EnemyGlyph enemy={enemy} />
+                </span>
+              )}
               <strong>
                 {person?.name || enemy.name}
                 {person && heroController(net.room, person.id) && (
@@ -231,6 +265,24 @@ export default function FactionRoster({
                   </p>
                 )}
                 <HeroStatusBadges game={game} hero={person} />
+                {heroStatuses(game, person).length > 0 && (
+                  <section
+                    className="inspector-status-details"
+                    aria-label="状态详情"
+                  >
+                    {heroStatuses(game, person).map((entry) => (
+                      <div key={entry.id}>
+                        <strong>
+                          {entry.label}
+                          {entry.count !== undefined
+                            ? ` · ${entry.count}轮`
+                            : ''}
+                        </strong>
+                        <p>{entry.description}</p>
+                      </div>
+                    ))}
+                  </section>
+                )}
                 <h4>持有物品与预兆</h4>
                 <HeroInventory game={game} hero={person} room={net.room} />
                 {mine && !person.dead && !person.traitor && (

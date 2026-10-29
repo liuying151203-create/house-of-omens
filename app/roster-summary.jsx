@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   BookOpen,
@@ -14,6 +14,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Swords,
+  Shield,
+  Dice5,
+  CircleDot,
 } from 'lucide-react';
 import ItemGlyph from './item-glyph';
 import { TRAIT_KEYS } from '../lib/game-data.mjs';
@@ -21,6 +25,7 @@ import { traitRuleView } from '../lib/rule-views.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
 import { resolveCard } from '../lib/card-rules.mjs';
 import { itemInstances } from '../lib/item-instances.mjs';
+import { rosterActivity } from '../lib/roster-activity.mjs';
 
 const traitIcons = {
   might: HandFist,
@@ -33,6 +38,15 @@ const labels = {
   speed: '速度',
   sanity: '理智',
   knowledge: '知识',
+};
+const activityIcons = {
+  move: Footprints,
+  defend: Shield,
+  attack: Swords,
+  item: Package,
+  damage: HeartPulse,
+  check: Dice5,
+  turn: CircleDot,
 };
 
 function Hint({ label, children, className = '' }) {
@@ -61,6 +75,7 @@ function Hint({ label, children, className = '' }) {
     <span
       className={'roster-hint ' + className}
       aria-label={label}
+      title={label}
       onPointerEnter={(e) => {
         if (e.pointerType !== 'touch') show(e.currentTarget);
       }}
@@ -118,7 +133,14 @@ function Hint({ label, children, className = '' }) {
   );
 }
 
-export default function RosterSummary({ game, hero, enemy, visible }) {
+export default function RosterSummary({
+  game,
+  hero,
+  enemy,
+  visible,
+  request,
+  mapStep,
+}) {
   const traits = hero
     ? visible
       ? TRAIT_KEYS.map((key) => traitRuleView(game, hero, key))
@@ -157,6 +179,7 @@ export default function RosterSummary({ game, hero, enemy, visible }) {
         ]
       : [];
   const statuses = hero ? heroStatuses(game, hero) : [];
+  const activity = rosterActivity(game, hero, request, mapStep);
   const condition = hero?.dead
     ? { label: '已死亡', Icon: Skull }
     : hero?.traitor
@@ -169,6 +192,14 @@ export default function RosterSummary({ game, hero, enemy, visible }) {
   return (
     <>
       <span className="roster-stat-icons">
+        {activity && (
+          <Hint label={activity.label} className="roster-activity">
+            {createElement(activityIcons[activity.kind], {
+              size: 14,
+              'aria-hidden': true,
+            })}
+          </Hint>
+        )}
         {enemy && Number.isFinite(enemy.hp) && Number.isFinite(enemy.maxHp) && (
           <Hint
             label={`生命 ${enemy.hp}/${enemy.maxHp}`}

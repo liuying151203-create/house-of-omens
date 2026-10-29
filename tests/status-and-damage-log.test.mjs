@@ -94,6 +94,9 @@ test('fully prevented mental damage appears in the journal without a damage allo
 test('settled attacks record actual enemy damage and HP before and after, including armor', () => {
   let game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });
   const enemy = game.enemies[0];
+  // 旧生命值存档仍须记录原有伤害日志。
+  delete enemy.traitModel;
+  Object.assign(enemy, { hp: 10, maxHp: 10, might: 5, speed: 2 });
   enemy.pos = game.heroes[game.active].pos;
   const hp = enemy.hp;
   game = act(game, { type: 'attack', id: enemy.id });

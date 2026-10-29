@@ -63,8 +63,8 @@ test('scenario and room modifiers update without changing base definitions', () 
   assert.equal(healing.contributions.length, 1);
   assert.equal(healing.contributions[0].sourceLabel, '银色吊坠');
   assert.equal(
-    modifierValue(game, 'enemy.might', { enemyId: enemy.id }, enemy.might),
-    enemy.might + 1,
+    modifierValue(game, 'enemy.might', { enemyId: enemy.id }, enemy.traits.might),
+    enemy.traits.might + 1,
   );
   assert.equal(
     modifierValue(game, 'combat.damage.cap', { enemyId: enemy.id }, 3),
@@ -72,8 +72,8 @@ test('scenario and room modifiers update without changing base definitions', () 
   );
   room.states = { boarded: true };
   assert.equal(
-    modifierValue(game, 'enemy.might', { enemyId: enemy.id }, enemy.might),
-    enemy.might,
+    modifierValue(game, 'enemy.might', { enemyId: enemy.id }, enemy.traits.might),
+    enemy.traits.might,
   );
 });
 

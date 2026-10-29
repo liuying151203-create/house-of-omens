@@ -119,7 +119,7 @@ test('family ring choices stay in the dice window and only 0/2 dice can be click
           {
             uid: 20,
             kind: 'choiceRequest',
-            title: '家族戒指 · 命运回环',
+            title: '命运戒指 · 命运回环',
             text: '选择一枚骰子重掷',
             ringRolls: [{ label: '力量检定', dice: [0, 1, 2] }],
             options: [
@@ -149,7 +149,7 @@ test('the rerolled result remains in the dice window before the next choice', ()
           {
             uid: 21,
             kind: 'ringResult',
-            title: '家族戒指 · 重掷结果',
+            title: '命运戒指 · 重掷结果',
             text: '新点数已计入本次检定。',
             groupLabel: '制备药剂',
             dice: [2, 2, 1],

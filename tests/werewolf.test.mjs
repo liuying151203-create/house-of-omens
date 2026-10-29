@@ -29,6 +29,9 @@ import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 
 test('alpha moon regeneration, thick hide and large-party attacks follow the declared limits', () => {
   let s = start(5);
+  // 旧存档仍以生命值、月光再生和厚皮结算。
+  delete s.enemies[0].traitModel;
+  Object.assign(s.enemies[0], wolfStats(5), { maxHp: wolfStats(5).hp });
   const room = s.rooms.find((r) => r.id === 'entrance');
   room.windows = [1];
   s.enemies[0].hp -= 4;
@@ -133,8 +136,10 @@ test('3–6 players: one alpha, scaled stats, two reachable seals and one exit r
     assert.equal(living(s).length, n - 1);
     assert.equal(s.enemies.length, 1);
     const e = s.enemies[0];
-    assert.equal(e.hp, wolfStats(n).hp);
-    assert.equal(e.might, wolfStats(n).might);
+    assert.equal(e.traitModel, 'fixed');
+    assert(!Object.hasOwn(e, 'hp'));
+    assert.equal(e.traits.might, wolfStats(n).might);
+    assert.deepEqual(Object.keys(e.traits).sort(), ['knowledge', 'might', 'sanity', 'speed']);
     assert.equal(s.rooms.filter((r) => r.target === 'moonSeal').length, 2);
     for (const id of s.targetRooms) assert(pathTo(s, 'entrance', id).length);
     assert.equal(s.rooms.find((r) => r.id === 'entrance').target, 'moonRitual');
@@ -191,7 +196,7 @@ test('infection grants three full action rounds, never refreshes and converts wi
   assert.equal(s.heroes[0].faction, 'wolves');
   assert.equal(s.enemies.length, 2);
   assert.deepEqual(s.heroes[1].stats, before);
-  assert.equal(s.enemies.find((e) => e.heroId === 0).hp, 3);
+  assert.equal(s.enemies.find((e) => e.heroId === 0).traitModel, 'fixed');
   assert(
     s.events.some(
       (event) =>
@@ -267,21 +272,27 @@ test('all wolves defeated wins; killing alpha alone does not; last good conversi
     id: 'extra',
     kind: 'wolf',
     heroId: undefined,
-    hp: 3,
   });
-  s.enemies[0].hp = 1;
   s = resolveWithDice(s, { type: 'attack', id: s.enemies[0].id }, [
     Array(8).fill(2),
     [0],
   ]);
   assert.equal(s.phase, 'haunt');
-  assert.equal(s.enemies.length, 1);
+  assert.equal(s.enemies.length, 2);
+  assert(s.enemies[0].stunned);
   s = settle(s);
+  s = act(s, actions(s).abilities.find((entry) => entry.handler === 'monster.seal' && entry.targetId === s.enemies[0].id).command);
+  assert.equal(s.enemies.length, 1);
   s.heroes[0].attacked = false;
   s = resolveWithDice(s, { type: 'attack', id: 'extra' }, [
     Array(8).fill(2),
     [0],
   ]);
+  s = settle(s);
+  const next = living(s).find((hero) => !hero.interacted);
+  next.pos = s.enemies[0].pos;
+  s = act(s, { type: 'select', id: next.id });
+  s = act(s, actions(s).abilities.find((entry) => entry.handler === 'monster.seal' && entry.targetId === 'extra').command);
   assert.equal(s.result.winnerFaction, 'heroes');
   s = start();
   s.enemies[0].pos = 'basement';

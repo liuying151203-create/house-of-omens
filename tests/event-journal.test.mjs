@@ -252,7 +252,7 @@ test('rerolls and card damage explain their source and final effect', () => {
   });
   assert.match(
     eventJournalText(game, reroll),
-    /家族戒指.*第2枚.*0 → 2 点.*5点/,
+    /命运戒指.*第2枚.*0 → 2 点.*5点/,
   );
   assert.match(
     eventJournalText(game, damage),

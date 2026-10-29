@@ -4,6 +4,7 @@ import {
   act,
   actions,
   createSimulationGame,
+  executeRuleEffects,
   TRAITS,
 } from '../lib/game-engine.mjs';
 import {
@@ -13,9 +14,29 @@ import {
 import { addItemInstance } from '../lib/item-instances.mjs';
 import { updateCardRule } from '../lib/card-rules.mjs';
 import { itemUseDefinition } from '../lib/content/item-abilities.mjs';
+import { createHauntPlaytest } from '../lib/playtest.mjs';
+import { drivePendingRequests } from '../lib/automatic-driver.mjs';
 
 const start = () =>
   act(createSimulationGame('bells', 151, 3), { type: 'advance' });
+
+test('恢复物品在银弹上限处不可使用，直接恢复效果也不能消耗或降低属性', () => {
+  let game = drivePendingRequests(createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-recovery-capped-bandage'), act);
+  const hero = game.heroes[0];
+  const view = itemActionViews(game, hero).find((entry) => entry.instanceId === 'playtest:capped-bandage' && entry.trait === 'might');
+  assert.equal(view.available, false);
+  assert.match(view.unavailableReason, /恢复上限/);
+  assert.deepEqual(act(game, view.command), game);
+  assert.equal(executeRuleEffects(game, [{ op: 'hero.restoreTrait', params: { heroId: 0, trait: 'might', amount: 2 } }]).executed.length, 0);
+  assert.equal(hero.stats.might, 4);
+  assert(hero.items.includes('bandage'));
+  hero.stats.might = 3;
+  const available = itemActionViews(game, hero).find((entry) => entry.instanceId === 'playtest:capped-bandage' && entry.trait === 'might');
+  assert(available.available);
+  game = act(game, available.command);
+  assert.equal(game.heroes[0].stats.might, 4);
+  assert(!game.heroes[0].items.includes('bandage'));
+});
 
 test('runtime item abilities use the same definitions as validation and execution', () => {
   for (const use of ['movement', 'healPhysical', 'healMental']) {
@@ -57,7 +78,7 @@ test('item action views share availability, targets and effects with execution',
   let game = start();
   const hero = game.heroes[0];
   hero.stats.might--;
-  addItemInstance(hero, 'medkit', 'item-medkit-test');
+  addItemInstance(hero, 'bandage', 'item-medkit-test');
 
   const views = itemActionViews(game, hero, TRAITS),
     might = views.find((action) => action.trait === 'might'),
@@ -95,7 +116,7 @@ test('item action views share availability, targets and effects with execution',
     trait: might.trait,
   });
   assert.equal(game.heroes[0].stats.might, game.heroes[0].start.might);
-  assert(!game.heroes[0].items.includes('medkit'));
+  assert(!game.heroes[0].items.includes('bandage'));
   assert.equal(game.queue[0].effects[0].op, 'hero.restoreTrait');
 });
 
@@ -123,12 +144,12 @@ test('runtime card charges persist per instance and disable only the depleted co
   let game = updateCardRule(start(), {
     id: 'test-medkit-charges',
     cardType: 'item',
-    cardId: 'medkit',
+    cardId: 'bandage',
     patch: { consumable: false, charges: 2 },
   });
   const hero = game.heroes[0];
   hero.stats.might--;
-  addItemInstance(hero, 'medkit', 'item-charged-medkit');
+  addItemInstance(hero, 'bandage', 'item-charged-medkit');
   const use = () =>
     itemActionViews(game, game.heroes[0], TRAITS).find(
       (action) => action.trait === 'might',

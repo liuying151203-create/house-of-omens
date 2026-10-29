@@ -77,6 +77,11 @@ export function autoPlay(
     }
     const legal = actions(s),
       r = roomAt(s, h.pos);
+    const seal = legal.abilities.find((entry) => entry.handler === 'monster.seal' && entry.targetId === 'wraith');
+    if (seal) {
+      s = act(s, seal.command);
+      continue;
+    }
     if (legal.attack.length) {
       s = act(s, { type: 'attack', id: legal.attack[0] });
       continue;

@@ -13,6 +13,10 @@ import {
 } from '../lib/game-engine.mjs';
 import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { heroStatuses } from '../lib/hero-status.mjs';
+import { drivePendingRequests } from '../lib/automatic-driver.mjs';
+import { addItemInstance, transferItemInstance } from '../lib/item-instances.mjs';
+import { installDoorLock } from '../lib/content/door-locks.mjs';
+import { projectGameForPlayer } from '../lib/engine/projection.mjs';
 import { resolveInfectionCheck } from '../lib/content/bloodmoon-infection.mjs';
 import itemArt from '../lib/item-art.json' with { type: 'json' };
 
@@ -30,7 +34,8 @@ const built = await build({
     export {default as Commands} from './app/explorer-actions.jsx';
     export {default as Supply} from './app/deck-supply.jsx';
     export {default as MapPawn} from './app/map-pawn.jsx';
-    export {default as Damage} from './app/damage-planner.jsx';`,
+    export {default as Damage} from './app/damage-planner.jsx';
+    export {default as Attributes} from './app/attribute-tracks.jsx';`,
     resolveDir: root,
   },
   absWorkingDir: root,
@@ -43,11 +48,62 @@ const built = await build({
 });
 await writeFile(bundle, built.outputFiles[0].contents);
 after(() => unlink(bundle));
-const { Inventory, Roster, Personal, Commands, Supply, MapPawn, Damage } =
-  await import(bundle.href);
+const {
+  Inventory,
+  Roster,
+  Personal,
+  Commands,
+  Supply,
+  MapPawn,
+  Damage,
+  Attributes,
+} = await import(bundle.href);
 const render = (Component, props) =>
   renderToStaticMarkup(createElement(Component, props));
 const start = () => act(createGame('werewolf', 83, 3), { type: 'advance' });
+
+test('回声线轴详情显示线头位置及当前可通行距离', () => {
+  const game = drivePendingRequests(createHauntPlaytest('werewolf', 23, 3, 'echo-spool'), act);
+  const show = () => render(Inventory, { game, hero: game.heroes[0] });
+  assert.match(show(), /尚未系线/);
+  const instance = game.heroes[0].itemInstances.find((item) => item.definitionId === 'echo-spool');
+  instance.state.echoRoomId = game.heroes[0].pos;
+  assert.match(show(), /线头：.*距离：0步／最多4步/);
+  game.heroes[0].pos = 'entrance';
+  assert.match(show(), /距离：1步／最多4步/);
+  instance.state.echoRoomId = 'missing-room';
+  assert.match(show(), /线头所在房间已不存在/);
+});
+
+test('联机线轴详情依据公开锁门和持有的钥匙显示通路', () => {
+  const game = drivePendingRequests(createHauntPlaytest('werewolf', 23, 3, 'echo-spool'), act);
+  const hero = game.heroes[0];
+  const instance = hero.itemInstances.find((item) => item.definitionId === 'echo-spool');
+  const origin = hero.pos;
+  instance.state.echoRoomId = origin;
+  game.heroes[1].pos = origin;
+  addItemInstance(game.heroes[1], 'worn-lock', 'ui:lock');
+  assert(installDoorLock(game, game.heroes[1], 'ui:lock', 'entrance'));
+  hero.pos = 'entrance';
+  const room = { seats: ['player', 'other', 'other'], hostId: 'player', you: 'player' };
+  const view = projectGameForPlayer(game, room, 'player');
+  const html = render(Inventory, { game: view, hero: view.heroes[0], room });
+  assert.match(html, /当前无可通行路线/);
+  assert.doesNotMatch(html, /距离：1步/);
+  assert(transferItemInstance(game.heroes[1], hero, 'ui:lock'));
+  const keyedView = projectGameForPlayer(game, room, 'player');
+  const keyedHtml = render(Inventory, { game: keyedView, hero: keyedView.heroes[0], room });
+  assert.match(keyedHtml, /距离：1步／最多4步/);
+});
+
+test('属性轨怪物显示四项属性，不显示生命值', () => {
+  const game = createHauntPlaytest('werewolf', 23, 3, 'tracked-monster');
+  const html = render(Attributes, { enemy: game.enemies[0], game });
+  for (const label of ['力量', '速度', '理智', '知识'])
+    assert.match(html, new RegExp(label));
+  assert.doesNotMatch(html, /生命/);
+  assert.doesNotMatch(html, /undefined|NaN/);
+});
 
 test('bloodmoon personal panel explains directional pursuit and wounded infection details', () => {
   const game = createHauntPlaytest('werewolf', 31, 3, 'bloodmoon-pursuit');
@@ -215,7 +271,7 @@ test('LAN explorer surfaces identify the local nickname and controlled pawn', ()
   assert.match(pawn, /由夜猫（你）控制/);
 });
 
-test('wolf personal and roster readouts share health tracks and show effective moonlight strength without human traits', () => {
+test('wolf personal and roster readouts show fixed monster traits without health', () => {
   const game = act(createHauntPlaytest('werewolf', 23, 4), { type: 'advance' });
   const wolf = game.heroes.find((h) => h.traitor);
   const enemy = game.enemies.find((e) => e.heroId === wolf.id);
@@ -230,11 +286,10 @@ test('wolf personal and roster readouts share health tracks and show effective m
     send() {},
     changes: [],
   });
-  assert.match(personal, new RegExp(`生命当前${enemy.hp}/${enemy.maxHp}`));
-  assert.doesNotMatch(personal, /理智当前|知识当前|力量当前/);
+  assert.match(personal, new RegExp(`力量</span><strong>${enemy.traits.might}</strong>`));
+  assert.doesNotMatch(personal, /生命当前|trait-health/);
   const roster = render(Roster, { game, net: { room }, changes: [] });
-  assert.match(roster, /trait-health/);
-  assert.doesNotMatch(roster, /理智当前|知识当前/);
+  assert.doesNotMatch(roster, /trait-health|生命当前/);
 });
 
 test('personal tracks and room commands render the current effective rules', () => {

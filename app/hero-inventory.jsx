@@ -4,7 +4,9 @@ import { X } from 'lucide-react';
 import ItemGlyph from './item-glyph';
 import { resolveCard } from '../lib/card-rules.mjs';
 import { hauntCardRule, canInspectHero } from '../lib/game-view.mjs';
-import { TRAITS } from '../lib/game-data.mjs';
+import { FLOORS, TRAITS } from '../lib/game-data.mjs';
+import { echoSpoolPath } from '../lib/game-engine.mjs';
+import { mayPassDoor } from '../lib/content/door-locks.mjs';
 import { itemInstances } from '../lib/item-instances.mjs';
 import { firearmActions } from '../lib/content/firearms.mjs';
 import {
@@ -76,9 +78,24 @@ export default function HeroInventory({
     const abilities = itemActions.filter(
       (action) => action.instanceId === card.instanceId,
     );
+    const echoRoomId = card.id === 'echo-spool' && card.instanceState?.echoRoomId;
+    const echoRoom = echoRoomId && game.rooms.find((entry) => entry.id === echoRoomId);
+    const echoPath = echoRoom
+      ? echoSpoolPath(game, hero.pos, echoRoomId, (from, to) => mayPassDoor(game, hero, from, to))
+      : [];
     return (
       <div className="carried-card-content">
         <p>{card.effect}</p>
+        {card.id === 'echo-spool' && (
+          <p>
+            {!echoRoomId ? '尚未系线。' : !echoRoom ? '线头所在房间已不存在。' : (
+              <>线头：{FLOORS.find((floor) => floor.id === echoRoom.floor)?.name || echoRoom.floor} · {echoRoom.name}。{echoPath.length ? `距离：${echoPath.length - 1}步／最多4步。` : '当前无可通行路线。'}</>
+            )}
+          </p>
+        )}
+        {card.id === 'riot-shield' && (
+          <p>剩余耐久：{card.instanceState?.charges ?? 4}/4。</p>
+        )}
         {card.id === 'pistol' && (
           <p>
             当前装填：

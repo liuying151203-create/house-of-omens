@@ -1183,7 +1183,11 @@ function Board({
                       type="button"
                       className="enemy-pawn"
                       key={e.id}
-                      title={e.name + ' ' + e.hp + '/' + e.maxHp}
+                      title={
+                        e.traitModel
+                          ? e.name + (e.stunned ? ' · 击晕' : '')
+                          : e.name + ' ' + e.hp + '/' + e.maxHp
+                      }
                       aria-label={'查看' + e.name + '的状态'}
                       onPointerDown={(event) => event.stopPropagation()}
                       onPointerUp={(event) => event.stopPropagation()}

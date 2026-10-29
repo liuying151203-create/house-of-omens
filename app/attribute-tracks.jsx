@@ -1,6 +1,7 @@
 import { Skull } from 'lucide-react';
 import { TRAITS, TRAIT_KEYS } from '../lib/game-data.mjs';
 import { traitRuleView } from '../lib/rule-views.mjs';
+import { monsterTraitValue } from '../lib/content/monster-rules.mjs';
 
 export default function AttributeTracks({
   hero,
@@ -23,12 +24,33 @@ export default function AttributeTracks({
               },
             ]
           : []),
-        ...['might', 'speed']
-          .filter((key) => Number.isFinite(enemy[key]))
+        ...[
+          'might',
+          'speed',
+          ...(enemy.traitModel ? ['sanity', 'knowledge'] : []),
+        ]
+          .filter((key) =>
+            Number.isFinite(
+              enemy.traitModel ? monsterTraitValue(enemy, key) : enemy[key],
+            ),
+          )
           .map((key) => ({
             key,
-            name: key === 'speed' ? '移动' : '力量',
-            value: enemy[key],
+            name: enemy.traitModel
+              ? TRAITS[key]
+              : key === 'speed'
+                ? '移动'
+                : '力量',
+            value: enemy.traitModel
+              ? monsterTraitValue(enemy, key)
+              : enemy[key],
+            ...(enemy.traitModel === 'tracks'
+              ? {
+                  current: enemy.positions[key],
+                  start: enemy.start?.[key] ?? enemy.positions[key],
+                  track: enemy.tracks[key],
+                }
+              : {}),
           })),
       ]
     : TRAIT_KEYS.map((key) =>

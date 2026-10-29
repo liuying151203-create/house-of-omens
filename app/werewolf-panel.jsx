@@ -4,6 +4,7 @@ import { moonlit, statusOf, wolfMight } from '../lib/werewolf.mjs';
 import { roomRuleView } from '../lib/rule-views.mjs';
 import { factionActions } from '../lib/game-engine.mjs';
 import { blockingRequest } from '../lib/presentation-requests.mjs';
+import { enemyTraitValue } from '../lib/content/monster-rules.mjs';
 export default function WerewolfPanel({
   game,
   send,
@@ -92,7 +93,14 @@ export default function WerewolfPanel({
               <EnemyGlyph enemy={e} size={16} /> {e.name}
             </strong>
             <span>
-              {e.hp}/{e.maxHp} 生命 · 力量 {wolfMight(game, e)} · 移动 {e.speed}
+              {e.traitModel
+                ? e.stunned
+                  ? '已击晕'
+                  : e.traitModel === 'tracks'
+                    ? '属性轨'
+                    : '固定属性'
+                : `${e.hp}/${e.maxHp} 生命`}{' '}
+              · 力量 {wolfMight(game, e)} · 移动 {enemyTraitValue(e, 'speed')}
             </span>
             <small>
               {

@@ -15,6 +15,9 @@ test('declarative damage hooks can prevent damage and retaliate without item bra
   });
   const hero = game.heroes[game.active],
     enemy = game.enemies[0];
+  // 此用例验证旧存档的生命值变化效果。
+  delete enemy.traitModel;
+  Object.assign(enemy, { hp: 10, maxHp: 10, might: 5, speed: 2 });
   enemy.pos = hero.pos;
   game.ruleTriggers = [
     {

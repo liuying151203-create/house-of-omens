@@ -193,6 +193,10 @@ test('silver is consumed exactly once, bypasses dice and awaits seven manually a
 });
 test('ordinary gun works against legacy HP enemies without applying environment movement stop', () => {
   let game = clear(createHauntPlaytest('bells', 31, 3));
+  delete game.enemies[0].traitModel;
+  game.enemies[0].hp = game.enemies[0].maxHp = 8;
+  game.enemies[0].might = 3;
+  game.enemies[0].speed = 1;
   game.enemies[0].pos = 'stairs';
   game.heroes[0].pos = 'foyer';
   game.heroes.slice(1).forEach((hero) => {

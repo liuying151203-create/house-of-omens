@@ -6,6 +6,7 @@ import {
   triggerHaunt,
   drawCard,
   act,
+  actions,
   pending,
   validSave,
   OMENS,
@@ -214,7 +215,13 @@ test('keeper movement and death update the converted explorer for both new and o
     let s = createSimulationGame('bells', 1);
     triggerHaunt(s);
     s.queue = [];
-    if (legacy) delete s.enemies[0].heroId;
+    if (legacy) {
+      delete s.enemies[0].heroId;
+      delete s.enemies[0].traitModel;
+      s.enemies[0].might = 3;
+      s.enemies[0].speed = 1;
+      s.enemies[0].hp = s.enemies[0].maxHp = 8;
+    }
     s.enemies[0].pos = 'upper';
     s = act(s, { type: 'endRound' });
     assert.equal(s.enemies[0].pos, 'stairs');
@@ -222,13 +229,19 @@ test('keeper movement and death update the converted explorer for both new and o
     while (pending(s)) s = act(s, { type: 'advance' });
     assert.equal(s.round, 2);
     s.heroes[s.active].pos = 'stairs';
-    s.enemies[0].hp = 1;
+    if (legacy) s.enemies[0].hp = 1;
     s.executionMode = 'workflow';
     s = act(s, { type: 'attack', id: 'keeper' });
     const request = pending(s);
     request.rolls[0].dice = Array(request.rolls[0].count).fill(2);
     request.rolls[1].dice = Array(request.rolls[1].count).fill(0);
     s = act(s, { type: 'resolveDice', requestId: request.uid });
+    if (!legacy) {
+      while (pending(s)) s = act(s, { type: 'advance' });
+      const seal = actions(s).abilities.find((entry) => entry.handler === 'monster.seal' && entry.targetId === 'keeper');
+      assert(seal);
+      s = act(s, seal.command);
+    }
     assert(s.heroes.find((h) => h.traitor).dead);
     assert(!rosterGroups(s).some((g) => g.id === 'traitors'));
     assert.equal(rosterGroups(s).find((g) => g.id === 'dead').heroes.length, 1);

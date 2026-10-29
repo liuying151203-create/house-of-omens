@@ -21,6 +21,7 @@ import {
 import { drivePendingRequests } from '../lib/automatic-driver.mjs';
 import { addItemInstance } from '../lib/item-instances.mjs';
 import { rollOutcomes } from '../lib/roll-outcomes.mjs';
+import { resolveCard } from '../lib/card-rules.mjs';
 import {
   createRoomState,
   joinRoomState,
@@ -38,6 +39,22 @@ const custom = () => ({
   ...resolveGameSet('expanded'),
   id: 'set-test',
   name: '我的通用游戏集',
+});
+
+test('重命名物品沿用原卡牌 ID 和血月游戏集', () => {
+  const game = createGame('bloodmoon', 23, 3);
+  const expected = {
+    pistol: '旧式手枪',
+    antidote: '万用解药',
+    'family-ring': '命运戒指',
+  };
+  for (const [id, title] of Object.entries(expected)) {
+    assert(game.gameSet.decks.item.includes(id));
+    assert.equal(resolveCard(game, 'item', id, 0).title, title);
+  }
+  const restored = restoreGameSave(JSON.parse(JSON.stringify(game)));
+  for (const [id, title] of Object.entries(expected))
+    assert.equal(resolveCard(restored, 'item', id, 0).title, title);
 });
 
 test('bloodmoon preset contains required finite resources and survives copy, import and library restore', () => {
@@ -96,7 +113,7 @@ test('scenario-aware validation checks mandatory cards, defaults and explicit sc
   set.decks.item = ['pistol'];
   assert.throws(
     () => resolveScenarioGameSet('mystery', set),
-    /解药.*家族戒指.*圣者徽章.*捕兽夹/,
+    /解药.*命运戒指.*圣者徽章.*捕兽夹/,
   );
   set.scenario = 'arbitrary';
   assert.throws(() => validateGameSet(set), /格式/);
@@ -125,6 +142,18 @@ test('expanded sets include reusable items and rooms in all scenarios, excluding
       'speed-potion',
       'sanity-potion',
       'antidote',
+      'echo-spool',
+      'worn-lock',
+      'shifting-mirror',
+      'riot-shield',
+      'mind-amulet',
+      'substitute-doll',
+      'luck-cup',
+      'wailing-violin',
+      'frost-blade',
+      'exorcism-bell',
+      'evil-knife',
+      'shadow-cloak',
     ])
       assert(game.decks.item.includes(id), `${scenario}: ${id}`);
     assert(!game.decks.item.includes('silver-bullet'));
@@ -258,7 +287,7 @@ test('ring, badge and traps operate in a non-werewolf game through the shared ac
     group.dice = Array(group.count).fill(0);
   });
   game = act(game, { type: 'resolveDice', requestId: game.queue[0].uid });
-  assert.match(game.queue[0].title, /家族戒指/);
+  assert.match(game.queue[0].title, /命运戒指/);
   game = act(game, {
     type: 'resolveChoice',
     requestId: game.queue[0].uid,

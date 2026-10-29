@@ -262,7 +262,7 @@ test('enemy presentation follows connected doors, preserves the origin until res
   );
   assert.equal(movement.path[0], before[0].pos);
   assert(movement.path.length > 1);
-  assert(movement.path.length <= before[0].speed + 1);
+  assert(movement.path.length <= before[0].traits.speed + 1);
   for (let i = 1; i < movement.path.length; i++)
     assert(connections(game, movement.path[i - 1]).includes(movement.path[i]));
   assert.equal(movement.path.at(-1), game.heroes[movement.targetId].pos);
@@ -278,7 +278,7 @@ test('wolves cannot attack across disconnected doors or beyond their movement bu
   for (const disconnected of [false, true]) {
     let game = haunt();
     game.enemies[0].pos = 'upper';
-    game.enemies[0].speed = 1;
+    game.enemies[0].traits.speed = 1;
     living(game).forEach((h) => {
       h.pos = 'entrance';
     });

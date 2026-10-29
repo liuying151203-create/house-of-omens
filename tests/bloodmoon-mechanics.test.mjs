@@ -82,7 +82,7 @@ test('crafting uses its own attempt, persists production limits after consumptio
     game = act(game, ability(game, 'craft').command);
     assert(!ability(game, 'craft'));
     game = dice(game, 2);
-    if (game.queue[0]?.title.includes('家族戒指')) game = choose(game, 'skip');
+    if (game.queue[0]?.title.includes('命运戒指')) game = choose(game, 'skip');
     assert.equal(game.queue[0].title, '选择制备药剂');
     game = choose(restore(game), 'might-potion');
     assert.deepEqual(game.bloodmoon.crafted, ['might-potion']);
@@ -95,7 +95,7 @@ test('crafting uses its own attempt, persists production limits after consumptio
     game = settle(act(game, { type: 'endRound' }));
     game = act(game, ability(game, 'craft').command);
     game = dice(game, 2);
-    if (game.queue[0]?.title.includes('家族戒指')) game = choose(game, 'skip');
+    if (game.queue[0]?.title.includes('命运戒指')) game = choose(game, 'skip');
     assert(
       !game.queue[0].options.some((option) => option.value === 'might-potion'),
     );
@@ -162,7 +162,7 @@ test('ring permits only own 0/2 dice, records a round on its instance, and resum
   addItemInstance(game.heroes[0], 'family-ring', 'ring');
   game.heroes[1].pos = game.heroes[0].pos;
   game = dice(act(game, ability(game, 'craft').command), [0, 1, 2]);
-  assert.equal(game.queue[0].title, '家族戒指 · 命运回环');
+  assert.equal(game.queue[0].title, '命运戒指 · 命运回环');
   assert(!game.queue[0].options.some((option) => option.value === '0:1'));
   assert.deepEqual(choose(game, '0:1'), game);
   game = choose(restore(game), '0:0');

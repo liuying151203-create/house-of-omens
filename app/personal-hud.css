@@ -1,0 +1,142 @@
+/* 当前操控人物放在左下角，头像打开完整资料。 */
+.explorer-controls {
+  left: 20px;
+  right: auto;
+  bottom: 142px;
+  transform: none;
+  width: auto;
+  max-width: calc(100vw - 40px);
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.explorer-panel-toggle {
+  display: none;
+}
+.playing .explorer-vitals {
+  order: 1;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.explorer-identity {
+  width: 66px;
+  flex-basis: 66px;
+}
+.explorer-controls-compact .explorer-identity {
+  width: 66px;
+  flex-basis: 66px;
+}
+.explorer-controls-compact .explorer-identity .explorer-emblem {
+  display: flex;
+}
+.personal-avatar-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.personal-avatar-button:focus-visible {
+  outline: 2px solid #d4bf87;
+  outline-offset: 3px;
+}
+.explorer-identity > small {
+  display: none;
+}
+.explorer-readout {
+  flex: 0 0 auto;
+}
+.explorer-readout > .attribute-tracks,
+.explorer-readout > footer,
+.explorer-readout .roster-activity {
+  display: none;
+}
+.explorer-readout .roster-stat-icons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.explorer-readout .roster-stat {
+  font-size: 14px;
+}
+.explorer-readout .roster-stat b {
+  font-size: 14px;
+}
+.explorer-readout > header {
+  margin: 0 0 6px;
+}
+.explorer-readout .explorer-position {
+  display: none;
+}
+.explorer-readout .roster-symbols {
+  margin-top: 6px;
+  max-width: 140px;
+}
+.explorer-satchel {
+  order: 0;
+  width: min(260px, 40vw);
+  margin: 0;
+}
+.explorer-satchel:has(.empty-belt-label) {
+  display: none;
+}
+.explorer-controls-compact .explorer-satchel:not(:has(.empty-belt-label)) {
+  display: block;
+}
+.explorer-controls .finish-turn,
+.explorer-controls:has(.empty-belt-label) .finish-turn {
+  position: fixed;
+  right: 20px;
+  bottom: 18px;
+  width: 104px;
+  height: 44px;
+  margin: 0;
+  border: 1px solid #d77474;
+  border-radius: 7px;
+  outline: 0;
+  background: #a83f45;
+  box-shadow: none;
+  color: #fff;
+}
+.explorer-controls .finish-turn span,
+.explorer-controls:has(.empty-belt-label) .finish-turn span {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.finish-turn:hover:not(:disabled) {
+  background: #bc4c51;
+  box-shadow: none;
+}
+@media (max-width: 760px) {
+  .explorer-controls {
+    left: 12px;
+    right: auto;
+    bottom: 140px;
+    max-width: calc(100vw - 24px);
+  }
+  .explorer-identity {
+    width: 52px;
+    flex-basis: 52px;
+  }
+  .explorer-controls-compact .explorer-identity {
+    width: 52px;
+    flex-basis: 52px;
+  }
+  .explorer-identity .explorer-emblem {
+    width: 48px;
+    height: 63px;
+  }
+  .explorer-satchel {
+    width: min(180px, 45vw);
+  }
+  .explorer-controls .finish-turn,
+  .explorer-controls:has(.empty-belt-label) .finish-turn {
+    right: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}

@@ -34,9 +34,10 @@
 }
 .map-stage .deck-supply > button {
   position: fixed;
-  left: 22px;
+  left: auto;
+  right: 134px;
   bottom: 18px;
-  min-height: 40px;
+  min-height: 36px;
   padding: 6px 10px;
   border: 1px solid #a6b8b636;
   background: #17212c;
@@ -57,7 +58,8 @@
     right: 12px;
   }
   .map-stage .deck-supply > button {
-    left: 12px;
+    left: auto;
+    right: 128px;
     bottom: max(8px, env(safe-area-inset-bottom));
   }
 }

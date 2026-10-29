@@ -1,6 +1,7 @@
 import { Layers, CircleAlert, Package, ArrowRight } from 'lucide-react';
 import OmenGlyph from './omen-glyph';
 import { blockingRequest } from '../lib/presentation-requests.mjs';
+import { canOfferRoundEnd } from '../lib/round-control.mjs';
 const decks = [
   ['rooms', '房间', Layers],
   ['event', '事件', CircleAlert],
@@ -9,6 +10,7 @@ const decks = [
 ];
 export default function DeckSupply({ game, net, moving, onEndRound }) {
   const host = !net.session || net.room?.you === net.room?.hostId;
+  const showRound = canOfferRoundEnd(game, net);
   return (
     <aside className="deck-supply" aria-label="剩余牌堆与回合控制">
       <span className="supply-title">剩余牌堆</span>
@@ -18,7 +20,7 @@ export default function DeckSupply({ game, net, moving, onEndRound }) {
             className={'supply-' + key}
             key={key}
             title={name + '牌堆'}
-            aria-label={`${name}牌堆剩余${game.decks[key].length}张`}
+            aria-label={`${String(name)}牌堆剩余${game.decks[key].length}张`}
           >
             <Icon size={14} />
             <span>{name}</span>
@@ -27,6 +29,7 @@ export default function DeckSupply({ game, net, moving, onEndRound }) {
         ))}
       </div>
       <button
+        hidden={!showRound}
         disabled={
           !host ||
           !!blockingRequest(game) ||

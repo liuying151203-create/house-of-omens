@@ -11,6 +11,7 @@ import './game-sets.css';
 import './ui-flow.css';
 import './hud-compact.css';
 import './placement-layout.css';
+import './personal-hud.css';
 
 export const metadata: Metadata = {
   title: '预兆之屋 · 四个午夜故事',

@@ -1460,6 +1460,7 @@ export default function Home() {
     [storyOpen, setStoryOpen] = useState(true),
     [journalOpen, setJournalOpen] = useState(false);
   const [inspected, setInspected] = useState(null);
+  const [confirmHero, setConfirmHero] = useState(null);
   function selectScenario(id) {
     setChoice(id);
     setPlaytestFocus('basic');
@@ -2002,11 +2003,7 @@ export default function Home() {
               game={game}
               net={net}
               moving={presenting}
-              onEndRound={() =>
-                remaining > 0
-                  ? setConfirm('round')
-                  : send({ type: 'endRound', round: game.round })
-              }
+              onEndRound={() => setConfirm('round')}
             />
             <PersonalPanel
               game={game}
@@ -2014,6 +2011,14 @@ export default function Home() {
               send={send}
               waiting={waiting}
               moving={presenting}
+              onInspect={(target) => {
+                setInspected(target);
+                setPartyOpen(true);
+              }}
+              onEndHero={(id, round) => {
+                setConfirmHero({ id, round });
+                setConfirm('hero');
+              }}
               Traits={Traits}
               changes={attributeFeedback.changes}
               commands={
@@ -2535,22 +2540,36 @@ export default function Home() {
         >
           <DialogContent className="story-dialog">
             <DialogTitle>
-              {confirm === 'round' ? '让时间继续流动？' : '暂时离开宅邸？'}
+              {confirm === 'round'
+                ? '结束整轮？'
+                : confirm === 'hero'
+                  ? '结束当前人物行动？'
+                  : '暂时离开宅邸？'}
             </DialogTitle>
             <DialogDescription>
               {confirm === 'round'
-                ? `还有${remaining}名队员未结束行动。结束整轮会跳过他们的剩余行动，并让作祟中的敌人行动。`
-                : net.session
-                  ? net.kind === 'remote'
-                    ? '离开此远程房间后，本设备上的房间身份会被清除；房间将在最后一次操作 24 小时后过期。'
-                    : '离开此局域网房间，房间在主机关闭前继续保留。'
-                  : '当前进度已保存在本机。你可以随时从主菜单继续探索。'}
+                ? remaining > 0
+                  ? `还有${remaining}名队员未结束行动。结束整轮会跳过他们的剩余行动，并让作祟中的敌人行动。`
+                  : '结束本轮，并继续后续回合流程。'
+                : confirm === 'hero'
+                  ? '结束后该人物本轮不能继续行动。'
+                  : net.session
+                    ? net.kind === 'remote'
+                      ? '离开此远程房间后，本设备上的房间身份会被清除；房间将在最后一次操作 24 小时后过期。'
+                      : '离开此局域网房间，房间在主机关闭前继续保留。'
+                    : '当前进度已保存在本机。你可以随时从主菜单继续探索。'}
             </DialogDescription>
             <button
               className="gold-button"
               onClick={() => {
                 if (confirm === 'round')
                   send({ type: 'endRound', round: game.round });
+                else if (confirm === 'hero' && confirmHero)
+                  send({
+                    type: 'endHero',
+                    actorId: confirmHero.id,
+                    round: confirmHero.round,
+                  });
                 else if (net.session) {
                   net.leave();
                   setView('game');
@@ -2558,7 +2577,11 @@ export default function Home() {
                 setConfirm(null);
               }}
             >
-              {confirm === 'round' ? '结束整轮' : '返回主菜单'}
+              {confirm === 'round'
+                ? '结束整轮'
+                : confirm === 'hero'
+                  ? '结束行动'
+                  : '返回主菜单'}
               <ArrowRight size={17} />
             </button>
             <button className="text-button" onClick={() => setConfirm(null)}>

@@ -1,7 +1,7 @@
 import AttributeTracks from './attribute-tracks';
 import { useEffect, useState } from 'react';
 import HeroStatusBadges from './hero-status-badges';
-import { Check, Footprints, Package } from 'lucide-react';
+import { Footprints, Package } from 'lucide-react';
 import {
   personalHero,
   locationLabel,
@@ -12,6 +12,7 @@ import {
 import { wolfMight } from '../lib/werewolf.mjs';
 import HeroInventory from './hero-inventory';
 import ExplorerEmblem from './explorer-emblem';
+import RosterSummary from './roster-summary';
 import { pursuitAvailable } from '../lib/content/bloodmoon-pursuit.mjs';
 import { blockingRequest } from '../lib/presentation-requests.mjs';
 
@@ -23,6 +24,8 @@ export default function PersonalPanel({
   moving,
   changes,
   commands,
+  onInspect,
+  onEndHero,
 }) {
   const [compact, setCompact] = useState(false);
   useEffect(() => {
@@ -70,7 +73,18 @@ export default function PersonalPanel({
       </button>
       <aside className="explorer-vitals" aria-label="当前控制人物的状态">
         <div className="explorer-identity">
-          <ExplorerEmblem hero={hero} />
+          <button
+            type="button"
+            className="personal-avatar-button"
+            aria-label={'查看' + hero.name + '的详细资料'}
+            onClick={() =>
+              onInspect?.(
+                !inspectable && enemy ? 'enemy-' + enemy.id : 'hero-' + hero.id,
+              )
+            }
+          >
+            <ExplorerEmblem hero={hero} />
+          </button>
           <strong>{hero.name}</strong>
           {controller && (
             <span className="explorer-player-name">
@@ -81,6 +95,14 @@ export default function PersonalPanel({
           <small>{hero.role}</small>
         </div>
         <div className="explorer-readout">
+          {(inspectable || enemy) && (
+            <RosterSummary
+              game={game}
+              hero={inspectable ? hero : undefined}
+              enemy={inspectable ? undefined : enemy}
+              visible={inspectable}
+            />
+          )}
           <header>
             <span className="explorer-movement">
               <Footprints size={15} />
@@ -160,9 +182,7 @@ export default function PersonalPanel({
       <button
         className="finish-turn"
         disabled={disabled}
-        onClick={() =>
-          send({ type: 'endHero', actorId: hero.id, round: game.round })
-        }
+        onClick={() => onEndHero?.(hero.id, game.round)}
         title={
           !active
             ? '等待当前人物结束行动'
@@ -174,7 +194,6 @@ export default function PersonalPanel({
               : '结束当前人物行动'
         }
       >
-        <Check size={26} />
         <span>{hero.ended ? '已结束' : '结束行动'}</span>
       </button>
     </div>

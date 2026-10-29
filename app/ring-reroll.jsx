@@ -18,7 +18,7 @@ export default function RingReroll({ request, send, motion, locked = false }) {
     }, 850);
   };
   return (
-    <div className="ring-reroll" aria-label="家族戒指可重掷的骰子">
+    <div className="ring-reroll" aria-label="命运戒指可重掷的骰子">
       {(request.ringRolls || []).map((group, rollIndex) => (
         <div className="ring-roll-group" key={rollIndex}>
           <strong>{group.label || '本次检定'}</strong>

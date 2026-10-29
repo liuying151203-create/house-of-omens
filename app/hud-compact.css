@@ -45,6 +45,13 @@
   padding-top: 1px;
 }
 @media (max-width: 760px) {
+  .map-stage {
+    --hud-tools-width: 80px;
+    --hud-tools-columns: 2;
+  }
+  .map-stage .map-camera-tools .map-zoom-button {
+    display: none;
+  }
   .map-stage .deck-supply {
     top: 163px;
     right: 12px;

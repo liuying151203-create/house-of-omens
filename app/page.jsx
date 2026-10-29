@@ -81,6 +81,7 @@ import Workshop from './workshop';
 import GameSetManager, { useGameSets } from './game-sets';
 import PersonalPanel from './personal-panel';
 import { mapScrollTarget, preserveMapScroll } from '../lib/map-camera.mjs';
+import { pinchFrame } from '../lib/map-pinch.mjs';
 import {
   explorationScope,
   selectExploration,
@@ -673,6 +674,8 @@ function Board({
   const cameraLayout = useRef(null);
   const drag = useRef(null);
   const suppressClick = useRef(false);
+  const pinch = useRef(null);
+  const pinchLayout = useRef(null);
   const currentPlacement =
     pending(game)?.kind === 'placement' ? pending(game) : null;
   const placement = currentPlacement?.destinations
@@ -742,7 +745,14 @@ function Board({
   useLayoutEffect(() => {
     const viewport = ref.current;
     const previous = cameraLayout.current;
-    if (
+    if (pinchLayout.current?.zoom === zoom) {
+      viewport.scrollTo({
+        left: pinchLayout.current.left,
+        top: pinchLayout.current.top,
+        behavior: 'instant',
+      });
+      pinchLayout.current = null;
+    } else if (
       !previous ||
       previous.floor !== floor ||
       previous.zoom !== zoom ||
@@ -848,7 +858,7 @@ function Board({
             <button
               aria-label="缩小地图"
               title={`缩小地图 · 当前 ${Math.round((zoom / 110) * 100)}%`}
-              className="icon-button"
+              className="icon-button map-zoom-button"
               disabled={zoom <= 30}
               onClick={() => setZoom((z) => Math.max(30, z - 15))}
             >
@@ -857,7 +867,7 @@ function Board({
             <button
               aria-label="放大地图"
               title={`放大地图 · 当前 ${Math.round((zoom / 110) * 100)}%`}
-              className="icon-button"
+              className="icon-button map-zoom-button"
               disabled={zoom >= 155}
               onClick={() => setZoom((z) => Math.min(155, z + 15))}
             >
@@ -916,6 +926,70 @@ function Board({
           'map-viewport ' + (game.phase === 'haunt' ? 'haunted-map' : '')
         }
         ref={ref}
+        onTouchStart={(e) => {
+          if (e.touches.length !== 2) return;
+          const viewport = e.currentTarget;
+          const box = viewport.getBoundingClientRect();
+          const [a, b] = e.touches;
+          const midpoint = {
+            x: (a.clientX + b.clientX) / 2 - box.left,
+            y: (a.clientY + b.clientY) / 2 - box.top,
+          };
+          pinch.current = {
+            startDistance: Math.max(
+              1,
+              Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+            ),
+            startZoom: zoom,
+            anchor: {
+              x:
+                (viewport.scrollLeft + midpoint.x - viewport.clientWidth) /
+                zoom,
+              y:
+                (viewport.scrollTop + midpoint.y - viewport.clientHeight) /
+                zoom,
+            },
+            padding: { x: viewport.clientWidth, y: viewport.clientHeight },
+          };
+          drag.current = null;
+          suppressClick.current = true;
+        }}
+        onTouchMove={(e) => {
+          if (!pinch.current || e.touches.length !== 2) return;
+          const [a, b] = e.touches;
+          const box = e.currentTarget.getBoundingClientRect();
+          const frame = pinchFrame({
+            ...pinch.current,
+            distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+            midpoint: {
+              x: (a.clientX + b.clientX) / 2 - box.left,
+              y: (a.clientY + b.clientY) / 2 - box.top,
+            },
+          });
+          if (frame.zoom === zoom)
+            e.currentTarget.scrollTo({
+              left: frame.left,
+              top: frame.top,
+              behavior: 'instant',
+            });
+          else {
+            pinchLayout.current = frame;
+            setZoom(frame.zoom);
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (pinch.current && e.touches.length < 2) {
+            pinch.current = null;
+            drag.current = null;
+            suppressClick.current = true;
+          }
+        }}
+        onTouchCancel={() => {
+          pinch.current = null;
+          pinchLayout.current = null;
+          drag.current = null;
+          suppressClick.current = true;
+        }}
         onPointerDown={(e) => {
           if (e.button !== 0 || e.target.closest('.room-status-icons')) return;
           suppressClick.current = false;
@@ -928,6 +1002,7 @@ function Board({
           };
         }}
         onPointerMove={(e) => {
+          if (pinch.current) return;
           if (!drag.current) return;
           if (!drag.current.moving) {
             if (

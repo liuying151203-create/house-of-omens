@@ -9,6 +9,7 @@ import './explorer-ui.css';
 import './lobby.css';
 import './game-sets.css';
 import './ui-flow.css';
+import './audio.css';
 
 export const metadata: Metadata = {
   title: '预兆之屋 · 四个午夜故事',

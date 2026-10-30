@@ -214,6 +214,25 @@ export default function LobbyScreen({
                 ，CC0。原作者使用 Artbreeder 生成并在 Krita
                 中修整；本作统一了显示色调与头像框。
               </p>
+              <p>
+                行动拟音：
+                <a
+                  href="https://kenney.nl/assets/casino-audio"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Kenney · Casino Audio
+                </a>
+                {' 与 '}
+                <a
+                  href="https://kenney.nl/assets/rpg-audio"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  RPG Audio
+                </a>
+                ，CC0。已剪辑、混音；结果提示与背景循环由本项目原创合成。
+              </p>
             </div>
           )}
         </DialogContent>

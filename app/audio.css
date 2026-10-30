@@ -1,0 +1,57 @@
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+}
+.audio-settings > summary {
+  cursor: pointer;
+  color: #c9bda7;
+  font-size: 12px;
+  padding: 8px 5px;
+}
+.audio-settings-panel {
+  position: absolute;
+  z-index: 100;
+  right: 0;
+  top: calc(100% + 12px);
+  width: min(260px, 85vw);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  background: #191d20;
+  color: #eee4d2;
+  border: 1px solid #726347;
+  border-radius: 12px;
+  box-shadow: 0 16px 45px #000b;
+}
+.audio-settings-panel label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.audio-settings-panel label > span {
+  display: flex;
+  justify-content: space-between;
+}
+.audio-settings-panel output,
+.audio-settings-panel small {
+  color: #bcae98;
+}
+.audio-settings-panel input {
+  width: 100%;
+  accent-color: #c5a365;
+  cursor: pointer;
+}
+.audio-settings-panel .audio-status {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.audio-settings-panel button {
+  justify-content: center;
+}
+@media (max-width: 600px) {
+  .audio-settings-panel {
+    right: -35px;
+  }
+}

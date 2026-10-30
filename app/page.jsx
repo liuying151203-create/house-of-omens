@@ -1,5 +1,6 @@
 'use client';
 import EnemyGlyph from './enemy-glyph';
+import AudioControls, { useGameAudio } from './game-audio';
 import MapPawn from './map-pawn';
 import ExplorerEmblem from './explorer-emblem';
 import MapPresentation, { useMapPresentation } from './map-presentation';
@@ -24,8 +25,6 @@ import {
   Waves,
   Compass,
   DoorOpen,
-  Volume2,
-  VolumeX,
   CircleHelp,
   RotateCcw,
   RotateCw,
@@ -1373,7 +1372,6 @@ export default function Home() {
     [count, setCount] = useState(3),
     [help, setHelp] = useState(false),
     [confirm, setConfirm] = useState(null),
-    [sound, setSound] = useState(false),
     [zoom, setZoom] = useState(110),
     [view, setView] = useState('game'),
     [diceMotion, setDiceMotion] = useState(true),
@@ -1420,6 +1418,13 @@ export default function Home() {
     return () => window.removeEventListener('keydown', close);
   }, []);
   const net = useNetwork(setGame);
+  const audioControl = useGameAudio(game, {
+    epoch: playtestEpoch,
+    map: mapPresentation,
+    enemy: enemyMotion,
+    motion: diceMotion,
+    net,
+  });
   const netRef = useRef(net);
   useEffect(() => {
     netRef.current = net;
@@ -1473,7 +1478,6 @@ export default function Home() {
       return null;
     }
   }, [rawSave]);
-  const audio = useRef(null);
   const rawPlaytestSave = useSyncExternalStore(
     subscribeSave,
     readPlaytestSave,
@@ -1497,61 +1501,11 @@ export default function Home() {
       window.dispatchEvent(new Event('house-save'));
     }
   }, [game, net.session]);
-  useEffect(
-    () => () => {
-      audio.current?.close();
-    },
-    [],
-  );
   const p = game ? pending(game) : null;
   const journal = useMemo(
     () => (game ? explorationJournal(game) : null),
     [game],
   );
-  useEffect(() => {
-    if (sound && p?.kind === 'haunt' && audio.current) {
-      const ctx = audio.current;
-      [0, 0.7, 1.4].forEach((delay) => {
-        const o = ctx.createOscillator(),
-          g = ctx.createGain();
-        o.frequency.value = 146.83;
-        o.type = 'sine';
-        g.gain.setValueAtTime(0, ctx.currentTime + delay);
-        g.gain.linearRampToValueAtTime(0.09, ctx.currentTime + delay + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 2);
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.start(ctx.currentTime + delay);
-        o.stop(ctx.currentTime + delay + 2.1);
-      });
-    }
-  }, [p?.uid, p?.kind, sound]);
-  function toggleSound() {
-    if (sound) {
-      audio.current?.suspend();
-      setSound(false);
-      return;
-    }
-    try {
-      if (!audio.current) {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        audio.current = ctx;
-        [55, 82.41, 110.13].forEach((hz, i) => {
-          const o = ctx.createOscillator(),
-            g = ctx.createGain();
-          o.frequency.value = hz;
-          g.gain.value = 0.014 / (i + 1);
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.start();
-        });
-      }
-      audio.current.resume();
-      setSound(true);
-    } catch {
-      setSound(false);
-    }
-  }
   function send(a) {
     if (presenting && a.type !== 'viewFloor') return;
     if (
@@ -1766,13 +1720,7 @@ export default function Home() {
               <Dices size={19} />
               <small>{diceMotion ? '开' : '关'}</small>
             </button>
-            <button
-              className="icon-button"
-              onClick={toggleSound}
-              aria-label={sound ? '关闭氛围音' : '开启氛围音'}
-            >
-              {sound ? <Volume2 size={19} /> : <VolumeX size={19} />}
-            </button>
+            <AudioControls controller={audioControl} />
             <button
               className="icon-button"
               onClick={() => setHelp(true)}

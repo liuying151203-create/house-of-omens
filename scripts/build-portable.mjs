@@ -1,6 +1,7 @@
 import { build } from 'esbuild';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { AUDIO_ASSETS } from '../lib/audio-assets.mjs';
 const root = process.cwd();
 const out = path.resolve(root, 'outputs/预兆之屋-demo.html');
 await fs.mkdir(path.dirname(out), { recursive: true });
@@ -42,6 +43,17 @@ for (const file of await fs.readdir('public/art/portraits')) {
     (await fs.readFile('public/art/portraits/' + file)).toString('base64');
   js = js.replaceAll('/art/portraits/' + file, data);
 }
+const audioAssets = Object.fromEntries(
+  await Promise.all(
+    Object.entries(AUDIO_ASSETS).map(async ([id, url]) => [
+      id,
+      'data:audio/wav;base64,' +
+        (await fs.readFile(path.join(root, 'public', url))).toString('base64'),
+    ]),
+  ),
+);
+js =
+  'globalThis.__HOUSE_AUDIO_ASSETS__=' + JSON.stringify(audioAssets) + ';' + js;
 await fs.writeFile(
   out + '.tmp',
   `<!doctype html><html lang="zh-CN" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>预兆之屋 · 四个午夜故事</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`,

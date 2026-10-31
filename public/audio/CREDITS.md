@@ -1,5 +1,9 @@
 # Audio credits
 
+Phase three (2026-10-31) adds 10 original story cues, 14 original 12-second spatial/theme loops and 12 variations derived from the credited Kenney footstep/dice recordings below. Variations use resampling, filtering and short fades; source mappings and deterministic recipes are in `scripts/audio-spatial-recipes.mjs`. No speech recording or third-party music is added. Current total: 86 short cues/variations and 18 loops.
+
+Phase two (2026-10-31) adds 36 original procedurally synthesized mechanism cues, bringing the total to 64 short cues and four loops. Recipes are in `scripts/audio-mechanism-recipes.mjs`: deterministic noise, envelopes, pitched partials and pulses; no external recordings or voice. The first bank described below is unchanged.
+
 The first sound bank contains 28 short cues and four 24-second seamless loops.
 All files are local; playback does not contact a third-party service.
 

@@ -21,13 +21,14 @@ import { createHauntPlaytest } from '../lib/playtest.mjs';
 import { automaticRequestCommand } from '../lib/automatic-driver.mjs';
 import { projectGameForPlayer } from '../lib/engine/projection.mjs';
 import { explorationJournal } from '../lib/event-journal.mjs';
+import { SPATIAL_LOOPS } from '../lib/audio-spatial.mjs';
 const start = () => act(createGame('mirror', 83, 3), { type: 'advance' });
 const ids = (cues) => cues.map((c) => c.id);
 const clone = structuredClone;
 
-test('all 28 cues and 4 loops are actual audible WAVs with bounded size and peaks', async () => {
-  assert.equal(AUDIO_CUES.length, 28);
-  assert.equal(AUDIO_LOOPS.length, 4);
+test('all 86 cues and 18 loops are actual audible WAVs with bounded size and peaks', async () => {
+  assert.equal(AUDIO_CUES.length, 86);
+  assert.equal(AUDIO_LOOPS.length, 18);
   let size = 0;
   for (const [id, url] of Object.entries(AUDIO_ASSETS)) {
     const b = await fs.readFile(new URL('../public' + url, import.meta.url));
@@ -44,14 +45,17 @@ test('all 28 cues and 4 loops are actual audible WAVs with bounded size and peak
     assert(peak > 0.1 && peak < 0.4, id);
     assert(power / ((b.length - 44) / 2) > 0.00001, id);
     if (AUDIO_LOOPS.includes(id)) {
-      assert.equal((b.length - 44) / 48000, 24);
+      assert.equal(
+        (b.length - 44) / 48000,
+        SPATIAL_LOOPS.includes(id) ? 12 : 24,
+      );
       assert(
         Math.abs(b.readInt16LE(44) - b.readInt16LE(b.length - 2)) < 500,
         `${id} loop seam`,
       );
     }
   }
-  assert(size < 7 * 1024 * 1024);
+  assert(size < 18 * 1024 * 1024);
 });
 
 test('real exploration separates board placement, movement frames and card reveal without replay', () => {
@@ -200,7 +204,7 @@ test('haunt music changes with phase; major ending wins over injury and uses loc
   const haunt = clone(g);
   haunt.phase = 'haunt';
   haunt.queue = [{ kind: 'haunt', uid: 999 }];
-  assert.deepEqual(ids(audio.collect(haunt)), ['haunt']);
+  assert.deepEqual(ids(audio.collect(haunt)), ['haunt', 'glass']);
   assert.equal(audioScene(haunt), 'hauntMusic');
   const end = clone(haunt);
   end.phase = 'over';
@@ -228,7 +232,7 @@ test('goal progress, completion, death and enemy HP changes are detected indepen
   assert.deepEqual(ids(audio.collect(g)), ['objective']);
   g = clone(g);
   g.powered = true;
-  assert.deepEqual(ids(audio.collect(g)), ['objectiveDone']);
+  assert.deepEqual(ids(audio.collect(g)), ['generator']);
   g = clone(g);
   g.enemies[0].hp--;
   assert.deepEqual(ids(audio.collect(g)), ['hit']);
@@ -314,7 +318,7 @@ test('player unlock, loop crossfades, mute, delayed-cue cancellation and offline
   player.play('hit');
   assert.equal(ctx.sources.length, 0);
   await player.unlock();
-  assert.equal(fetches, 32);
+  assert.equal(fetches, 104);
   assert(player.loops.has('lobby'));
   player.setScene('exploreMusic');
   assert(player.loops.has('exploreMusic'));

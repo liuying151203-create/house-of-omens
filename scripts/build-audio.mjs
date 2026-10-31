@@ -5,6 +5,12 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { AUDIO_CUES, AUDIO_LOOPS } from '../lib/audio-assets.mjs';
+import { mechanismSamples } from './audio-mechanism-recipes.mjs';
+import {
+  spatialSamples,
+  VARIANT_SOURCES,
+  variantSamples,
+} from './audio-spatial-recipes.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root, 'public/audio');
 await fs.mkdir(out, { recursive: true });
@@ -82,8 +88,11 @@ function writeWav(samples) {
   return b;
 }
 for (const id of AUDIO_CUES) {
-  let a;
-  if (sources[id]) {
+  if (VARIANT_SOURCES[id]) continue;
+  let a = spatialSamples(id, rate) || mechanismSamples(id, rate);
+  if (a) {
+    // New mechanism cues do not alter the first bank or its loop RNG.
+  } else if (sources[id]) {
     const raw = execFileSync('ffmpeg', [
       '-v',
       'error',
@@ -143,7 +152,23 @@ for (const id of AUDIO_CUES) {
   await fs.writeFile(path.join(out, `${id}.wav`), writeWav(a));
 }
 // Exact-period oscillators and wrapped note tails make the loops seamless.
+for (const [id, [source]] of Object.entries(VARIANT_SOURCES)) {
+  const buffer = await fs.readFile(path.join(out, `${source}.wav`));
+  const samples = Float32Array.from(
+    { length: (buffer.length - 44) / 2 },
+    (_, i) => buffer.readInt16LE(44 + i * 2) / 32768,
+  );
+  await fs.writeFile(
+    path.join(out, `${id}.wav`),
+    writeWav(variantSamples(id, samples)),
+  );
+}
 for (const id of AUDIO_LOOPS) {
+  const spatial = spatialSamples(id, rate);
+  if (spatial) {
+    await fs.writeFile(path.join(out, `${id}.wav`), writeWav(spatial));
+    continue;
+  }
   const duration = 24;
   const progression =
     id === 'lobby'

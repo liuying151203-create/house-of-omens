@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { AudioPlayer } from '../lib/audio-player.mjs';
 import { AudioEvents, audioScene } from '../lib/audio-events.mjs';
+import { NetworkAudioEvents } from '../lib/audio-mechanisms.mjs';
+import { spatialLayers } from '../lib/audio-spatial.mjs';
 import { AUDIO_DEFAULTS, audioSettings } from '../lib/audio-assets.mjs';
 
 const STORAGE_KEY = 'house-audio-v1';
@@ -11,6 +13,7 @@ export function useGameAudio(game, { epoch, map, enemy, motion, net }) {
   const [status, setStatus] = useState('');
   const [player] = useState(() => new AudioPlayer());
   const observer = useRef(new AudioEvents());
+  const networkObserver = useRef(new NetworkAudioEvents());
   const current = useRef({ game, epoch: '', settings });
   const mounted = useRef(false),
     unlocking = useRef(null);
@@ -69,11 +72,18 @@ export function useGameAudio(game, { epoch, map, enemy, motion, net }) {
     current.current = { game, epoch: timeline, settings };
     if (JSON.stringify(player.settings) !== JSON.stringify(settings))
       player.configure(settings);
+    const networkCues = networkObserver.current.collect({
+      session: net.session,
+      room: net.room,
+      connectionState: net.connectionState,
+      error: net.error,
+    });
     const request = game?.queue?.[0];
     const moving = !!(map.busy || enemy.moving);
     const before = playback.current;
     if (before.request !== request?.uid || before.motion !== motion)
       player.cancel('dice');
+    if (before.request !== request?.uid) player.cancel('story');
     if (before.moving && !moving) player.cancel('move');
     if (
       observer.current.epoch !== timeline ||
@@ -107,17 +117,28 @@ export function useGameAudio(game, { epoch, map, enemy, motion, net }) {
       game?.phase === 'haunt' &&
       game.queue?.some((p) => p.kind === 'haunt') &&
       (moving || request?.kind !== 'haunt');
-    player.setScene(hauntWaiting ? 'exploreMusic' : audioScene(game));
+    player.setScene(
+      hauntWaiting ? 'exploreMusic' : audioScene(game),
+      spatialLayers(game, map.step, hauntWaiting),
+    );
+    for (const id of networkCues) player.play(id);
     const major = cues.find((c) =>
       ['victory', 'defeat', 'haunt'].includes(c.id),
     );
     if (major) {
       player.stopEffects();
       player.play(major.id);
+      if (major.id === 'haunt') {
+        const theme = cues.find((c) =>
+          ['bell', 'glass', 'generator', 'transform'].includes(c.id),
+        );
+        if (theme) player.play(theme.id, { delay: 900 });
+      }
     } else {
       let offset = 0;
       for (const cue of cues) {
-        const timed = cue.tag === 'dice' || cue.tag === 'move';
+        const timed =
+          cue.tag === 'dice' || cue.tag === 'move' || cue.tag === 'story';
         player.play(cue.id, { ...cue, delay: timed ? cue.delay : offset });
         if (!timed) offset += 120;
       }
@@ -133,6 +154,7 @@ export function useGameAudio(game, { epoch, map, enemy, motion, net }) {
     net.room,
     net.session,
     net.connectionState,
+    net.error,
   ]);
   function update(patch) {
     setSettings((previous) => {
